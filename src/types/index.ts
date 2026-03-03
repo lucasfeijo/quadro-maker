@@ -37,7 +37,8 @@ export type ModuleCategory =
   | 'contactor'
   | 'relay'
   | 'timer'
-  | 'terminal';
+  | 'terminal'
+  | 'ats';
 
 export type ModuleDefinition = {
   id: string;

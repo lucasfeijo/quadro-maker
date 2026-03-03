@@ -85,6 +85,14 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     category: 'timer',
     color: '#00695c',
   },
+  {
+    id: 'ats-2p',
+    name: 'Switch ATS Bipolar',
+    widthCm: 18,
+    category: 'ats',
+    poles: 2,
+    color: '#37474f',
+  },
 ];
 
 export function getModuleById(id: string): ModuleDefinition | undefined {

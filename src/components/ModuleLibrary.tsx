@@ -11,12 +11,14 @@ const CATEGORY_LABELS: Record<ModuleCategory, string> = {
   relay: 'Relés',
   timer: 'Temporizadores',
   terminal: 'Bornes',
+  ats: 'Switches ATS',
 };
 
 const CATEGORY_ORDER: ModuleCategory[] = [
   'breaker',
   'dr',
   'dps',
+  'ats',
   'contactor',
   'relay',
   'timer',
