@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { resolveLayout } from '../utils/panelLayout';
 import { cmToPx } from '../utils/geometry';
@@ -7,11 +7,16 @@ import type { GhostPreview } from '../types';
 
 interface PanelViewProps {
   ghostPreview: GhostPreview | null;
+  selectedModule: string | null;
+  onSelectModule: (id: string | null) => void;
 }
 
-export const PanelView: React.FC<PanelViewProps> = ({ ghostPreview }) => {
+export const PanelView: React.FC<PanelViewProps> = ({
+  ghostPreview,
+  selectedModule,
+  onSelectModule,
+}) => {
   const state = usePanelStore();
-  const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
 
@@ -34,7 +39,7 @@ export const PanelView: React.FC<PanelViewProps> = ({ ghostPreview }) => {
   const intW = cmToPx(layout.interiorWidthCm);
   const intH = cmToPx(layout.interiorHeightCm);
 
-  const handleClearSelection = useCallback(() => setSelectedModule(null), []);
+  const handleClearSelection = useCallback(() => onSelectModule(null), [onSelectModule]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -45,7 +50,7 @@ export const PanelView: React.FC<PanelViewProps> = ({ ghostPreview }) => {
           );
           if (mod) {
             state.removeModule(row.id, mod.instanceId);
-            setSelectedModule(null);
+            onSelectModule(null);
             break;
           }
         }
@@ -144,7 +149,7 @@ export const PanelView: React.FC<PanelViewProps> = ({ ghostPreview }) => {
               interiorOffsetXPx={intX}
               interiorOffsetYPx={intY}
               selectedModule={selectedModule}
-              onSelectModule={setSelectedModule}
+              onSelectModule={onSelectModule}
               ghostPreview={
                 ghostPreview?.rowId === row.id ? ghostPreview : null
               }

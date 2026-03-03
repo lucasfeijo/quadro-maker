@@ -15,6 +15,7 @@ import { PanelConfig } from './PanelConfig';
 import { ModuleLibrary } from './ModuleLibrary';
 import { PanelView } from './PanelView';
 import { Toolbar } from './Toolbar';
+import { PropertiesPanel } from './PropertiesPanel';
 import { DragOverlayContent } from './DragOverlayContent';
 import { getModuleById } from '../data/modules';
 import { snapToCm, pxToCm, canPlace } from '../utils/geometry';
@@ -26,6 +27,7 @@ export const App: React.FC = () => {
   const store = usePanelStore();
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
   const [ghostPreview, setGhostPreview] = useState<GhostPreview | null>(null);
+  const [selectedModule, setSelectedModule] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -207,7 +209,14 @@ export const App: React.FC = () => {
         <Toolbar />
         <div className="editor-body">
           <ModuleLibrary />
-          <PanelView ghostPreview={ghostPreview} />
+          <PanelView
+            ghostPreview={ghostPreview}
+            selectedModule={selectedModule}
+            onSelectModule={setSelectedModule}
+          />
+          {selectedModule && (
+            <PropertiesPanel selectedModuleId={selectedModule} />
+          )}
         </div>
       </div>
       <DragOverlay dropAnimation={null}>
