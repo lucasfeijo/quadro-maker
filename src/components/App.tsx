@@ -1,0 +1,235 @@
+import React, { useState, useCallback, useMemo } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  DragStartEvent,
+  DragEndEvent,
+  DragMoveEvent,
+  DragCancelEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { usePanelStore } from '../store/panelStore';
+import { PanelConfig } from './PanelConfig';
+import { ModuleLibrary } from './ModuleLibrary';
+import { PanelView } from './PanelView';
+import { Toolbar } from './Toolbar';
+import { DragOverlayContent } from './DragOverlayContent';
+import { getModuleById } from '../data/modules';
+import { snapToCm, pxToCm, canPlace } from '../utils/geometry';
+import { resolveLayout } from '../utils/panelLayout';
+import type { ResolvedRail, GhostPreview } from '../types';
+
+export const App: React.FC = () => {
+  const screen = usePanelStore((s) => s.screen);
+  const store = usePanelStore();
+  const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
+  const [ghostPreview, setGhostPreview] = useState<GhostPreview | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+  );
+
+  const layout = useMemo(
+    () =>
+      resolveLayout({
+        name: store.name,
+        enclosureId: store.enclosureId,
+        widthUnits: store.widthUnits,
+        rowCount: store.rowCount,
+        rows: store.rows,
+      }),
+    [store.enclosureId, store.widthUnits, store.rowCount, store.rows, store.name],
+  );
+
+  const computeSnapPosition = useCallback(
+    (
+      event: { activatorEvent: Event; delta: { x: number; y: number } },
+      rail: ResolvedRail,
+      moduleWidthCm: number,
+    ): number => {
+      const svgEl = document.querySelector('.panel-view-container svg');
+      if (!svgEl) return 0;
+
+      const svgRect = svgEl.getBoundingClientRect();
+      const svgViewBox = svgEl.getAttribute('viewBox')?.split(' ').map(Number);
+      if (!svgViewBox) return 0;
+
+      const scaleX = svgViewBox[2] / svgRect.width;
+      const dropX =
+        (event.activatorEvent as PointerEvent).clientX +
+        event.delta.x -
+        svgRect.left;
+
+      const svgX = dropX * scaleX + svgViewBox[0];
+      const intX = layout.interiorOffsetXCm * 10;
+      const usableStartPx = intX + (rail.xCm + rail.fixingMarginCm) * 10;
+
+      let pos = snapToCm(pxToCm(svgX - usableStartPx));
+      pos = Math.max(0, Math.min(pos, rail.usableWidthCm - moduleWidthCm));
+      return snapToCm(pos);
+    },
+    [layout],
+  );
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const data = event.active.data.current;
+    if (data?.type === 'new-module') {
+      setActiveModuleId(data.moduleId);
+    }
+  }, []);
+
+  const handleDragMove = useCallback(
+    (event: DragMoveEvent) => {
+      const data = event.active.data.current;
+      if (data?.type !== 'new-module') return;
+
+      const { over } = event;
+      if (!over) {
+        setGhostPreview(null);
+        return;
+      }
+
+      const overData = over.data.current as
+        | { rowId: string; rail: ResolvedRail }
+        | undefined;
+      if (!overData?.rowId) {
+        setGhostPreview(null);
+        return;
+      }
+
+      const moduleId = data.moduleId as string;
+      const def = getModuleById(moduleId);
+      if (!def) return;
+
+      const rail = overData.rail;
+      const row = store.rows.find((r) => r.id === overData.rowId);
+      if (!row) return;
+
+      const positionCm = computeSnapPosition(event, rail, def.widthCm);
+      const valid = canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm);
+
+      setGhostPreview({
+        rowId: overData.rowId,
+        positionCm,
+        widthCm: def.widthCm,
+        color: def.color,
+        valid,
+      });
+    },
+    [store.rows, computeSnapPosition],
+  );
+
+  const clearDragState = useCallback(() => {
+    setActiveModuleId(null);
+    setGhostPreview(null);
+  }, []);
+
+  const handleDragCancel = useCallback(
+    (_event: DragCancelEvent) => clearDragState(),
+    [clearDragState],
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      clearDragState();
+      const { active, over } = event;
+      if (!over) return;
+
+      const data = active.data.current;
+      if (data?.type !== 'new-module') return;
+
+      const overData = over.data.current as
+        | { rowId: string; rail: ResolvedRail }
+        | undefined;
+      if (!overData?.rowId) return;
+
+      const moduleId = data.moduleId as string;
+      const def = getModuleById(moduleId);
+      if (!def) return;
+
+      const rail = overData.rail;
+      const row = store.rows.find((r) => r.id === overData.rowId);
+      if (!row) return;
+
+      let positionCm: number;
+      if (event.delta) {
+        positionCm = computeSnapPosition(event, rail, def.widthCm);
+      } else {
+        positionCm = findFirstFit(
+          row.modules.map((m) => {
+            const md = getModuleById(m.moduleId);
+            return { start: m.positionCm, end: m.positionCm + (md?.widthCm ?? 0) };
+          }),
+          def.widthCm,
+          rail.usableWidthCm,
+        );
+      }
+
+      positionCm = Math.max(0, Math.min(positionCm, rail.usableWidthCm - def.widthCm));
+      positionCm = snapToCm(positionCm);
+
+      if (canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm)) {
+        store.addModule(overData.rowId, moduleId, positionCm);
+      } else {
+        const fallback = findFirstFit(
+          row.modules.map((m) => {
+            const md = getModuleById(m.moduleId);
+            return { start: m.positionCm, end: m.positionCm + (md?.widthCm ?? 0) };
+          }),
+          def.widthCm,
+          rail.usableWidthCm,
+        );
+        if (fallback >= 0 && canPlace(row.modules, fallback, def.widthCm, rail.usableWidthCm)) {
+          store.addModule(overData.rowId, moduleId, fallback);
+        }
+      }
+    },
+    [store, computeSnapPosition, clearDragState],
+  );
+
+  if (screen === 'setup') {
+    return <PanelConfig />;
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <div className="editor-layout">
+        <Toolbar />
+        <div className="editor-body">
+          <ModuleLibrary />
+          <PanelView ghostPreview={ghostPreview} />
+        </div>
+      </div>
+      <DragOverlay dropAnimation={null}>
+        {activeModuleId ? (
+          <DragOverlayContent moduleId={activeModuleId} />
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  );
+};
+
+function findFirstFit(
+  occupied: { start: number; end: number }[],
+  widthCm: number,
+  railWidthCm: number,
+): number {
+  const sorted = [...occupied].sort((a, b) => a.start - b.start);
+  let pos = 0;
+  for (const seg of sorted) {
+    if (pos + widthCm <= seg.start) return snapToCm(pos);
+    pos = Math.max(pos, seg.end);
+  }
+  if (pos + widthCm <= railWidthCm) return snapToCm(pos);
+  return -1;
+}

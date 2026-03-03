@@ -1,0 +1,135 @@
+import React, { useState } from 'react';
+import { usePanelStore } from '../store/panelStore';
+import { EnclosureSelector } from './EnclosureSelector';
+import { listProjects, loadProject } from '../utils/storage';
+import { SavedProject } from '../types';
+
+export const PanelConfig: React.FC = () => {
+  const store = usePanelStore();
+  const [tab, setTab] = useState<'custom' | 'enclosure' | 'load'>('enclosure');
+  const [widthUnits, setWidthUnits] = useState(12);
+  const [rowCount, setRowCount] = useState(1);
+  const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
+
+  const handleCustomStart = () => {
+    store.configureCustom(widthUnits, rowCount);
+  };
+
+  const handleEnclosureSelect = (enclosureId: string) => {
+    store.configureFromEnclosure(enclosureId);
+  };
+
+  const handleLoadTab = () => {
+    setSavedProjects(listProjects());
+    setTab('load');
+  };
+
+  const handleLoad = (id: string) => {
+    const state = loadProject(id);
+    if (state) store.loadState(state);
+  };
+
+  return (
+    <div className="setup-screen">
+      <div className="setup-header">
+        <h1>Quadro Maker</h1>
+        <p>Diagramador de Quadros Elétricos DIN</p>
+      </div>
+
+      <div className="setup-tabs">
+        <button
+          className={`tab ${tab === 'enclosure' ? 'active' : ''}`}
+          onClick={() => setTab('enclosure')}
+        >
+          Quadros da Library
+        </button>
+        <button
+          className={`tab ${tab === 'custom' ? 'active' : ''}`}
+          onClick={() => setTab('custom')}
+        >
+          Quadro Personalizado
+        </button>
+        <button
+          className={`tab ${tab === 'load' ? 'active' : ''}`}
+          onClick={handleLoadTab}
+        >
+          Carregar Projeto
+        </button>
+      </div>
+
+      <div className="setup-content">
+        {tab === 'custom' && (
+          <div className="custom-config">
+            <div className="config-field">
+              <label>Largura (disjuntores unipolares):</label>
+              <select
+                value={widthUnits}
+                onChange={(e) => setWidthUnits(Number(e.target.value))}
+              >
+                {[6, 8, 10, 12, 16, 18, 20, 24, 30, 36].map((n) => (
+                  <option key={n} value={n}>
+                    {n} unidades ({n * 3}cm)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="config-field">
+              <label>Número de fileiras:</label>
+              <select
+                value={rowCount}
+                onChange={(e) => setRowCount(Number(e.target.value))}
+              >
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <option key={n} value={n}>
+                    {n} fileira{n > 1 ? 's' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="config-summary">
+              <p>
+                Trilho DIN: {widthUnits * 3}cm utilizável + 3cm fixação cada
+                lado = {widthUnits * 3 + 6}cm total
+              </p>
+              <p>Subunidade mínima: 1cm (snap grid)</p>
+            </div>
+            <button className="start-btn" onClick={handleCustomStart}>
+              Criar Quadro
+            </button>
+          </div>
+        )}
+
+        {tab === 'enclosure' && (
+          <EnclosureSelector onSelect={handleEnclosureSelect} />
+        )}
+
+        {tab === 'load' && (
+          <div className="load-list">
+            {savedProjects.length === 0 ? (
+              <p className="empty-msg">Nenhum projeto salvo.</p>
+            ) : (
+              <ul className="project-list setup-project-list">
+                {savedProjects.map((p) => (
+                  <li key={p.id}>
+                    <div className="project-info">
+                      <strong>{p.name}</strong>
+                      <span className="project-date">
+                        {new Date(p.updatedAt).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                    <button
+                      className="start-btn small"
+                      onClick={() => handleLoad(p.id)}
+                    >
+                      Abrir
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
