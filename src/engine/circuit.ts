@@ -1,21 +1,6 @@
 import { PlacedModule, Wire, PanelIO, ExternalDevice, ComponentState } from '../types';
-import { getModuleById } from '../data/modules';
-
-interface CircuitNode {
-  instanceId: string;
-  moduleId: string;
-  category: string;
-  nominalCurrentA: number;
-  isInput: boolean;
-  isOutput: boolean;
-  connectedTo: Array<{ instanceId: string; wireId: string }>;
-}
-
-interface SimulationResult {
-  states: ComponentState[];
-  alerts: SimAlert[];
-  energizedWires: Set<string>;
-}
+import { getComponentById, allComponents } from '../data/components';
+import type { ComponentSpec, ModeSpec, InternalRoute } from '../data/components';
 
 export interface SimAlert {
   type: 'overload' | 'short-circuit' | 'no-ground' | 'tripped' | 'info';
@@ -30,153 +15,114 @@ export interface SimMode {
   passesEnergy: boolean;
 }
 
-export const SIM_MODES: Record<string, SimMode[]> = {
-  breaker: [
-    { id: 'on', label: 'Ligado', color: '#4caf50', passesEnergy: true },
-    { id: 'off', label: 'Desligado', color: '#f44336', passesEnergy: false },
-    { id: 'tripped', label: 'Disparado', color: '#ff9800', passesEnergy: false },
-  ],
-  dr: [
-    { id: 'on', label: 'Ligado', color: '#4caf50', passesEnergy: true },
-    { id: 'off', label: 'Desligado', color: '#f44336', passesEnergy: false },
-    { id: 'tripped', label: 'Disparado', color: '#ff9800', passesEnergy: false },
-  ],
-  dps: [
-    { id: 'ok', label: 'Normal', color: '#4caf50', passesEnergy: true },
-    { id: 'tripped', label: 'Atuado', color: '#ff9800', passesEnergy: false },
-  ],
-  contactor: [
-    { id: 'on', label: 'Energizado', color: '#4caf50', passesEnergy: true },
-    { id: 'off', label: 'Desenergizado', color: '#999', passesEnergy: false },
-  ],
-  relay: [
-    { id: 'on', label: 'Energizado', color: '#4caf50', passesEnergy: true },
-    { id: 'off', label: 'Desenergizado', color: '#999', passesEnergy: false },
-  ],
-  timer: [
-    { id: 'idle', label: 'Aguardando', color: '#999', passesEnergy: false },
-    { id: 'counting', label: 'Contando', color: '#ff9800', passesEnergy: false },
-    { id: 'done', label: 'Concluído', color: '#4caf50', passesEnergy: true },
-  ],
-  ats: [
-    { id: 'src1', label: 'Fonte 1', color: '#4caf50', passesEnergy: true },
-    { id: 'src2', label: 'Fonte 2', color: '#ff9800', passesEnergy: true },
-    { id: 'off', label: 'Desligado', color: '#f44336', passesEnergy: false },
-  ],
-  terminal: [
-    { id: 'on', label: 'Conectado', color: '#4caf50', passesEnergy: true },
-  ],
-  switch: [
-    { id: 'on', label: 'Fechado', color: '#4caf50', passesEnergy: true },
-    { id: 'off', label: 'Aberto', color: '#f44336', passesEnergy: false },
-  ],
-  button: [
-    { id: 'released', label: 'Solto', color: '#999', passesEnergy: false },
-    { id: 'pressed', label: 'Pressionado', color: '#4caf50', passesEnergy: true },
-  ],
-};
-
-export function getDefaultMode(category: string): string {
-  const modes = SIM_MODES[category];
-  if (!modes || modes.length === 0) return 'on';
-  if (category === 'switch') return 'off';
-  if (category === 'button') return 'released';
-  if (category === 'timer') return 'idle';
-  return modes[0].id;
+function modeSpecToSimMode(m: ModeSpec): SimMode {
+  return { id: m.id, label: m.label, color: m.color, passesEnergy: m.routes.length > 0 };
 }
 
-export function getNextMode(category: string, currentMode: string): string {
-  const modes = SIM_MODES[category];
-  if (!modes || modes.length <= 1) return currentMode;
-  const idx = modes.findIndex((m) => m.id === currentMode);
-  return modes[(idx + 1) % modes.length].id;
+// SIM_MODES keyed by both component ID and category for backward compat
+export const SIM_MODES: Record<string, SimMode[]> = {};
+
+const categorySeen = new Set<string>();
+for (const spec of allComponents) {
+  SIM_MODES[spec.id] = spec.modes.map(modeSpecToSimMode);
+  if (!categorySeen.has(spec.category)) {
+    categorySeen.add(spec.category);
+    SIM_MODES[spec.category] = spec.modes.map(modeSpecToSimMode);
+  }
 }
 
-export function getModeInfo(category: string, mode: string): SimMode | undefined {
-  return SIM_MODES[category]?.find((m) => m.id === mode);
+function resolveSpec(idOrCategory: string): ComponentSpec | undefined {
+  return getComponentById(idOrCategory) ?? allComponents.find((c) => c.category === idOrCategory);
 }
 
-const DEFAULT_VOLTAGE = 220;
-const DEFAULT_NOMINAL: Record<string, number> = {
-  'breaker-1p': 16,
-  'breaker-2p': 25,
-  'breaker-3p': 32,
-  'dr-2p': 25,
-  'dr-4p': 32,
-  'dps-1p': 40,
-  'dps-2p': 40,
-  contactor: 25,
-  relay: 10,
-  timer: 10,
-  'terminal-1': 60,
-  'ats-2p': 63,
-};
-
-function buildCircuitGraph(
-  allModules: PlacedModule[],
-  wires: Wire[],
-  panelIOs: PanelIO[],
-  externalDevices: ExternalDevice[],
-): Map<string, CircuitNode> {
-  const graph = new Map<string, CircuitNode>();
-
-  for (const mod of allModules) {
-    const def = getModuleById(mod.moduleId);
-    if (!def) continue;
-    graph.set(mod.instanceId, {
-      instanceId: mod.instanceId,
-      moduleId: mod.moduleId,
-      category: def.category,
-      nominalCurrentA: DEFAULT_NOMINAL[mod.moduleId] ?? 16,
-      isInput: false,
-      isOutput: false,
-      connectedTo: [],
-    });
-  }
-
-  for (const io of panelIOs) {
-    const instanceId = `panel-io:${io.id}`;
-    graph.set(instanceId, {
-      instanceId,
-      moduleId: `panel-io-${io.type}`,
-      category: 'panel-io',
-      nominalCurrentA: io.direction === 'input' ? (io.maxCurrentA ?? 63) : 999,
-      isInput: io.direction === 'input',
-      isOutput: io.direction === 'output',
-      connectedTo: [],
-    });
-  }
-
-  for (const dev of externalDevices) {
-    const def = getModuleById(dev.moduleId);
-    if (!def) continue;
-    graph.set(dev.instanceId, {
-      instanceId: dev.instanceId,
-      moduleId: dev.moduleId,
-      category: def.category,
-      nominalCurrentA: DEFAULT_NOMINAL[dev.moduleId] ?? 16,
-      isInput: false,
-      isOutput: false,
-      connectedTo: [],
-    });
-  }
-
-  for (const wire of wires) {
-    const srcNode = graph.get(wire.sourceInstanceId);
-    const tgtNode = graph.get(wire.targetInstanceId);
-    if (srcNode && tgtNode) {
-      srcNode.connectedTo.push({ instanceId: wire.targetInstanceId, wireId: wire.id });
-      tgtNode.connectedTo.push({ instanceId: wire.sourceInstanceId, wireId: wire.id });
-    }
-  }
-
-  return graph;
+export function getDefaultMode(idOrCategory: string): string {
+  const spec = resolveSpec(idOrCategory);
+  if (spec) return spec.defaultMode;
+  const modes = SIM_MODES[idOrCategory];
+  if (modes && modes.length > 0) return modes[0].id;
+  return 'on';
 }
+
+export function getNextMode(idOrCategory: string, currentMode: string): string {
+  const spec = resolveSpec(idOrCategory);
+  const modes = spec ? spec.modes : undefined;
+  const list = modes ?? SIM_MODES[idOrCategory];
+  if (!list || list.length <= 1) return currentMode;
+  const idx = list.findIndex((m) => m.id === currentMode);
+  return list[(idx + 1) % list.length].id;
+}
+
+export function getModeInfo(idOrCategory: string, mode: string): SimMode | undefined {
+  const spec = resolveSpec(idOrCategory);
+  if (spec) {
+    const m = spec.modes.find((ms) => ms.id === mode);
+    if (m) return modeSpecToSimMode(m);
+  }
+  return SIM_MODES[idOrCategory]?.find((m) => m.id === mode);
+}
+
+export function getRoutesForMode(moduleId: string, mode: string): InternalRoute[] {
+  const spec = getComponentById(moduleId);
+  if (!spec) return [];
+  const ms = spec.modes.find((m) => m.id === mode);
+  return ms?.routes ?? [];
+}
+
+// ---------- Circuit Graph (port-level) ----------
+
+interface PortNode {
+  instanceId: string;
+  portId: string;
+}
+
+function portKey(instanceId: string, portId: string): string {
+  return `${instanceId}::${portId}`;
+}
+
+interface CircuitGraph {
+  wiresByPort: Map<string, Array<{ wireId: string; target: PortNode }>>;
+}
+
+function buildGraph(wires: Wire[]): CircuitGraph {
+  const wiresByPort = new Map<string, Array<{ wireId: string; target: PortNode }>>();
+
+  function addEdge(src: PortNode, tgt: PortNode, wireId: string) {
+    const key = portKey(src.instanceId, src.portId);
+    let arr = wiresByPort.get(key);
+    if (!arr) { arr = []; wiresByPort.set(key, arr); }
+    arr.push({ wireId, target: tgt });
+  }
+
+  for (const w of wires) {
+    addEdge(
+      { instanceId: w.sourceInstanceId, portId: w.sourcePortId },
+      { instanceId: w.targetInstanceId, portId: w.targetPortId },
+      w.id,
+    );
+    addEdge(
+      { instanceId: w.targetInstanceId, portId: w.targetPortId },
+      { instanceId: w.sourceInstanceId, portId: w.sourcePortId },
+      w.id,
+    );
+  }
+
+  return { wiresByPort };
+}
+
+// ---------- Simulation ----------
 
 export interface ManualOverride {
   on?: boolean;
   mode?: string;
 }
+
+interface SimulationResult {
+  states: ComponentState[];
+  alerts: SimAlert[];
+  energizedWires: Set<string>;
+}
+
+const DEFAULT_VOLTAGE = 220;
 
 export function simulate(
   rows: { id: string; modules: PlacedModule[] }[],
@@ -186,20 +132,24 @@ export function simulate(
   manualOverrides?: Map<string, ManualOverride>,
 ): SimulationResult {
   const allModules = rows.flatMap((r) => r.modules);
-  const graph = buildCircuitGraph(allModules, wires, panelIOs, externalDevices);
+  const graph = buildGraph(wires);
   const states = new Map<string, ComponentState>();
   const alerts: SimAlert[] = [];
   const energizedWires = new Set<string>();
 
+  // Map from instanceId -> spec
+  const specMap = new Map<string, ComponentSpec | undefined>();
+
+  // Initialize states for rail modules
   for (const mod of allModules) {
-    const def = getModuleById(mod.moduleId);
-    const category = def?.category ?? 'breaker';
+    const spec = getComponentById(mod.moduleId);
+    specMap.set(mod.instanceId, spec);
     const override = manualOverrides?.get(mod.instanceId);
-    const mode = override?.mode ?? getDefaultMode(category);
-    const modeInfo = getModeInfo(category, mode);
+    const mode = override?.mode ?? (spec ? spec.defaultMode : 'on');
+    const routes = spec ? (spec.modes.find((m) => m.id === mode)?.routes ?? []) : [];
     states.set(mod.instanceId, {
       instanceId: mod.instanceId,
-      on: override?.on ?? (modeInfo?.passesEnergy ?? true),
+      on: override?.on ?? (routes.length > 0),
       tripped: mode === 'tripped',
       currentA: 0,
       voltageV: 0,
@@ -207,6 +157,7 @@ export function simulate(
     });
   }
 
+  // Initialize states for panel I/Os
   for (const io of panelIOs) {
     const instanceId = `panel-io:${io.id}`;
     const override = manualOverrides?.get(instanceId);
@@ -220,15 +171,16 @@ export function simulate(
     });
   }
 
+  // Initialize states for external devices
   for (const dev of externalDevices) {
-    const defObj = getModuleById(dev.moduleId);
-    const category = defObj?.category ?? 'switch';
+    const spec = getComponentById(dev.moduleId);
+    specMap.set(dev.instanceId, spec);
     const override = manualOverrides?.get(dev.instanceId);
-    const mode = override?.mode ?? getDefaultMode(category);
-    const modeInfo = getModeInfo(category, mode);
+    const mode = override?.mode ?? (spec ? spec.defaultMode : 'off');
+    const routes = spec ? (spec.modes.find((m) => m.id === mode)?.routes ?? []) : [];
     states.set(dev.instanceId, {
       instanceId: dev.instanceId,
-      on: override?.on ?? (modeInfo?.passesEnergy ?? false),
+      on: override?.on ?? (routes.length > 0),
       tripped: false,
       currentA: 0,
       voltageV: 0,
@@ -236,13 +188,13 @@ export function simulate(
     });
   }
 
+  // Find root nodes (panel inputs)
   const inputRoots = panelIOs
     .filter((io) => io.direction === 'input')
     .map((io) => `panel-io:${io.id}`)
     .filter((id) => {
-      const node = graph.get(id);
       const state = states.get(id);
-      return node && node.connectedTo.length > 0 && state?.on !== false;
+      return state?.on !== false;
     });
 
   let roots: string[];
@@ -250,13 +202,10 @@ export function simulate(
     roots = inputRoots;
   } else {
     const hasIncoming = new Set<string>();
-    for (const wire of wires) {
-      if (!graph.has(wire.sourceInstanceId) || !graph.has(wire.targetInstanceId)) continue;
-      hasIncoming.add(wire.targetInstanceId);
-    }
+    for (const wire of wires) hasIncoming.add(wire.targetInstanceId);
     roots = [];
-    for (const [id, node] of graph) {
-      if (node.category !== 'panel-io' && !hasIncoming.has(id)) roots.push(id);
+    for (const [id] of states) {
+      if (!id.startsWith('panel-io:') && !hasIncoming.has(id)) roots.push(id);
     }
     if (roots.length === 0) {
       const moduleIds = allModules.map((m) => m.instanceId);
@@ -264,62 +213,136 @@ export function simulate(
     }
   }
 
-  const visited = new Set<string>();
-
-  function propagate(id: string, voltage: number, currentBudget: number, sourcePortHint?: string) {
-    if (visited.has(id)) return;
-    visited.add(id);
-
-    const state = states.get(id);
-    const node = graph.get(id);
-    if (!state || !node) return;
-
-    state.voltageV = voltage;
-    state.currentA = currentBudget;
-
-    const modeInfo = getModeInfo(node.category, state.mode);
-
-    if (!state.on || (modeInfo && !modeInfo.passesEnergy)) {
-      state.voltageV = 0;
-      state.currentA = 0;
-      return;
-    }
-
-    if ((node.category === 'breaker' || node.category === 'dr') && currentBudget > node.nominalCurrentA) {
-      state.tripped = true;
-      state.on = false;
-      state.mode = 'tripped';
-      alerts.push({
-        type: 'tripped',
-        instanceId: id,
-        message: `${node.category === 'breaker' ? 'Disjuntor' : 'DR'} disparou: ${currentBudget.toFixed(1)}A > ${node.nominalCurrentA}A`,
-      });
-      return;
-    }
-
-    const unvisitedChildren = node.connectedTo.filter((c) => !visited.has(c.instanceId));
-    const childCount = unvisitedChildren.length;
-    const currentPerChild = childCount > 0 ? currentBudget / childCount : 0;
-
-    for (const conn of unvisitedChildren) {
-      energizedWires.add(conn.wireId);
-      propagate(conn.instanceId, voltage, currentPerChild);
-    }
-  }
-
+  // Output loads for current budget
   const outputLoads = panelIOs
     .filter((io) => io.direction === 'output' && (io.consumptionA ?? 0) > 0)
     .reduce((sum, io) => sum + (io.consumptionA ?? 0), 0);
   const totalLoad = outputLoads > 0 ? outputLoads : Math.max(allModules.length * 2, 10);
 
+  // Route-based propagation
+  const visitedPorts = new Set<string>();
+
+  function propagateFromPort(
+    instanceId: string,
+    entryPortId: string,
+    voltage: number,
+    currentBudget: number,
+  ) {
+    const pKey = portKey(instanceId, entryPortId);
+    if (visitedPorts.has(pKey)) return;
+    visitedPorts.add(pKey);
+
+    const state = states.get(instanceId);
+    if (!state) return;
+
+    state.voltageV = Math.max(state.voltageV, voltage);
+    state.currentA = Math.max(state.currentA, currentBudget);
+
+    // Panel I/O: propagate through all connected wires from all ports
+    if (instanceId.startsWith('panel-io:')) {
+      if (!state.on) return;
+      const ioId = instanceId.replace('panel-io:', '');
+      const io = panelIOs.find((p) => p.id === ioId);
+      const portIds = io ? [`in-${io.label}`, `out-${io.label}`, io.id, 'port'] : ['port'];
+      const allPortIds = [entryPortId, ...portIds];
+      for (const pid of allPortIds) {
+        const edges = graph.wiresByPort.get(portKey(instanceId, pid));
+        if (!edges) continue;
+        for (const edge of edges) {
+          if (visitedPorts.has(portKey(edge.target.instanceId, edge.target.portId))) continue;
+          energizedWires.add(edge.wireId);
+          propagateFromPort(edge.target.instanceId, edge.target.portId, voltage, currentBudget);
+        }
+      }
+      return;
+    }
+
+    const spec = specMap.get(instanceId);
+    if (!spec) {
+      if (!state.on) return;
+      const edges = graph.wiresByPort.get(pKey);
+      if (!edges) return;
+      for (const edge of edges) {
+        energizedWires.add(edge.wireId);
+        propagateFromPort(edge.target.instanceId, edge.target.portId, voltage, currentBudget);
+      }
+      return;
+    }
+
+    const modeSpec = spec.modes.find((m) => m.id === state.mode);
+
+    // Check overcurrent trip for breakers and DRs
+    if (spec.category === 'breaker' || spec.category === 'dr') {
+      const nominal = spec.nominalCurrentA ?? 16;
+      if (currentBudget > nominal) {
+        state.tripped = true;
+        state.on = false;
+        state.mode = 'tripped';
+        state.voltageV = 0;
+        state.currentA = 0;
+        alerts.push({
+          type: 'tripped',
+          instanceId,
+          message: `${spec.category === 'breaker' ? 'Disjuntor' : 'DR'} disparou: ${currentBudget.toFixed(1)}A > ${nominal}A`,
+        });
+        return;
+      }
+    }
+
+    if (!state.on || !modeSpec || modeSpec.routes.length === 0) {
+      state.voltageV = 0;
+      state.currentA = 0;
+      return;
+    }
+
+    // Find which output ports are reachable from the entry port via routes
+    const reachableOutputs = modeSpec.routes
+      .filter((r) => r.from === entryPortId)
+      .map((r) => r.to);
+
+    // Also handle reverse direction (output->input connection)
+    const reachableReverse = modeSpec.routes
+      .filter((r) => r.to === entryPortId)
+      .map((r) => r.from);
+
+    const targetPorts = [...reachableOutputs, ...reachableReverse];
+
+    if (targetPorts.length === 0) return;
+
+    const currentPerTarget = currentBudget / targetPorts.length;
+
+    for (const tPort of targetPorts) {
+      const tKey = portKey(instanceId, tPort);
+      if (visitedPorts.has(tKey)) continue;
+      visitedPorts.add(tKey);
+
+      const edges = graph.wiresByPort.get(tKey);
+      if (!edges) continue;
+
+      const unvisited = edges.filter(
+        (e) => !visitedPorts.has(portKey(e.target.instanceId, e.target.portId)),
+      );
+      const curPerChild = unvisited.length > 0 ? currentPerTarget / unvisited.length : 0;
+
+      for (const edge of unvisited) {
+        energizedWires.add(edge.wireId);
+        propagateFromPort(edge.target.instanceId, edge.target.portId, voltage, curPerChild);
+      }
+    }
+  }
+
+  // Start propagation from roots
   for (const rootId of roots) {
     const rootIO = panelIOs.find((io) => `panel-io:${io.id}` === rootId);
     const voltage = rootIO?.voltageV ?? (rootIO?.type === 'dc_pos' || rootIO?.type === 'dc_neg' ? 24 : DEFAULT_VOLTAGE);
     const maxCurrent = rootIO?.maxCurrentA ?? totalLoad;
     const currentForRoot = Math.min(totalLoad, maxCurrent);
-    propagate(rootId, voltage, currentForRoot);
+
+    // Panel I/O nodes don't have specific port IDs in wires -- use all connected ports
+    propagateFromPort(rootId, 'port', voltage, currentForRoot);
   }
 
+  // Alerts
   for (const io of panelIOs) {
     if (io.direction === 'input' && (io.maxCurrentA ?? 0) > 0) {
       const instanceId = `panel-io:${io.id}`;
