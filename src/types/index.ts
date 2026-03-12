@@ -47,7 +47,11 @@ export type ModuleDefinition = {
   category: ModuleCategory;
   poles?: number;
   color: string;
+  icon?: string;
+  imageUrl?: string;
 };
+
+export type DisplayMode = 'icon' | 'image';
 
 // --- Panel State ---
 

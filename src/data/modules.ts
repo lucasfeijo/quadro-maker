@@ -7,6 +7,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     widthCm: 1,
     category: 'terminal',
     color: '#78909c',
+    icon: 'terminal',
   },
   {
     id: 'breaker-1p',
@@ -15,6 +16,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     category: 'breaker',
     poles: 1,
     color: '#1976d2',
+    icon: 'breaker',
   },
   {
     id: 'breaker-2p',
@@ -23,6 +25,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     category: 'breaker',
     poles: 2,
     color: '#1565c0',
+    icon: 'breaker',
   },
   {
     id: 'breaker-3p',
@@ -31,6 +34,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     category: 'breaker',
     poles: 3,
     color: '#0d47a1',
+    icon: 'breaker',
   },
   {
     id: 'dr-2p',
@@ -39,6 +43,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     category: 'dr',
     poles: 2,
     color: '#2e7d32',
+    icon: 'dr',
   },
   {
     id: 'dr-4p',
@@ -47,6 +52,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     category: 'dr',
     poles: 4,
     color: '#1b5e20',
+    icon: 'dr',
   },
   {
     id: 'dps-1p',
@@ -55,6 +61,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     category: 'dps',
     poles: 1,
     color: '#e65100',
+    icon: 'dps',
   },
   {
     id: 'dps-2p',
@@ -63,6 +70,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     category: 'dps',
     poles: 2,
     color: '#bf360c',
+    icon: 'dps',
   },
   {
     id: 'contactor',
@@ -70,6 +78,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     widthCm: 6,
     category: 'contactor',
     color: '#6a1b9a',
+    icon: 'contactor',
   },
   {
     id: 'relay',
@@ -77,6 +86,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     widthCm: 3,
     category: 'relay',
     color: '#ad1457',
+    icon: 'relay',
   },
   {
     id: 'timer',
@@ -84,6 +94,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     widthCm: 6,
     category: 'timer',
     color: '#00695c',
+    icon: 'timer',
   },
   {
     id: 'ats-2p',
@@ -92,6 +103,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     category: 'ats',
     poles: 2,
     color: '#37474f',
+    icon: 'ats',
   },
 ];
 

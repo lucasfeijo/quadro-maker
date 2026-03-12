@@ -2,6 +2,8 @@ import React from 'react';
 import { MODULE_DEFINITIONS } from '../data/modules';
 import { ModuleCategory } from '../types';
 import { useDraggable } from '@dnd-kit/core';
+import { usePanelStore } from '../store/panelStore';
+import { ModuleIcon } from './ModuleIcon';
 
 const CATEGORY_LABELS: Record<ModuleCategory, string> = {
   breaker: 'Disjuntores',
@@ -25,16 +27,19 @@ const CATEGORY_ORDER: ModuleCategory[] = [
   'terminal',
 ];
 
-function DraggableModule({ moduleId, name, color, widthCm }: {
+function DraggableModule({ moduleId, name, color, widthCm, icon, imageUrl }: {
   moduleId: string;
   name: string;
   color: string;
   widthCm: number;
+  icon?: string;
+  imageUrl?: string;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `library-${moduleId}`,
     data: { type: 'new-module', moduleId },
   });
+  const displayMode = usePanelStore((s) => s.displayMode);
 
   return (
     <div
@@ -47,7 +52,9 @@ function DraggableModule({ moduleId, name, color, widthCm }: {
         borderLeftColor: color,
       }}
     >
-      <div className="library-item-color" style={{ background: color }} />
+      <div className="library-item-icon" style={{ background: color, borderRadius: 4, padding: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <ModuleIcon icon={icon} imageUrl={imageUrl} displayMode={displayMode} size={20} color="#fff" />
+      </div>
       <div className="library-item-info">
         <span className="library-item-name">{name}</span>
         <span className="library-item-size">{widthCm}cm</span>
@@ -76,6 +83,8 @@ export const ModuleLibrary: React.FC = () => {
               name={mod.name}
               color={mod.color}
               widthCm={mod.widthCm}
+              icon={mod.icon}
+              imageUrl={mod.imageUrl}
             />
           ))}
         </div>

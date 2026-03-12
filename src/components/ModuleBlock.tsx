@@ -3,6 +3,8 @@ import { PlacedModule } from '../types';
 import { getModuleById } from '../data/modules';
 import { cmToPx } from '../utils/geometry';
 import { usePanelStore } from '../store/panelStore';
+import { ModuleIcon } from './ModuleIcon';
+import { useDraggable } from '@dnd-kit/core';
 
 interface Props {
   mod: PlacedModule;
@@ -11,6 +13,7 @@ interface Props {
   railYPx: number;
   selected: boolean;
   onSelect: (instanceId: string) => void;
+  isDragging?: boolean;
 }
 
 const MODULE_HEIGHT_CM = 7;
@@ -22,11 +25,25 @@ export const ModuleBlock: React.FC<Props> = ({
   railYPx,
   selected,
   onSelect,
+  isDragging: isDraggingProp = false,
 }) => {
   const def = getModuleById(mod.moduleId);
   const removeModule = usePanelStore((s) => s.removeModule);
   const updateLabel = usePanelStore((s) => s.updateLabel);
+  const displayMode = usePanelStore((s) => s.displayMode);
   const [editing, setEditing] = useState(false);
+
+  const { attributes, listeners, setNodeRef, isDragging: isDraggingLocal } = useDraggable({
+    id: `placed-${mod.instanceId}`,
+    data: {
+      type: 'placed-module',
+      instanceId: mod.instanceId,
+      moduleId: mod.moduleId,
+      rowId,
+    },
+  });
+
+  const dragging = isDraggingProp || isDraggingLocal;
 
   if (!def) return null;
 
@@ -34,6 +51,7 @@ export const ModuleBlock: React.FC<Props> = ({
   const y = railYPx - cmToPx(MODULE_HEIGHT_CM / 2);
   const w = cmToPx(def.widthCm);
   const h = cmToPx(MODULE_HEIGHT_CM);
+  const iconSize = Math.min(w * 0.6, h * 0.35);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -51,6 +69,9 @@ export const ModuleBlock: React.FC<Props> = ({
 
   return (
     <g
+      ref={(el) => setNodeRef(el as unknown as HTMLElement | null)}
+      {...listeners}
+      {...attributes}
       className="module-block"
       onClick={(e) => {
         e.stopPropagation();
@@ -58,7 +79,7 @@ export const ModuleBlock: React.FC<Props> = ({
       }}
       onContextMenu={handleContextMenu}
       onDoubleClick={handleDoubleClick}
-      style={{ cursor: 'grab' }}
+      style={{ cursor: dragging ? 'grabbing' : 'grab', opacity: dragging ? 0.3 : 1 }}
       data-instance-id={mod.instanceId}
       data-module-id={mod.moduleId}
       data-row-id={rowId}
@@ -74,23 +95,33 @@ export const ModuleBlock: React.FC<Props> = ({
         strokeWidth={selected ? 1.5 : 0.5}
         opacity={0.92}
       />
-      {/* Module name */}
+      <ModuleIcon
+        icon={def.icon}
+        imageUrl={def.imageUrl}
+        displayMode={displayMode}
+        size={iconSize}
+        color="#fff"
+        inline
+        x={x + (w - iconSize) / 2}
+        y={y + h * 0.08}
+      />
+      {def.widthCm >= 3 && (
+        <text
+          x={x + w / 2}
+          y={y + h * 0.7}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill="#fff"
+          fontSize={Math.min(3.2, w * 0.35)}
+          fontWeight={600}
+          style={{ pointerEvents: 'none', userSelect: 'none' }}
+        >
+          {def.name}
+        </text>
+      )}
       <text
         x={x + w / 2}
-        y={y + h / 2 - 3}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fill="#fff"
-        fontSize={3.2}
-        fontWeight={600}
-        style={{ pointerEvents: 'none', userSelect: 'none' }}
-      >
-        {def.widthCm >= 3 ? def.name : ''}
-      </text>
-      {/* Width indicator */}
-      <text
-        x={x + w / 2}
-        y={y + h / 2 + 2}
+        y={y + h * 0.88}
         textAnchor="middle"
         dominantBaseline="middle"
         fill="rgba(255,255,255,0.7)"
@@ -99,7 +130,6 @@ export const ModuleBlock: React.FC<Props> = ({
       >
         {def.widthCm}cm
       </text>
-      {/* Label below module */}
       {editing ? (
         <foreignObject x={x} y={y + h + 1} width={w} height={8}>
           <input

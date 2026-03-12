@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
-import { PanelState, PanelRow } from '../types';
+import { PanelState, PanelRow, DisplayMode } from '../types';
 import { getEnclosureById } from '../data/enclosures';
 
 type EditorScreen = 'setup' | 'editor';
 
 interface PanelStore extends PanelState {
   screen: EditorScreen;
+  displayMode: DisplayMode;
 
   // Setup
   configureCustom: (widthUnits: number, rowCount: number) => void;
@@ -23,6 +24,9 @@ interface PanelStore extends PanelState {
   ) => void;
   removeModule: (rowId: string, instanceId: string) => void;
   updateLabel: (rowId: string, instanceId: string, label: string) => void;
+
+  // Display
+  setDisplayMode: (mode: DisplayMode) => void;
 
   // Project
   setName: (name: string) => void;
@@ -43,6 +47,7 @@ export const usePanelStore = create<PanelStore>((set) => ({
   widthUnits: 12,
   rowCount: 1,
   rows: [],
+  displayMode: 'icon' as DisplayMode,
 
   configureCustom: (widthUnits, rowCount) =>
     set({
@@ -153,6 +158,8 @@ export const usePanelStore = create<PanelStore>((set) => ({
           : row,
       ),
     })),
+
+  setDisplayMode: (mode) => set({ displayMode: mode }),
 
   setName: (name) => set({ name }),
 

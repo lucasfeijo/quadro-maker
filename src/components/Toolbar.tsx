@@ -53,6 +53,15 @@ export const Toolbar: React.FC = () => {
         onChange={(e) => store.setName(e.target.value)}
       />
       <div className="toolbar-actions">
+        <button
+          className="toolbar-btn"
+          onClick={() =>
+            store.setDisplayMode(store.displayMode === 'icon' ? 'image' : 'icon')
+          }
+          title="Alternar entre ícones esquemáticos e fotos"
+        >
+          {store.displayMode === 'icon' ? '🔧 Ícones' : '📷 Fotos'}
+        </button>
         <button className="toolbar-btn" onClick={handleSave}>
           Salvar
         </button>

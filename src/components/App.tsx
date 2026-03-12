@@ -26,6 +26,11 @@ export const App: React.FC = () => {
   const screen = usePanelStore((s) => s.screen);
   const store = usePanelStore();
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
+  const [activePlaced, setActivePlaced] = useState<{
+    instanceId: string;
+    moduleId: string;
+    rowId: string;
+  } | null>(null);
   const [ghostPreview, setGhostPreview] = useState<GhostPreview | null>(null);
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
 
@@ -80,14 +85,25 @@ export const App: React.FC = () => {
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const data = event.active.data.current;
     if (data?.type === 'new-module') {
-      setActiveModuleId(data.moduleId);
+      setActiveModuleId(data.moduleId as string);
+    } else if (data?.type === 'placed-module') {
+      setActivePlaced({
+        instanceId: data.instanceId as string,
+        moduleId: data.moduleId as string,
+        rowId: data.rowId as string,
+      });
+      setActiveModuleId(data.moduleId as string);
     }
   }, []);
 
   const handleDragMove = useCallback(
     (event: DragMoveEvent) => {
       const data = event.active.data.current;
-      if (data?.type !== 'new-module') return;
+      if (!data) return;
+
+      const isNew = data.type === 'new-module';
+      const isPlaced = data.type === 'placed-module';
+      if (!isNew && !isPlaced) return;
 
       const { over } = event;
       if (!over) {
@@ -112,7 +128,8 @@ export const App: React.FC = () => {
       if (!row) return;
 
       const positionCm = computeSnapPosition(event, rail, def.widthCm);
-      const valid = canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm);
+      const excludeId = isPlaced ? (data.instanceId as string) : undefined;
+      const valid = canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, excludeId);
 
       setGhostPreview({
         rowId: overData.rowId,
@@ -127,6 +144,7 @@ export const App: React.FC = () => {
 
   const clearDragState = useCallback(() => {
     setActiveModuleId(null);
+    setActivePlaced(null);
     setGhostPreview(null);
   }, []);
 
@@ -137,12 +155,14 @@ export const App: React.FC = () => {
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      const placedInfo = activePlaced;
       clearDragState();
+
       const { active, over } = event;
       if (!over) return;
 
       const data = active.data.current;
-      if (data?.type !== 'new-module') return;
+      if (!data) return;
 
       const overData = over.data.current as
         | { rowId: string; rail: ResolvedRail }
@@ -156,6 +176,24 @@ export const App: React.FC = () => {
       const rail = overData.rail;
       const row = store.rows.find((r) => r.id === overData.rowId);
       if (!row) return;
+
+      if (data.type === 'placed-module' && placedInfo) {
+        let positionCm = computeSnapPosition(event, rail, def.widthCm);
+        positionCm = Math.max(0, Math.min(positionCm, rail.usableWidthCm - def.widthCm));
+        positionCm = snapToCm(positionCm);
+
+        if (canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, placedInfo.instanceId)) {
+          store.moveModule(
+            placedInfo.rowId,
+            placedInfo.instanceId,
+            positionCm,
+            overData.rowId !== placedInfo.rowId ? overData.rowId : undefined,
+          );
+        }
+        return;
+      }
+
+      if (data.type !== 'new-module') return;
 
       let positionCm: number;
       if (event.delta) {
@@ -190,7 +228,7 @@ export const App: React.FC = () => {
         }
       }
     },
-    [store, computeSnapPosition, clearDragState],
+    [store, computeSnapPosition, clearDragState, activePlaced],
   );
 
   if (screen === 'setup') {
