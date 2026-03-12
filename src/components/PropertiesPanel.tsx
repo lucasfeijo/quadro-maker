@@ -414,7 +414,6 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
             <span className="prop-value">{extWires.length}</span>
           </div>
         </div>
-        {extSpec && <ComponentInfoSection spec={extSpec} />}
         {extSpec && (
           <PropertyEditorSection
             spec={extSpec}
@@ -423,6 +422,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
             onUpdate={updateInstanceProperty}
           />
         )}
+        {extSpec && <ComponentInfoSection spec={extSpec} />}
         <button className="toolbar-btn danger-action" style={{ marginTop: 8 }} onClick={() => { if (confirm(`Remover ${extDef.name}?`)) removeExternalDevice(selectedModuleId); }}>
           Remover Dispositivo
         </button>
@@ -488,7 +488,6 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
           <span className="prop-value">{moduleWires.length}</span>
         </div>
       </div>
-      {spec && <ComponentInfoSection spec={spec} />}
       {spec && (
         <PropertyEditorSection
           spec={spec}
@@ -497,6 +496,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
           onUpdate={updateInstanceProperty}
         />
       )}
+      {spec && <ComponentInfoSection spec={spec} />}
       <div className="prop-hint" style={{ marginTop: 8 }}>
         Dica: Clique duplo no módulo para editar o rótulo.
         Use o modo Fiação para conectar portas.

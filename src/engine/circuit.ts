@@ -160,12 +160,13 @@ export function simulate(
     }
   }
 
-  // Resolved modes per instance
+  // Resolved modes per instance — use last behavior-driven mode from modeTimestamps if available
   const resolvedModes = new Map<string, string>();
   for (const mod of allModules) {
     const spec = specMap.get(mod.instanceId);
     const override = manualOverrides?.get(mod.instanceId);
-    resolvedModes.set(mod.instanceId, override?.mode ?? (spec ? spec.defaultMode : 'on'));
+    const lastMode = modeTimestamps?.get(mod.instanceId)?.mode;
+    resolvedModes.set(mod.instanceId, override?.mode ?? lastMode ?? (spec ? spec.defaultMode : 'on'));
   }
   for (const io of panelIOs) {
     resolvedModes.set(`panel-io:${io.id}`, 'on');
@@ -173,7 +174,8 @@ export function simulate(
   for (const dev of externalDevices) {
     const spec = specMap.get(dev.instanceId);
     const override = manualOverrides?.get(dev.instanceId);
-    resolvedModes.set(dev.instanceId, override?.mode ?? (spec ? spec.defaultMode : 'off'));
+    const lastMode = modeTimestamps?.get(dev.instanceId)?.mode;
+    resolvedModes.set(dev.instanceId, override?.mode ?? lastMode ?? (spec ? spec.defaultMode : 'off'));
   }
 
   // Output loads
