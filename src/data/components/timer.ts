@@ -1,4 +1,32 @@
-import type { ComponentSpec } from './_spec';
+import type { ComponentSpec, ComponentBehavior } from './_spec';
+
+const timerOnDelayBehavior: ComponentBehavior = (ctx) => {
+  if (ctx.isManualOverride) return;
+  const powered = ctx.isPortEnergized('in-A1');
+  const delayMs = (Number(ctx.getProperty('delaySeconds')) || 5) * 1000;
+
+  if (!powered) {
+    if (ctx.currentMode !== 'idle') return { mode: 'idle' };
+    return;
+  }
+
+  if (ctx.currentMode === 'idle') return { mode: 'counting' };
+  if (ctx.currentMode === 'counting' && ctx.elapsedInModeMs >= delayMs) return { mode: 'done' };
+};
+
+const timerOffDelayBehavior: ComponentBehavior = (ctx) => {
+  if (ctx.isManualOverride) return;
+  const powered = ctx.isPortEnergized('in-A1');
+  const delayMs = (Number(ctx.getProperty('delaySeconds')) || 5) * 1000;
+
+  if (powered) {
+    if (ctx.currentMode !== 'idle') return { mode: 'idle' };
+    return;
+  }
+
+  if (ctx.currentMode === 'idle') return { mode: 'counting' };
+  if (ctx.currentMode === 'counting' && ctx.elapsedInModeMs >= delayMs) return { mode: 'done' };
+};
 
 export const TIMERS: ComponentSpec[] = [
   {
@@ -30,6 +58,7 @@ export const TIMERS: ComponentSpec[] = [
     properties: [
       { key: 'delaySeconds', label: 'Tempo (s)', type: 'number', defaultValue: 5 },
     ],
+    behavior: timerOnDelayBehavior,
   },
   {
     id: 'timer-off-delay',
@@ -60,5 +89,6 @@ export const TIMERS: ComponentSpec[] = [
     properties: [
       { key: 'delaySeconds', label: 'Tempo (s)', type: 'number', defaultValue: 5 },
     ],
+    behavior: timerOffDelayBehavior,
   },
 ];

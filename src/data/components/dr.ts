@@ -1,5 +1,5 @@
 import type { ComponentSpec } from './_spec';
-import { makePorts, makeRoutes } from './_spec';
+import { makePorts, makeRoutes, overcurrentTripBehavior } from './_spec';
 
 const NOMINAL_OPTIONS = [25, 40, 63].map((v) => ({ value: v, label: `${v}A` }));
 const SENSITIVITY_OPTIONS = [
@@ -14,6 +14,8 @@ function drModes(labels: string[]) {
     { id: 'tripped', label: 'Disparado', color: '#ff9800', routes: [] },
   ];
 }
+
+const drBehavior = overcurrentTripBehavior('DR');
 
 export const DRS: ComponentSpec[] = [
   {
@@ -39,6 +41,7 @@ export const DRS: ComponentSpec[] = [
       { key: 'nominalCurrentA', label: 'Corrente nominal', type: 'select', options: NOMINAL_OPTIONS, defaultValue: 25 },
       { key: 'sensitivityMA', label: 'Sensibilidade', type: 'select', options: SENSITIVITY_OPTIONS, defaultValue: 30 },
     ],
+    behavior: drBehavior,
   },
   {
     id: 'dr-4p',
@@ -67,5 +70,6 @@ export const DRS: ComponentSpec[] = [
       { key: 'nominalCurrentA', label: 'Corrente nominal', type: 'select', options: NOMINAL_OPTIONS, defaultValue: 32 },
       { key: 'sensitivityMA', label: 'Sensibilidade', type: 'select', options: SENSITIVITY_OPTIONS, defaultValue: 30 },
     ],
+    behavior: drBehavior,
   },
 ];

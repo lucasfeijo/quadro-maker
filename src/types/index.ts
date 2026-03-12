@@ -124,6 +124,7 @@ export type ExternalDevice = {
   x: number;
   y: number;
   label?: string;
+  properties?: Record<string, number | string>;
 };
 
 // --- Panel State ---
@@ -133,6 +134,7 @@ export type PlacedModule = {
   moduleId: string;
   positionCm: number;
   label?: string;
+  properties?: Record<string, number | string>;
 };
 
 export type PanelRow = {

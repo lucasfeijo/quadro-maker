@@ -1,8 +1,8 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { getModuleById } from '../data/modules';
 import { simulate, getNextMode, getModeInfo, SIM_MODES, getDefaultMode } from '../engine/circuit';
-import type { ManualOverride } from '../engine/circuit';
+import type { ManualOverride, ModeTimestamps } from '../engine/circuit';
 import type { ComponentState } from '../types';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -56,6 +56,8 @@ export const SimulationOverlay: React.FC<SimulationOverlayProps> = ({ onEnergize
   const externalDevices = usePanelStore((s) => s.externalDevices);
 
   const [overrides, setOverrides] = useState<Map<string, ManualOverride>>(new Map());
+  const [tick, setTick] = useState(0);
+  const modeTimestampsRef = useRef<ModeTimestamps>(new Map());
 
   const setMode = useCallback((instanceId: string, newMode: string) => {
     setOverrides((prev) => {
@@ -97,13 +99,35 @@ export const SimulationOverlay: React.FC<SimulationOverlayProps> = ({ onEnergize
     });
   }, [externalDevices]);
 
-  const resetAll = useCallback(() => setOverrides(new Map()), []);
+  const resetAll = useCallback(() => {
+    setOverrides(new Map());
+    modeTimestampsRef.current = new Map();
+  }, []);
+
+  // Periodic tick for timer-based behaviors (1s interval)
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const nowMs = Date.now();
 
   const result = useMemo(() => {
-    const r = simulate(rows, wires, panelIOs, externalDevices, overrides);
+    const r = simulate(rows, wires, panelIOs, externalDevices, overrides, modeTimestampsRef.current, nowMs);
+
+    // Update mode timestamps: track when each instance entered its current mode
+    const ts = modeTimestampsRef.current;
+    for (const st of r.states) {
+      const existing = ts.get(st.instanceId);
+      if (!existing || existing.mode !== st.mode) {
+        ts.set(st.instanceId, { mode: st.mode, enteredAt: nowMs });
+      }
+    }
+
     onEnergizedWiresChange?.(r.energizedWires, r.states);
     return r;
-  }, [rows, wires, panelIOs, externalDevices, overrides, onEnergizedWiresChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, wires, panelIOs, externalDevices, overrides, onEnergizedWiresChange, tick]);
 
   const allModules = rows.flatMap((r) => r.modules);
 

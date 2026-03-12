@@ -1,4 +1,12 @@
-export type { ComponentSpec, ModeSpec, InternalRoute, PropertySpec, AutoModeRule } from './_spec';
+export type {
+  ComponentSpec,
+  ModeSpec,
+  InternalRoute,
+  PropertySpec,
+  BehaviorContext,
+  BehaviorResult,
+  ComponentBehavior,
+} from './_spec';
 
 import { BREAKERS } from './breaker';
 import { DRS } from './dr';

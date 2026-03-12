@@ -1,4 +1,5 @@
 import type { ComponentSpec } from './_spec';
+import { sourcePriorityBehavior } from './_spec';
 
 const ATS_PORTS = [
   { id: 'in-S1L1', label: 'S1-L1', side: 'top' as const, offsetXCm: 1.5, type: 'phase' as const },
@@ -36,6 +37,14 @@ const ATS_MODES = [
   { id: 'off', label: 'Desligado', color: '#f44336', routes: [] },
 ];
 
+const atsAutoBehavior = sourcePriorityBehavior(
+  [
+    { ports: ['in-S1L1', 'in-S1L2'], mode: 'src1' },
+    { ports: ['in-S2L1', 'in-S2L2'], mode: 'src2' },
+  ],
+  'off',
+);
+
 export const ATSS: ComponentSpec[] = [
   {
     id: 'ats-auto',
@@ -50,14 +59,7 @@ export const ATSS: ComponentSpec[] = [
     portDescriptions: ATS_PORT_DESCRIPTIONS,
     modes: ATS_MODES,
     defaultMode: 'src1',
-    autoMode: {
-      type: 'source-priority',
-      sources: [
-        { ports: ['in-S1L1', 'in-S1L2'], mode: 'src1' },
-        { ports: ['in-S2L1', 'in-S2L2'], mode: 'src2' },
-      ],
-      fallbackMode: 'off',
-    },
+    behavior: atsAutoBehavior,
     properties: [
       { key: 'switchDelayMs', label: 'Tempo de comutação (ms)', type: 'number', defaultValue: 500 },
     ],

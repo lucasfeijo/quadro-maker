@@ -1,4 +1,5 @@
 import type { ComponentSpec } from './_spec';
+import { coilDrivenBehavior } from './_spec';
 
 export const RELAYS: ComponentSpec[] = [
   {
@@ -26,7 +27,7 @@ export const RELAYS: ComponentSpec[] = [
       { id: 'off', label: 'Desenergizado', color: '#999', routes: [] },
     ],
     defaultMode: 'off',
-    autoMode: { type: 'coil', port: 'coil-A1', energizedMode: 'on', defaultMode: 'off' },
+    behavior: coilDrivenBehavior('coil-A1', 'on', 'off'),
   },
   {
     id: 'relay-1nc',
@@ -53,7 +54,7 @@ export const RELAYS: ComponentSpec[] = [
       { id: 'off', label: 'Desenergizado', color: '#999', routes: [{ from: 'com-11', to: 'nc-12' }] },
     ],
     defaultMode: 'off',
-    autoMode: { type: 'coil', port: 'coil-A1', energizedMode: 'on', defaultMode: 'off' },
+    behavior: coilDrivenBehavior('coil-A1', 'on', 'off'),
   },
   {
     id: 'relay-1no1nc',
@@ -82,6 +83,6 @@ export const RELAYS: ComponentSpec[] = [
       { id: 'off', label: 'Desenergizado', color: '#999', routes: [{ from: 'com-11', to: 'nc-12' }] },
     ],
     defaultMode: 'off',
-    autoMode: { type: 'coil', port: 'coil-A1', energizedMode: 'on', defaultMode: 'off' },
+    behavior: coilDrivenBehavior('coil-A1', 'on', 'off'),
   },
 ];

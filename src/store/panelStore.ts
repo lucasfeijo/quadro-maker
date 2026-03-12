@@ -11,8 +11,8 @@ interface WiringFrom {
 }
 
 export interface PasteData {
-  modules: Array<{ oldId: string; moduleId: string; positionCm: number; rowId: string; label?: string }>;
-  externalDevices: Array<{ oldId: string; moduleId: string; x: number; y: number; label?: string }>;
+  modules: Array<{ oldId: string; moduleId: string; positionCm: number; rowId: string; label?: string; properties?: Record<string, number | string> }>;
+  externalDevices: Array<{ oldId: string; moduleId: string; x: number; y: number; label?: string; properties?: Record<string, number | string> }>;
   wires: Array<{ sourceOldId: string; sourcePortId: string; targetOldId: string; targetPortId: string }>;
 }
 
@@ -60,6 +60,7 @@ interface PanelStore extends PanelState {
   removeExternalDevice: (instanceId: string) => void;
   removeMultiple: (moduleItems: Array<{ rowId: string; instanceId: string }>, externalDeviceIds: string[]) => void;
   updateExternalDeviceLabel: (instanceId: string, label: string) => void;
+  updateInstanceProperty: (instanceId: string, key: string, value: number | string) => void;
   pasteElements: (data: PasteData) => string[];
 
   setName: (name: string) => void;
@@ -337,6 +338,30 @@ export const usePanelStore = create<PanelStore>((set) => ({
       ),
     })),
 
+  updateInstanceProperty: (instanceId, key, value) =>
+    set((s) => {
+      const inRow = s.rows.some((r) => r.modules.some((m) => m.instanceId === instanceId));
+      if (inRow) {
+        return {
+          rows: s.rows.map((r) => ({
+            ...r,
+            modules: r.modules.map((m) =>
+              m.instanceId === instanceId
+                ? { ...m, properties: { ...m.properties, [key]: value } }
+                : m,
+            ),
+          })),
+        };
+      }
+      return {
+        externalDevices: s.externalDevices.map((d) =>
+          d.instanceId === instanceId
+            ? { ...d, properties: { ...d.properties, [key]: value } }
+            : d,
+        ),
+      };
+    }),
+
   pasteElements: (data) => {
     const idMap = new Map<string, string>();
     for (const m of data.modules) idMap.set(m.oldId, nanoid());
@@ -351,6 +376,7 @@ export const usePanelStore = create<PanelStore>((set) => ({
             moduleId: m.moduleId,
             positionCm: m.positionCm,
             label: m.label,
+            properties: m.properties ? { ...m.properties } : undefined,
           }));
         if (newMods.length === 0) return row;
         return { ...row, modules: [...row.modules, ...newMods] };
@@ -363,6 +389,7 @@ export const usePanelStore = create<PanelStore>((set) => ({
           x: d.x,
           y: d.y,
           label: d.label,
+          properties: d.properties ? { ...d.properties } : undefined,
         })),
       ],
       wires: [

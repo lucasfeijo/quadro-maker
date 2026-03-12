@@ -1,6 +1,6 @@
 import { PlacedModule, Wire, PanelIO, ExternalDevice, ComponentState } from '../types';
 import { getComponentById, allComponents } from '../data/components';
-import type { ComponentSpec, ModeSpec, InternalRoute, AutoModeRule } from '../data/components';
+import type { ComponentSpec, ModeSpec, InternalRoute, BehaviorContext } from '../data/components';
 
 export interface SimAlert {
   type: 'overload' | 'short-circuit' | 'no-ground' | 'tripped' | 'info';
@@ -115,6 +115,9 @@ export interface ManualOverride {
   mode?: string;
 }
 
+/** Tracks when each instance entered its current mode (for timer-like behaviors) */
+export type ModeTimestamps = Map<string, { mode: string; enteredAt: number }>;
+
 interface SimulationResult {
   states: ComponentState[];
   alerts: SimAlert[];
@@ -122,7 +125,7 @@ interface SimulationResult {
 }
 
 const DEFAULT_VOLTAGE = 220;
-const MAX_AUTO_ITERATIONS = 5;
+const MAX_BEHAVIOR_ITERATIONS = 6;
 
 export function simulate(
   rows: { id: string; modules: PlacedModule[] }[],
@@ -130,26 +133,26 @@ export function simulate(
   panelIOs: PanelIO[],
   externalDevices: ExternalDevice[],
   manualOverrides?: Map<string, ManualOverride>,
+  modeTimestamps?: ModeTimestamps,
+  nowMs?: number,
 ): SimulationResult {
   const allModules = rows.flatMap((r) => r.modules);
   const graph = buildGraph(wires);
   const alerts: SimAlert[] = [];
+  const now = nowMs ?? Date.now();
 
   const specMap = new Map<string, ComponentSpec | undefined>();
-  const moduleIdMap = new Map<string, string>();
+  const instanceProps = new Map<string, Record<string, number | string>>();
 
   for (const mod of allModules) {
-    const spec = getComponentById(mod.moduleId);
-    specMap.set(mod.instanceId, spec);
-    moduleIdMap.set(mod.instanceId, mod.moduleId);
+    specMap.set(mod.instanceId, getComponentById(mod.moduleId));
+    if (mod.properties) instanceProps.set(mod.instanceId, mod.properties);
   }
   for (const dev of externalDevices) {
-    const spec = getComponentById(dev.moduleId);
-    specMap.set(dev.instanceId, spec);
-    moduleIdMap.set(dev.instanceId, dev.moduleId);
+    specMap.set(dev.instanceId, getComponentById(dev.moduleId));
+    if (dev.properties) instanceProps.set(dev.instanceId, dev.properties);
   }
 
-  // Track which modes are set by the user (manual overrides) -- these should not be auto-changed
   const manualModeSet = new Set<string>();
   if (manualOverrides) {
     for (const [id, ov] of manualOverrides) {
@@ -157,9 +160,8 @@ export function simulate(
     }
   }
 
-  // Resolved modes per instance (can change across iterations)
+  // Resolved modes per instance
   const resolvedModes = new Map<string, string>();
-
   for (const mod of allModules) {
     const spec = specMap.get(mod.instanceId);
     const override = manualOverrides?.get(mod.instanceId);
@@ -174,20 +176,17 @@ export function simulate(
     resolvedModes.set(dev.instanceId, override?.mode ?? (spec ? spec.defaultMode : 'off'));
   }
 
-  // Output loads for current budget
+  // Output loads
   const outputLoads = panelIOs
     .filter((io) => io.direction === 'output' && (io.consumptionA ?? 0) > 0)
     .reduce((sum, io) => sum + (io.consumptionA ?? 0), 0);
   const totalLoad = outputLoads > 0 ? outputLoads : Math.max(allModules.length * 2, 10);
 
-  // Find root nodes (panel inputs)
+  // Root nodes
   const inputRoots = panelIOs
     .filter((io) => io.direction === 'input')
     .map((io) => `panel-io:${io.id}`)
-    .filter((id) => {
-      const override = manualOverrides?.get(id);
-      return override?.on !== false;
-    });
+    .filter((id) => manualOverrides?.get(id)?.on !== false);
 
   let roots: string[];
   if (inputRoots.length > 0) {
@@ -199,26 +198,22 @@ export function simulate(
     for (const [id] of resolvedModes) {
       if (!id.startsWith('panel-io:') && !hasIncoming.has(id)) roots.push(id);
     }
-    if (roots.length === 0) {
-      const moduleIds = allModules.map((m) => m.instanceId);
-      if (moduleIds.length > 0) roots = [moduleIds[0]];
-    }
+    if (roots.length === 0 && allModules.length > 0) roots = [allModules[0].instanceId];
   }
 
-  // ---------- Multi-pass propagation ----------
+  // ---------- Multi-pass propagation with behavior callbacks ----------
 
   let energizedWires = new Set<string>();
   let states = new Map<string, ComponentState>();
   let energizedPorts = new Set<string>();
 
-  for (let iteration = 0; iteration < MAX_AUTO_ITERATIONS; iteration++) {
-    // Reset state for this pass
-    states = new Map<string, ComponentState>();
-    energizedWires = new Set<string>();
-    energizedPorts = new Set<string>();
+  for (let iteration = 0; iteration < MAX_BEHAVIOR_ITERATIONS; iteration++) {
+    states = new Map();
+    energizedWires = new Set();
+    energizedPorts = new Set();
     const visitedPorts = new Set<string>();
 
-    // Initialize states from resolvedModes
+    // Init states
     for (const mod of allModules) {
       const spec = specMap.get(mod.instanceId);
       const mode = resolvedModes.get(mod.instanceId) ?? 'on';
@@ -312,39 +307,15 @@ export function simulate(
 
       const modeSpec = spec.modes.find((m) => m.id === state.mode);
 
-      if (spec.category === 'breaker' || spec.category === 'dr') {
-        const nominal = spec.nominalCurrentA ?? 16;
-        if (currentBudget > nominal) {
-          state.tripped = true;
-          state.on = false;
-          state.mode = 'tripped';
-          state.voltageV = 0;
-          state.currentA = 0;
-          if (iteration === 0) {
-            alerts.push({
-              type: 'tripped',
-              instanceId,
-              message: `${spec.category === 'breaker' ? 'Disjuntor' : 'DR'} disparou: ${currentBudget.toFixed(1)}A > ${nominal}A`,
-            });
-          }
-          return;
-        }
-      }
-
       if (!state.on || !modeSpec || modeSpec.routes.length === 0) {
         state.voltageV = 0;
         state.currentA = 0;
         return;
       }
 
-      const reachableOutputs = modeSpec.routes
-        .filter((r) => r.from === entryPortId)
-        .map((r) => r.to);
-      const reachableReverse = modeSpec.routes
-        .filter((r) => r.to === entryPortId)
-        .map((r) => r.from);
+      const reachableOutputs = modeSpec.routes.filter((r) => r.from === entryPortId).map((r) => r.to);
+      const reachableReverse = modeSpec.routes.filter((r) => r.to === entryPortId).map((r) => r.from);
       const targetPorts = [...reachableOutputs, ...reachableReverse];
-
       if (targetPorts.length === 0) return;
 
       const currentPerTarget = currentBudget / targetPorts.length;
@@ -374,40 +345,59 @@ export function simulate(
       const rootIO = panelIOs.find((io) => `panel-io:${io.id}` === rootId);
       const voltage = rootIO?.voltageV ?? (rootIO?.type === 'dc_pos' || rootIO?.type === 'dc_neg' ? 24 : DEFAULT_VOLTAGE);
       const maxCurrent = rootIO?.maxCurrentA ?? totalLoad;
-      const currentForRoot = Math.min(totalLoad, maxCurrent);
-      propagateFromPort(rootId, 'port', voltage, currentForRoot);
+      propagateFromPort(rootId, 'port', voltage, Math.min(totalLoad, maxCurrent));
     }
 
-    // ---------- Auto-mode resolution ----------
+    // ---------- Run behavior functions ----------
     let anyModeChanged = false;
 
     for (const [instanceId, spec] of specMap) {
-      if (!spec?.autoMode) continue;
-      if (manualModeSet.has(instanceId)) continue;
+      if (!spec?.behavior) continue;
 
-      const rule = spec.autoMode;
-      const currentMode = resolvedModes.get(instanceId) ?? spec.defaultMode;
-      let newMode = currentMode;
+      const state = states.get(instanceId);
+      if (!state) continue;
 
-      if (rule.type === 'coil') {
-        const coilKey = portKey(instanceId, rule.port);
-        const coilEnergized = energizedPorts.has(coilKey);
-        newMode = coilEnergized ? rule.energizedMode : rule.defaultMode;
-      } else if (rule.type === 'source-priority') {
-        let found = false;
-        for (const src of rule.sources) {
-          const hasEnergy = src.ports.some((p) => energizedPorts.has(portKey(instanceId, p)));
-          if (hasEnergy) {
-            newMode = src.mode;
-            found = true;
-            break;
-          }
-        }
-        if (!found) newMode = rule.fallbackMode;
+      const ts = modeTimestamps?.get(instanceId);
+      const elapsed = (ts && ts.mode === state.mode) ? (now - ts.enteredAt) : 0;
+
+      const props = instanceProps.get(instanceId);
+      const specDefaults = spec.properties;
+
+      const ctx: BehaviorContext = {
+        isPortEnergized: (pid) => energizedPorts.has(portKey(instanceId, pid)),
+        currentMode: state.mode,
+        isManualOverride: manualModeSet.has(instanceId),
+        currentA: state.currentA,
+        nominalCurrentA: spec.nominalCurrentA ?? 0,
+        voltageV: state.voltageV,
+        elapsedInModeMs: elapsed,
+        getProperty: (key) => {
+          if (props && key in props) return props[key];
+          const def = specDefaults?.find((p) => p.key === key);
+          return def?.defaultValue;
+        },
+      };
+
+      const result = spec.behavior(ctx);
+      if (!result) continue;
+
+      if (result.tripped) {
+        state.tripped = true;
+        state.on = false;
+        state.mode = result.mode ?? 'tripped';
+        state.voltageV = 0;
+        state.currentA = 0;
+        resolvedModes.set(instanceId, state.mode);
       }
 
-      if (newMode !== currentMode) {
-        resolvedModes.set(instanceId, newMode);
+      if (result.alerts) {
+        for (const a of result.alerts) {
+          alerts.push({ ...a, instanceId });
+        }
+      }
+
+      if (result.mode && result.mode !== resolvedModes.get(instanceId) && !result.tripped) {
+        resolvedModes.set(instanceId, result.mode);
         anyModeChanged = true;
       }
     }
@@ -416,22 +406,6 @@ export function simulate(
   }
 
   // ---------- Post-propagation alerts ----------
-
-  // Clear alerts from re-runs and generate final ones
-  if (alerts.length === 0) {
-    for (const [instanceId, state] of states) {
-      if (state.tripped) {
-        const spec = specMap.get(instanceId);
-        if (spec && (spec.category === 'breaker' || spec.category === 'dr')) {
-          alerts.push({
-            type: 'tripped',
-            instanceId,
-            message: `${spec.category === 'breaker' ? 'Disjuntor' : 'DR'} disparou: ${state.currentA.toFixed(1)}A > ${spec.nominalCurrentA ?? 16}A`,
-          });
-        }
-      }
-    }
-  }
 
   for (const io of panelIOs) {
     if (io.direction === 'input' && (io.maxCurrentA ?? 0) > 0) {
@@ -449,11 +423,7 @@ export function simulate(
 
   const hasGroundIO = panelIOs.some((io) => io.type === 'ground');
   if (!hasGroundIO && allModules.length > 0) {
-    alerts.push({
-      type: 'info',
-      instanceId: '',
-      message: 'Nenhum terra definido no quadro',
-    });
+    alerts.push({ type: 'info', instanceId: '', message: 'Nenhum terra definido no quadro' });
   }
 
   return {

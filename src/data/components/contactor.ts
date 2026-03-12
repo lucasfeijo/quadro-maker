@@ -1,4 +1,5 @@
 import type { ComponentSpec } from './_spec';
+import { coilDrivenBehavior } from './_spec';
 
 export const CONTACTORS: ComponentSpec[] = [
   {
@@ -42,6 +43,6 @@ export const CONTACTORS: ComponentSpec[] = [
     ],
     defaultMode: 'off',
     nominalCurrentA: 25,
-    autoMode: { type: 'coil', port: 'coil-A1', energizedMode: 'on', defaultMode: 'off' },
+    behavior: coilDrivenBehavior('coil-A1', 'on', 'off'),
   },
 ];

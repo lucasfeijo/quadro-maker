@@ -37,8 +37,8 @@ function marqueeToRect(m: MarqueeRect) {
 }
 
 interface ClipboardData {
-  modules: Array<{ oldId: string; moduleId: string; positionCm: number; rowId: string; label?: string }>;
-  externalDevices: Array<{ oldId: string; moduleId: string; x: number; y: number; label?: string }>;
+  modules: Array<{ oldId: string; moduleId: string; positionCm: number; rowId: string; label?: string; properties?: Record<string, number | string> }>;
+  externalDevices: Array<{ oldId: string; moduleId: string; x: number; y: number; label?: string; properties?: Record<string, number | string> }>;
   wires: Array<{ sourceOldId: string; sourcePortId: string; targetOldId: string; targetPortId: string }>;
 }
 
@@ -356,6 +356,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
           if (extDev) {
             cbData.externalDevices.push({
               oldId: id, moduleId: extDev.moduleId, x: extDev.x, y: extDev.y, label: extDev.label,
+              properties: extDev.properties ? { ...extDev.properties } : undefined,
             });
             continue;
           }
@@ -364,6 +365,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
             if (mod) {
               cbData.modules.push({
                 oldId: id, moduleId: mod.moduleId, positionCm: mod.positionCm, rowId: row.id, label: mod.label,
+                properties: mod.properties ? { ...mod.properties } : undefined,
               });
               break;
             }

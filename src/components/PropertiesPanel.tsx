@@ -2,7 +2,7 @@ import React from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { getModuleById } from '../data/modules';
 import { getComponentById } from '../data/components';
-import type { ComponentSpec } from '../data/components';
+import type { ComponentSpec, PropertySpec } from '../data/components';
 import type { PlacedModule, PanelIOType } from '../types';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -119,6 +119,61 @@ function ComponentInfoSection({ spec }: { spec: ComponentSpec }) {
   );
 }
 
+function PropertyEditorSection({
+  spec,
+  instanceId,
+  instanceProps,
+  onUpdate,
+}: {
+  spec: ComponentSpec;
+  instanceId: string;
+  instanceProps?: Record<string, number | string>;
+  onUpdate: (instanceId: string, key: string, value: number | string) => void;
+}) {
+  if (!spec.properties || spec.properties.length === 0) return null;
+
+  return (
+    <div className="prop-section" style={{ marginTop: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>Configurações</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {spec.properties.map((prop) => {
+          const currentValue = instanceProps?.[prop.key] ?? prop.defaultValue;
+          return (
+            <div key={prop.key} className="prop-row">
+              <span className="prop-label">{prop.label}</span>
+              {prop.type === 'select' && prop.options ? (
+                <select
+                  className="prop-input"
+                  value={String(currentValue)}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const numVal = Number(raw);
+                    onUpdate(instanceId, prop.key, isNaN(numVal) ? raw : numVal);
+                  }}
+                >
+                  {prop.options.map((opt) => (
+                    <option key={String(opt.value)} value={String(opt.value)}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="prop-input"
+                  type="number"
+                  step="any"
+                  value={currentValue}
+                  onChange={(e) => onUpdate(instanceId, prop.key, Number(e.target.value))}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   selectedModuleId: string | null;
 }
@@ -137,6 +192,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
   const removePanelIO = usePanelStore((s) => s.removePanelIO);
   const removeExternalDevice = usePanelStore((s) => s.removeExternalDevice);
   const updateExternalDeviceLabel = usePanelStore((s) => s.updateExternalDeviceLabel);
+  const updateInstanceProperty = usePanelStore((s) => s.updateInstanceProperty);
 
   const selectedWire = selectedWireId ? wires.find((w) => w.id === selectedWireId) : null;
   const selectedIO = selectedIOId ? panelIOs.find((io) => io.id === selectedIOId) : null;
@@ -359,6 +415,14 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
           </div>
         </div>
         {extSpec && <ComponentInfoSection spec={extSpec} />}
+        {extSpec && (
+          <PropertyEditorSection
+            spec={extSpec}
+            instanceId={selectedModuleId}
+            instanceProps={selectedExtDevice.properties}
+            onUpdate={updateInstanceProperty}
+          />
+        )}
         <button className="toolbar-btn danger-action" style={{ marginTop: 8 }} onClick={() => { if (confirm(`Remover ${extDef.name}?`)) removeExternalDevice(selectedModuleId); }}>
           Remover Dispositivo
         </button>
@@ -425,6 +489,14 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
         </div>
       </div>
       {spec && <ComponentInfoSection spec={spec} />}
+      {spec && (
+        <PropertyEditorSection
+          spec={spec}
+          instanceId={selectedModuleId}
+          instanceProps={placed.properties}
+          onUpdate={updateInstanceProperty}
+        />
+      )}
       <div className="prop-hint" style={{ marginTop: 8 }}>
         Dica: Clique duplo no módulo para editar o rótulo.
         Use o modo Fiação para conectar portas.

@@ -1,5 +1,5 @@
 import type { ComponentSpec } from './_spec';
-import { makePorts, makeRoutes } from './_spec';
+import { makePorts, makeRoutes, overcurrentTripBehavior } from './_spec';
 
 const MODES_BREAKER = [
   { id: 'on', label: 'Ligado', color: '#4caf50', routes: [] as { from: string; to: string }[] },
@@ -18,6 +18,8 @@ const NOMINAL_OPTIONS = [10, 16, 20, 25, 32, 40, 50, 63].map((v) => ({
   value: v,
   label: `${v}A`,
 }));
+
+const breakerBehavior = overcurrentTripBehavior('Disjuntor');
 
 export const BREAKERS: ComponentSpec[] = [
   {
@@ -40,6 +42,7 @@ export const BREAKERS: ComponentSpec[] = [
     properties: [
       { key: 'nominalCurrentA', label: 'Corrente nominal', type: 'select', options: NOMINAL_OPTIONS, defaultValue: 16 },
     ],
+    behavior: breakerBehavior,
   },
   {
     id: 'breaker-2p',
@@ -63,6 +66,7 @@ export const BREAKERS: ComponentSpec[] = [
     properties: [
       { key: 'nominalCurrentA', label: 'Corrente nominal', type: 'select', options: NOMINAL_OPTIONS, defaultValue: 25 },
     ],
+    behavior: breakerBehavior,
   },
   {
     id: 'breaker-3p',
@@ -88,5 +92,6 @@ export const BREAKERS: ComponentSpec[] = [
     properties: [
       { key: 'nominalCurrentA', label: 'Corrente nominal', type: 'select', options: NOMINAL_OPTIONS, defaultValue: 32 },
     ],
+    behavior: breakerBehavior,
   },
 ];
