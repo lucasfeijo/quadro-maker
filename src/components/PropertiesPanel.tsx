@@ -49,6 +49,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
   const selectedIOId = usePanelStore((s) => s.selectedIOId);
   const updateWireProps = usePanelStore((s) => s.updateWireProps);
   const removeWire = usePanelStore((s) => s.removeWire);
+  const clearWireWaypoints = usePanelStore((s) => s.clearWireWaypoints);
   const updatePanelIO = usePanelStore((s) => s.updatePanelIO);
   const removePanelIO = usePanelStore((s) => s.removePanelIO);
   const removeExternalDevice = usePanelStore((s) => s.removeExternalDevice);
@@ -126,10 +127,26 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
               onChange={(e) => updateWireProps(selectedWire.id, { label: e.target.value || undefined })}
             />
           </div>
+          {(selectedWire.waypoints?.length ?? 0) > 0 && (
+            <div className="prop-row">
+              <span className="prop-label">Vértices</span>
+              <span className="prop-value">{selectedWire.waypoints!.length}</span>
+            </div>
+          )}
         </div>
-        <button className="toolbar-btn danger-action" onClick={() => removeWire(selectedWire.id)}>
-          Remover Fio
-        </button>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {(selectedWire.waypoints?.length ?? 0) > 0 && (
+            <button className="toolbar-btn" onClick={() => clearWireWaypoints(selectedWire.id)}>
+              Limpar Vértices
+            </button>
+          )}
+          <button className="toolbar-btn danger-action" onClick={() => { if (confirm('Remover fio?')) removeWire(selectedWire.id); }}>
+            Remover Fio
+          </button>
+        </div>
+        <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
+          Dica: Dê duplo-clique no fio para adicionar vértices. Clique-direito num vértice para removê-lo.
+        </div>
       </div>
     );
   }
@@ -215,7 +232,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
             <span className="prop-value">{ioWires.length}</span>
           </div>
         </div>
-        <button className="toolbar-btn danger-action" onClick={() => removePanelIO(selectedIO.id)}>
+        <button className="toolbar-btn danger-action" onClick={() => { if (confirm(`Remover ${isInput ? 'entrada' : 'saída'}?`)) removePanelIO(selectedIO.id); }}>
           Remover {isInput ? 'Entrada' : 'Saída'}
         </button>
       </div>
@@ -265,7 +282,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
             <span className="prop-value">{extWires.length}</span>
           </div>
         </div>
-        <button className="toolbar-btn danger-action" onClick={() => removeExternalDevice(selectedModuleId)}>
+        <button className="toolbar-btn danger-action" onClick={() => { if (confirm(`Remover ${extDef.name}?`)) removeExternalDevice(selectedModuleId); }}>
           Remover Dispositivo
         </button>
       </div>

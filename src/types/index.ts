@@ -70,6 +70,11 @@ export type DisplayMode = 'icon' | 'image';
 
 // --- Wiring ---
 
+export type WireWaypoint = {
+  x: number;
+  y: number;
+};
+
 export type Wire = {
   id: string;
   sourceInstanceId: string;
@@ -79,6 +84,7 @@ export type Wire = {
   wireGaugeMm2?: number;
   wireColor?: string;
   label?: string;
+  waypoints?: WireWaypoint[];
 };
 
 // --- Panel I/O (entradas e saídas do quadro) ---
@@ -115,8 +121,8 @@ export type ComponentState = {
 export type ExternalDevice = {
   instanceId: string;
   moduleId: string;
-  xPercent: number;
-  yPercent: number;
+  x: number;
+  y: number;
   label?: string;
 };
 

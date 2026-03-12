@@ -2,11 +2,14 @@ import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { resolveLayout } from '../utils/panelLayout';
 import { cmToPx } from '../utils/geometry';
+import { getModuleById } from '../data/modules';
 import { DinRail } from './DinRail';
 import { WireLayer } from './WireLayer';
 import { PanelIOLayer } from './PanelIOLayer';
-import { ExternalDeviceLayer } from './ExternalDeviceLayer';
+import { ExternalDeviceLayer, getExternalDeviceBounds } from './ExternalDeviceLayer';
 import type { GhostPreview, ComponentState } from '../types';
+
+const MARGIN = 15;
 
 interface PanelViewProps {
   ghostPreview: GhostPreview | null;
@@ -57,26 +60,59 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const intY = cmToPx(layout.interiorOffsetYCm);
   const intW = cmToPx(layout.interiorWidthCm);
   const intH = cmToPx(layout.interiorHeightCm);
-  const padding = Math.max(svgWidth, svgHeight) * 0.75;
+
+  const contentBounds = useMemo(() => {
+    let minX = 0;
+    let minY = 0;
+    let maxX = svgWidth;
+    let maxY = svgHeight;
+
+    for (const dev of state.externalDevices) {
+      const bounds = getExternalDeviceBounds(dev);
+      if (bounds) {
+        minX = Math.min(minX, bounds.minX);
+        minY = Math.min(minY, bounds.minY);
+        maxX = Math.max(maxX, bounds.maxX);
+        maxY = Math.max(maxY, bounds.maxY);
+      }
+    }
+
+    return {
+      x: minX - MARGIN,
+      y: minY - MARGIN,
+      w: maxX - minX + MARGIN * 2,
+      h: maxY - minY + MARGIN * 2,
+    };
+  }, [svgWidth, svgHeight, state.externalDevices]);
+
+  const contentBoundsRef = useRef(contentBounds);
+  contentBoundsRef.current = contentBounds;
 
   const fitToContainer = useCallback(() => {
     const container = containerRef.current;
-    if (!container || svgWidth <= 0 || svgHeight <= 0) return;
+    const cb = contentBoundsRef.current;
+    if (!container || cb.w <= 0 || cb.h <= 0) return;
     const cssPad = 20;
     const availW = container.clientWidth - cssPad * 2;
     const availH = container.clientHeight - cssPad * 2;
     if (availW <= 0 || availH <= 0) return;
-    const totalVbW = svgWidth + padding * 2;
-    const totalVbH = svgHeight + padding * 2;
-    const fitZoom = Math.min(availW / totalVbW, availH / totalVbH);
+    const fitZoom = Math.min(availW / cb.w, availH / cb.h);
     setZoom(Math.min(6, Math.max(0.1, fitZoom)));
-  }, [svgWidth, svgHeight, padding]);
+  }, []);
 
   useEffect(() => {
     requestAnimationFrame(fitToContainer);
+    const onResize = () => fitToContainer();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, [fitToContainer]);
 
-  const handleClearSelection = useCallback(() => onSelectModule(null), [onSelectModule]);
+  const handleClearSelection = useCallback(() => {
+    onSelectModule(null);
+    state.selectWire(null);
+    state.selectIO(null);
+    if (state.wiringFrom) state.cancelWiring();
+  }, [onSelectModule, state]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -87,20 +123,32 @@ export const PanelView: React.FC<PanelViewProps> = ({
         if (selectedModule) { onSelectModule(null); return; }
       }
       if ((e.key === 'Delete' || e.key === 'Backspace')) {
-        if (state.selectedWireId) { state.removeWire(state.selectedWireId); return; }
-        if (state.selectedIOId) { state.removePanelIO(state.selectedIOId); return; }
+        if (state.selectedWireId) {
+          if (confirm('Remover fio?')) state.removeWire(state.selectedWireId);
+          return;
+        }
+        if (state.selectedIOId) {
+          if (confirm('Remover entrada/saída?')) state.removePanelIO(state.selectedIOId);
+          return;
+        }
         if (selectedModule) {
           const extDev = state.externalDevices.find((d) => d.instanceId === selectedModule);
           if (extDev) {
-            state.removeExternalDevice(selectedModule);
-            onSelectModule(null);
+            const def = getModuleById(extDev.moduleId);
+            if (confirm(`Remover ${extDev.label || def?.name || 'dispositivo'}?`)) {
+              state.removeExternalDevice(selectedModule);
+              onSelectModule(null);
+            }
             return;
           }
           for (const row of state.rows) {
             const mod = row.modules.find((m) => m.instanceId === selectedModule);
             if (mod) {
-              state.removeModule(row.id, mod.instanceId);
-              onSelectModule(null);
+              const def = getModuleById(mod.moduleId);
+              if (confirm(`Remover ${mod.label || def?.name || 'módulo'}?`)) {
+                state.removeModule(row.id, mod.instanceId);
+                onSelectModule(null);
+              }
               break;
             }
           }
@@ -118,7 +166,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
     }
   }, []);
 
-  const viewBox = `${-padding} ${-padding} ${svgWidth + padding * 2} ${svgHeight + padding * 2}`;
+  const vb = contentBounds;
+  const viewBox = `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
 
   return (
     <div
@@ -134,8 +183,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
         <button onClick={fitToContainer} title="Ajustar ao container">⊡</button>
       </div>
       <svg
-        width={(svgWidth + padding * 2) * zoom}
-        height={(svgHeight + padding * 2) * zoom}
+        width={vb.w * zoom}
+        height={vb.h * zoom}
         viewBox={viewBox}
         xmlns="http://www.w3.org/2000/svg"
         style={{ display: 'block', margin: 'auto' }}
@@ -157,10 +206,10 @@ export const PanelView: React.FC<PanelViewProps> = ({
 
         {/* Workspace background with dot grid */}
         <rect
-          x={-padding}
-          y={-padding}
-          width={svgWidth + padding * 2}
-          height={svgHeight + padding * 2}
+          x={vb.x}
+          y={vb.y}
+          width={vb.w}
+          height={vb.h}
           fill="url(#grid-dots)"
         />
 
@@ -230,9 +279,9 @@ export const PanelView: React.FC<PanelViewProps> = ({
           rails={layout.rails}
           interiorOffsetXPx={intX}
           interiorOffsetYPx={intY}
-          svgWidth={svgWidth}
-          svgHeight={svgHeight}
-          padding={padding}
+          svgWidth={vb.w}
+          svgHeight={vb.h}
+          padding={-vb.x}
           selectedWireId={state.selectedWireId}
           onSelectWire={(id) => state.selectWire(id)}
           hoverTarget={hoverTarget}
@@ -252,9 +301,6 @@ export const PanelView: React.FC<PanelViewProps> = ({
 
         {/* External Devices */}
         <ExternalDeviceLayer
-          svgWidth={svgWidth}
-          svgHeight={svgHeight}
-          padding={padding}
           selectedDeviceId={selectedModule}
           onSelectDevice={onSelectModule}
           onPortClick={onPortClick}

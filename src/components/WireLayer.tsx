@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { PlacedModule, ResolvedRail } from '../types';
 import { getModuleById } from '../data/modules';
 import { cmToPx } from '../utils/geometry';
@@ -92,6 +92,14 @@ function buildManhattanPath(src: PortPosition, tgt: PortPosition): string {
   ].join(' ');
 }
 
+function buildWaypointPath(src: PortPosition, tgt: PortPosition, waypoints: { x: number; y: number }[]): string {
+  const points = [{ x: src.x, y: src.y }, ...waypoints, { x: tgt.x, y: tgt.y }];
+  return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+}
+
+const VERTEX_RADIUS = 2;
+const HIT_WIDTH = 4;
+
 export const WireLayer: React.FC<Props> = ({
   rails,
   interiorOffsetXPx,
@@ -109,6 +117,12 @@ export const WireLayer: React.FC<Props> = ({
   const panelIOs = usePanelStore((s) => s.panelIOs);
   const externalDevices = usePanelStore((s) => s.externalDevices);
   const wiringFrom = usePanelStore((s) => s.wiringFrom);
+  const addWireWaypoint = usePanelStore((s) => s.addWireWaypoint);
+  const moveWireWaypoint = usePanelStore((s) => s.moveWireWaypoint);
+  const removeWireWaypoint = usePanelStore((s) => s.removeWireWaypoint);
+
+  const [draggingWp, setDraggingWp] = useState<{ wireId: string; wpIndex: number } | null>(null);
+  const dragRef = useRef<boolean>(false);
 
   const getPos = (instanceId: string, portId: string): PortPosition | null => {
     if (instanceId.startsWith('panel-io:')) {
@@ -119,7 +133,7 @@ export const WireLayer: React.FC<Props> = ({
     }
     const extDev = externalDevices.find((d) => d.instanceId === instanceId);
     if (extDev) {
-      const pos = getExternalDevicePortPosition(extDev, portId, svgWidth, svgHeight, padding);
+      const pos = getExternalDevicePortPosition(extDev, portId);
       if (pos) return { x: pos.x, y: pos.y, type: 'any' };
     }
     const mr = findModuleAndRow(rows, instanceId);
@@ -127,8 +141,66 @@ export const WireLayer: React.FC<Props> = ({
     return getPortAbsolutePosition(mr.mod, portId, mr.rowIndex, rails, interiorOffsetXPx, interiorOffsetYPx);
   };
 
+  const getSvgPoint = useCallback((e: React.MouseEvent): { x: number; y: number } => {
+    const svg = (e.target as SVGElement).ownerSVGElement;
+    if (!svg) return { x: 0, y: 0 };
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const ctm = svg.getScreenCTM()?.inverse();
+    if (!ctm) return { x: 0, y: 0 };
+    const svgPt = pt.matrixTransform(ctm);
+    return { x: svgPt.x, y: svgPt.y };
+  }, []);
+
+  const handleWpMouseDown = useCallback((e: React.MouseEvent, wireId: string, wpIndex: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setDraggingWp({ wireId, wpIndex });
+    dragRef.current = false;
+  }, []);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!draggingWp) return;
+    dragRef.current = true;
+    const pt = getSvgPoint(e);
+    moveWireWaypoint(draggingWp.wireId, draggingWp.wpIndex, pt.x, pt.y);
+  }, [draggingWp, getSvgPoint, moveWireWaypoint]);
+
+  const handleMouseUp = useCallback(() => {
+    setDraggingWp(null);
+  }, []);
+
+  const handleWpRightClick = useCallback((e: React.MouseEvent, wireId: string, wpIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    removeWireWaypoint(wireId, wpIndex);
+  }, [removeWireWaypoint]);
+
+  const handleSegmentDoubleClick = useCallback((e: React.MouseEvent, wireId: string, segmentIndex: number) => {
+    e.stopPropagation();
+    const pt = getSvgPoint(e);
+    addWireWaypoint(wireId, segmentIndex, pt.x, pt.y);
+  }, [getSvgPoint, addWireWaypoint]);
+
   return (
-    <g className="wire-layer" style={{ pointerEvents: 'stroke' }}>
+    <g
+      className="wire-layer"
+      style={{ pointerEvents: 'stroke' }}
+      onMouseMove={draggingWp ? handleMouseMove : undefined}
+      onMouseUp={draggingWp ? handleMouseUp : undefined}
+      onMouseLeave={draggingWp ? handleMouseUp : undefined}
+    >
+      {draggingWp && (
+        <rect
+          x={-padding}
+          y={-padding}
+          width={svgWidth + padding * 2}
+          height={svgHeight + padding * 2}
+          fill="transparent"
+          style={{ pointerEvents: 'all' }}
+        />
+      )}
       {wires.map((wire) => {
         const src = getPos(wire.sourceInstanceId, wire.sourcePortId);
         const tgt = getPos(wire.targetInstanceId, wire.targetPortId);
@@ -139,11 +211,49 @@ export const WireLayer: React.FC<Props> = ({
         const baseColor = wire.wireColor ?? WIRE_COLORS[src.type] ?? '#333';
         const color = isEnergized ? '#ffab00' : baseColor;
         const isGround = src.type === 'ground' || tgt.type === 'ground';
-        const path = buildManhattanPath(src, tgt);
+        const waypoints = wire.waypoints ?? [];
+        const hasWaypoints = waypoints.length > 0;
+        const path = hasWaypoints
+          ? buildWaypointPath(src, tgt, waypoints)
+          : buildManhattanPath(src, tgt);
+
+        const allPoints = hasWaypoints
+          ? [{ x: src.x, y: src.y }, ...waypoints, { x: tgt.x, y: tgt.y }]
+          : null;
 
         return (
-          <g key={wire.id} onClick={(e) => { e.stopPropagation(); onSelectWire(wire.id); }} style={{ cursor: 'pointer' }}>
-            <path d={path} fill="none" stroke="transparent" strokeWidth={3} />
+          <g key={wire.id}>
+            {/* Hit area for each segment (for double-click to add waypoint) */}
+            {hasWaypoints && allPoints ? (
+              allPoints.slice(0, -1).map((p, i) => {
+                const next = allPoints[i + 1];
+                const segPath = `M ${p.x} ${p.y} L ${next.x} ${next.y}`;
+                return (
+                  <path
+                    key={`seg-hit-${i}`}
+                    d={segPath}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={HIT_WIDTH}
+                    style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
+                    onClick={(e) => { e.stopPropagation(); onSelectWire(wire.id); }}
+                    onDoubleClick={(e) => handleSegmentDoubleClick(e, wire.id, i)}
+                  />
+                );
+              })
+            ) : (
+              <path
+                d={path}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={HIT_WIDTH}
+                style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
+                onClick={(e) => { e.stopPropagation(); onSelectWire(wire.id); }}
+                onDoubleClick={(e) => handleSegmentDoubleClick(e, wire.id, 0)}
+              />
+            )}
+
+            {/* Glow for energized wires */}
             {isEnergized && (
               <path
                 d={path}
@@ -154,6 +264,8 @@ export const WireLayer: React.FC<Props> = ({
                 style={{ pointerEvents: 'none' }}
               />
             )}
+
+            {/* Visible wire */}
             <path
               d={path}
               fill="none"
@@ -161,7 +273,36 @@ export const WireLayer: React.FC<Props> = ({
               strokeWidth={isSelected ? 0.8 : isEnergized ? 0.7 : 0.5}
               strokeDasharray={isGround ? '1.5 0.8' : 'none'}
               opacity={0.9}
+              style={{ pointerEvents: 'none' }}
             />
+
+            {/* Waypoint vertices (draggable) */}
+            {isSelected && waypoints.map((wp, i) => (
+              <circle
+                key={`wp-${i}`}
+                cx={wp.x}
+                cy={wp.y}
+                r={VERTEX_RADIUS}
+                fill="#fff"
+                stroke="#1976d2"
+                strokeWidth={0.6}
+                style={{ cursor: 'grab', pointerEvents: 'all' }}
+                onMouseDown={(e) => handleWpMouseDown(e, wire.id, i)}
+                onContextMenu={(e) => handleWpRightClick(e, wire.id, i)}
+              />
+            ))}
+
+            {/* When selected & no waypoints, show + hint on hover */}
+            {isSelected && !hasWaypoints && (
+              <path
+                d={path}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={HIT_WIDTH}
+                style={{ cursor: 'crosshair', pointerEvents: 'stroke' }}
+                onDoubleClick={(e) => handleSegmentDoubleClick(e, wire.id, 0)}
+              />
+            )}
           </g>
         );
       })}

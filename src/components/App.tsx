@@ -130,7 +130,7 @@ export const App: React.FC = () => {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const data = event.active.data.current;
-    if (data?.type === 'new-module') {
+    if (data?.type === 'new-module' || data?.type === 'new-external-device') {
       setActiveModuleId(data.moduleId as string);
     } else if (data?.type === 'placed-module') {
       setActivePlaced({
@@ -199,16 +199,44 @@ export const App: React.FC = () => {
     [clearDragState],
   );
 
+  const computeExternalDevicePosition = useCallback(
+    (event: DragEndEvent): { x: number; y: number } | null => {
+      const svgEl = document.querySelector('.panel-view-container svg');
+      if (!svgEl) return null;
+      const svgRect = svgEl.getBoundingClientRect();
+      const svgViewBox = svgEl.getAttribute('viewBox')?.split(' ').map(Number);
+      if (!svgViewBox) return null;
+
+      const scaleX = svgViewBox[2] / svgRect.width;
+      const scaleY = svgViewBox[3] / svgRect.height;
+      const dropX = (event.activatorEvent as PointerEvent).clientX + event.delta.x - svgRect.left;
+      const dropY = (event.activatorEvent as PointerEvent).clientY + event.delta.y - svgRect.top;
+      const svgX = dropX * scaleX + svgViewBox[0];
+      const svgY = dropY * scaleY + svgViewBox[1];
+
+      return { x: svgX, y: svgY };
+    },
+    [],
+  );
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const placedInfo = activePlaced;
       clearDragState();
 
       const { active, over } = event;
-      if (!over) return;
-
       const data = active.data.current;
       if (!data) return;
+
+      if (data.type === 'new-external-device') {
+        const pos = computeExternalDevicePosition(event);
+        if (pos) {
+          store.addExternalDevice(data.moduleId as string, pos.x, pos.y);
+        }
+        return;
+      }
+
+      if (!over) return;
 
       const overData = over.data.current as
         | { rowId: string; rail: ResolvedRail }
@@ -274,7 +302,7 @@ export const App: React.FC = () => {
         }
       }
     },
-    [store, computeSnapPosition, clearDragState, activePlaced],
+    [store, computeSnapPosition, computeExternalDevicePosition, clearDragState, activePlaced],
   );
 
   if (screen === 'setup') {

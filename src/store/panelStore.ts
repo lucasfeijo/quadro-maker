@@ -35,6 +35,10 @@ interface PanelStore extends PanelState {
   removeWire: (wireId: string) => void;
   updateWireProps: (wireId: string, props: Partial<Pick<Wire, 'wireGaugeMm2' | 'wireColor' | 'label'>>) => void;
   selectWire: (wireId: string | null) => void;
+  addWireWaypoint: (wireId: string, index: number, x: number, y: number) => void;
+  moveWireWaypoint: (wireId: string, waypointIndex: number, x: number, y: number) => void;
+  removeWireWaypoint: (wireId: string, waypointIndex: number) => void;
+  clearWireWaypoints: (wireId: string) => void;
 
   // Panel I/O
   addPanelIO: (direction: PanelIODirection, type: PanelIOType, edge: PanelEdge, positionPercent: number, label?: string) => void;
@@ -44,8 +48,8 @@ interface PanelStore extends PanelState {
   selectIO: (ioId: string | null) => void;
 
   // External Devices
-  addExternalDevice: (moduleId: string, xPercent: number, yPercent: number) => void;
-  moveExternalDevice: (instanceId: string, xPercent: number, yPercent: number) => void;
+  addExternalDevice: (moduleId: string, x: number, y: number) => void;
+  moveExternalDevice: (instanceId: string, x: number, y: number) => void;
   removeExternalDevice: (instanceId: string) => void;
   updateExternalDeviceLabel: (instanceId: string, label: string) => void;
 
@@ -195,6 +199,41 @@ export const usePanelStore = create<PanelStore>((set) => ({
 
   selectWire: (wireId) => set({ selectedWireId: wireId }),
 
+  addWireWaypoint: (wireId, index, x, y) =>
+    set((s) => ({
+      wires: s.wires.map((w) => {
+        if (w.id !== wireId) return w;
+        const wps = [...(w.waypoints ?? [])];
+        wps.splice(index, 0, { x, y });
+        return { ...w, waypoints: wps };
+      }),
+    })),
+
+  moveWireWaypoint: (wireId, waypointIndex, x, y) =>
+    set((s) => ({
+      wires: s.wires.map((w) => {
+        if (w.id !== wireId) return w;
+        const wps = [...(w.waypoints ?? [])];
+        wps[waypointIndex] = { x, y };
+        return { ...w, waypoints: wps };
+      }),
+    })),
+
+  removeWireWaypoint: (wireId, waypointIndex) =>
+    set((s) => ({
+      wires: s.wires.map((w) => {
+        if (w.id !== wireId) return w;
+        const wps = [...(w.waypoints ?? [])];
+        wps.splice(waypointIndex, 1);
+        return { ...w, waypoints: wps.length > 0 ? wps : undefined };
+      }),
+    })),
+
+  clearWireWaypoints: (wireId) =>
+    set((s) => ({
+      wires: s.wires.map((w) => (w.id === wireId ? { ...w, waypoints: undefined } : w)),
+    })),
+
   addPanelIO: (direction, type, edge, positionPercent, label) =>
     set((s) => {
       const sameDir = s.panelIOs.filter((io) => io.direction === direction);
@@ -239,15 +278,15 @@ export const usePanelStore = create<PanelStore>((set) => ({
 
   selectIO: (ioId) => set({ selectedIOId: ioId }),
 
-  addExternalDevice: (moduleId, xPercent, yPercent) =>
+  addExternalDevice: (moduleId, x, y) =>
     set((s) => ({
-      externalDevices: [...s.externalDevices, { instanceId: nanoid(), moduleId, xPercent, yPercent }],
+      externalDevices: [...s.externalDevices, { instanceId: nanoid(), moduleId, x, y }],
     })),
 
-  moveExternalDevice: (instanceId, xPercent, yPercent) =>
+  moveExternalDevice: (instanceId, x, y) =>
     set((s) => ({
       externalDevices: s.externalDevices.map((d) =>
-        d.instanceId === instanceId ? { ...d, xPercent, yPercent } : d,
+        d.instanceId === instanceId ? { ...d, x, y } : d,
       ),
     })),
 
@@ -272,6 +311,10 @@ export const usePanelStore = create<PanelStore>((set) => ({
       ...state,
       wires: state.wires ?? [],
       panelIOs: state.panelIOs ?? [],
-      externalDevices: state.externalDevices ?? [],
+      externalDevices: (state.externalDevices ?? []).map((d: any) => ({
+        ...d,
+        x: d.x ?? 0,
+        y: d.y ?? -(d.yPercent != null ? 40 : 40),
+      })),
     }),
 }));

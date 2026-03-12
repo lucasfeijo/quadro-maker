@@ -594,16 +594,18 @@ html, body, #root {
 }
 
 .zoom-controls {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+  position: fixed;
+  top: auto;
+  right: 16px;
+  bottom: 16px;
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(0,0,0,0.6);
-  border-radius: 6px;
-  padding: 4px 8px;
-  z-index: 10;
+  background: rgba(0,0,0,0.7);
+  border-radius: 8px;
+  padding: 4px 10px;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .zoom-controls button {

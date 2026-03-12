@@ -115,14 +115,19 @@ function IOItem({ direction, type, defaultEdge, label, color, abbr }: typeof IO_
 const EXTERNAL_MODULES = MODULE_DEFINITIONS.filter((m) => isExternalModule(m.id));
 
 function ExternalDeviceItem({ moduleId, name, color }: { moduleId: string; name: string; color: string }) {
-  const addDevice = usePanelStore((s) => s.addExternalDevice);
-
-  const handleClick = () => {
-    addDevice(moduleId, 50, 5);
-  };
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `library-ext-${moduleId}`,
+    data: { type: 'new-external-device', moduleId },
+  });
 
   return (
-    <div className="library-item io-item" style={{ borderLeftColor: color }} onClick={handleClick}>
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className="library-item io-item"
+      style={{ borderLeftColor: color, opacity: isDragging ? 0.4 : 1 }}
+    >
       <div
         className="library-item-icon"
         style={{ background: color, borderRadius: 4, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700 }}
@@ -131,7 +136,7 @@ function ExternalDeviceItem({ moduleId, name, color }: { moduleId: string; name:
       </div>
       <div className="library-item-info">
         <span className="library-item-name">{name}</span>
-        <span className="library-item-size">Fora do quadro</span>
+        <span className="library-item-size">Arraste para fora do quadro</span>
       </div>
     </div>
   );

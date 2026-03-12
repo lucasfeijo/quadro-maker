@@ -3,7 +3,7 @@ import { getEnclosureById } from '../data/enclosures';
 
 const ROW_HEIGHT_CM = 10;
 const ROW_SPACING_CM = 3;
-const WALL_THICKNESS_CM = 2;
+const WALL_THICKNESS_CM = 6;
 const DEFAULT_FIXING_MARGIN = 3;
 
 export function resolveLayout(state: PanelState): ResolvedLayout {
