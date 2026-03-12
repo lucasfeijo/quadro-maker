@@ -177,9 +177,9 @@ export const PanelIOLayer: React.FC<Props> = ({
                   y={specY}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fontSize={2.5}
-                  fill="#888"
-                  fontWeight={500}
+                  fontSize={3.2}
+                  fill="#666"
+                  fontWeight={600}
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
                   {specs}

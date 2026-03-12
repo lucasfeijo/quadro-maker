@@ -3,7 +3,7 @@ import { getEnclosureById } from '../data/enclosures';
 
 const ROW_HEIGHT_CM = 10;
 const ROW_SPACING_CM = 3;
-const WALL_THICKNESS_CM = 6;
+const WALL_THICKNESS_CM = 3;
 const DEFAULT_FIXING_MARGIN = 3;
 
 export function resolveLayout(state: PanelState): ResolvedLayout {
@@ -15,16 +15,19 @@ export function resolveLayout(state: PanelState): ResolvedLayout {
 
 function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
   const enc = getEnclosureById(enclosureId)!;
-  const wallX = (enc.exteriorWidthCm - enc.interiorWidthCm) / 2;
-  const wallY = (enc.exteriorHeightCm - enc.interiorHeightCm) / 2;
+  const origWallX = (enc.exteriorWidthCm - enc.interiorWidthCm) / 2;
+  const origWallY = (enc.exteriorHeightCm - enc.interiorHeightCm) / 2;
+  const minWall = WALL_THICKNESS_CM;
+  const extraX = Math.max(0, minWall - origWallX);
+  const extraY = Math.max(0, minWall - origWallY);
 
   return {
-    exteriorWidthCm: enc.exteriorWidthCm,
-    exteriorHeightCm: enc.exteriorHeightCm,
+    exteriorWidthCm: enc.exteriorWidthCm + extraX * 2,
+    exteriorHeightCm: enc.exteriorHeightCm + extraY * 2,
     interiorWidthCm: enc.interiorWidthCm,
     interiorHeightCm: enc.interiorHeightCm,
-    interiorOffsetXCm: wallX,
-    interiorOffsetYCm: wallY,
+    interiorOffsetXCm: origWallX + extraX,
+    interiorOffsetYCm: origWallY + extraY,
     rails: enc.rails.map((r) => ({ ...r })),
     mountingHoles: enc.mountingHoles,
     isEnclosure: true,

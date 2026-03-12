@@ -1,6 +1,6 @@
 import type { PanelIO, PanelEdge } from '../types';
 
-const IO_MARGIN = 4;
+const WALL_PX = 35;
 const IO_BOX_W = 20;
 const IO_BOX_H = 14;
 
@@ -23,23 +23,23 @@ export function getIOPosition(
   switch (io.edge) {
     case 'top': {
       const bx = frac * svgWidth - IO_BOX_W / 2;
-      const by = IO_MARGIN;
-      return { boxX: bx, boxY: by, boxW: IO_BOX_W, boxH: IO_BOX_H, portX: bx + IO_BOX_W / 2, portY: by + IO_BOX_H + 3 };
+      const by = (WALL_PX - IO_BOX_H) / 2 + 4;
+      return { boxX: bx, boxY: by, boxW: IO_BOX_W, boxH: IO_BOX_H, portX: bx + IO_BOX_W / 2, portY: WALL_PX + 3 };
     }
     case 'bottom': {
       const bx = frac * svgWidth - IO_BOX_W / 2;
-      const by = svgHeight - IO_MARGIN - IO_BOX_H;
-      return { boxX: bx, boxY: by, boxW: IO_BOX_W, boxH: IO_BOX_H, portX: bx + IO_BOX_W / 2, portY: by - 3 };
+      const by = svgHeight - (WALL_PX + IO_BOX_H) / 2 - 4;
+      return { boxX: bx, boxY: by, boxW: IO_BOX_W, boxH: IO_BOX_H, portX: bx + IO_BOX_W / 2, portY: svgHeight - WALL_PX - 3 };
     }
     case 'left': {
-      const bx = IO_MARGIN;
+      const bx = (WALL_PX - IO_BOX_W) / 2;
       const by = frac * svgHeight - IO_BOX_H / 2;
-      return { boxX: bx, boxY: by, boxW: IO_BOX_W, boxH: IO_BOX_H, portX: bx + IO_BOX_W + 3, portY: by + IO_BOX_H / 2 };
+      return { boxX: bx, boxY: by, boxW: IO_BOX_W, boxH: IO_BOX_H, portX: WALL_PX + 3, portY: by + IO_BOX_H / 2 };
     }
     case 'right': {
-      const bx = svgWidth - IO_MARGIN - IO_BOX_W;
+      const bx = svgWidth - (WALL_PX + IO_BOX_W) / 2;
       const by = frac * svgHeight - IO_BOX_H / 2;
-      return { boxX: bx, boxY: by, boxW: IO_BOX_W, boxH: IO_BOX_H, portX: bx - 3, portY: by + IO_BOX_H / 2 };
+      return { boxX: bx, boxY: by, boxW: IO_BOX_W, boxH: IO_BOX_H, portX: svgWidth - WALL_PX - 3, portY: by + IO_BOX_H / 2 };
     }
   }
 }
