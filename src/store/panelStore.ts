@@ -50,7 +50,9 @@ interface PanelStore extends PanelState {
   // External Devices
   addExternalDevice: (moduleId: string, x: number, y: number) => void;
   moveExternalDevice: (instanceId: string, x: number, y: number) => void;
+  moveExternalDevices: (moves: Array<{ instanceId: string; x: number; y: number }>) => void;
   removeExternalDevice: (instanceId: string) => void;
+  removeMultiple: (moduleItems: Array<{ rowId: string; instanceId: string }>, externalDeviceIds: string[]) => void;
   updateExternalDeviceLabel: (instanceId: string, label: string) => void;
 
   setName: (name: string) => void;
@@ -290,11 +292,36 @@ export const usePanelStore = create<PanelStore>((set) => ({
       ),
     })),
 
+  moveExternalDevices: (moves) =>
+    set((s) => ({
+      externalDevices: s.externalDevices.map((d) => {
+        const move = moves.find((m) => m.instanceId === d.instanceId);
+        return move ? { ...d, x: move.x, y: move.y } : d;
+      }),
+    })),
+
   removeExternalDevice: (instanceId) =>
     set((s) => ({
       externalDevices: s.externalDevices.filter((d) => d.instanceId !== instanceId),
       wires: s.wires.filter((w) => w.sourceInstanceId !== instanceId && w.targetInstanceId !== instanceId),
     })),
+
+  removeMultiple: (moduleItems, externalDeviceIds) =>
+    set((s) => {
+      const removeInstanceIds = new Set([
+        ...moduleItems.map((m) => m.instanceId),
+        ...externalDeviceIds,
+      ]);
+      return {
+        rows: s.rows.map((row) => {
+          const toRemove = moduleItems.filter((m) => m.rowId === row.id).map((m) => m.instanceId);
+          if (toRemove.length === 0) return row;
+          return { ...row, modules: row.modules.filter((m) => !toRemove.includes(m.instanceId)) };
+        }),
+        externalDevices: s.externalDevices.filter((d) => !externalDeviceIds.includes(d.instanceId)),
+        wires: s.wires.filter((w) => !removeInstanceIds.has(w.sourceInstanceId) && !removeInstanceIds.has(w.targetInstanceId)),
+      };
+    }),
 
   updateExternalDeviceLabel: (instanceId, label) =>
     set((s) => ({

@@ -7,14 +7,39 @@ import { DinRail } from './DinRail';
 import { WireLayer } from './WireLayer';
 import { PanelIOLayer } from './PanelIOLayer';
 import { ExternalDeviceLayer, getExternalDeviceBounds } from './ExternalDeviceLayer';
+import { getIOPosition } from '../utils/panelIO';
 import type { GhostPreview, ComponentState } from '../types';
 
 const MARGIN = 15;
+const MODULE_HEIGHT_CM = 7;
+
+interface MarqueeRect {
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
+}
+
+function rectsOverlap(
+  ax: number, ay: number, aw: number, ah: number,
+  bx: number, by: number, bw: number, bh: number,
+): boolean {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+
+function marqueeToRect(m: MarqueeRect) {
+  const x = Math.min(m.startX, m.currentX);
+  const y = Math.min(m.startY, m.currentY);
+  const w = Math.abs(m.currentX - m.startX);
+  const h = Math.abs(m.currentY - m.startY);
+  return { x, y, w, h };
+}
 
 interface PanelViewProps {
   ghostPreview: GhostPreview | null;
-  selectedModule: string | null;
-  onSelectModule: (id: string | null) => void;
+  selectedModules: string[];
+  onSelectModule: (id: string | null, additive?: boolean) => void;
+  onSetSelection: (ids: string[]) => void;
   onPortClick?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
@@ -27,8 +52,9 @@ interface PanelViewProps {
 
 export const PanelView: React.FC<PanelViewProps> = ({
   ghostPreview,
-  selectedModule,
+  selectedModules,
   onSelectModule,
+  onSetSelection,
   onPortClick,
   onPortHover,
   onPortLeave,
@@ -40,7 +66,9 @@ export const PanelView: React.FC<PanelViewProps> = ({
 }) => {
   const state = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const [zoom, setZoom] = useState(1);
+  const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
 
   const layout = useMemo(
     () =>
@@ -108,19 +136,121 @@ export const PanelView: React.FC<PanelViewProps> = ({
   }, [fitToContainer]);
 
   const handleClearSelection = useCallback(() => {
+    if (didMarqueeRef.current) {
+      didMarqueeRef.current = false;
+      return;
+    }
     onSelectModule(null);
     state.selectWire(null);
     state.selectIO(null);
     if (state.wiringFrom) state.cancelWiring();
   }, [onSelectModule, state]);
 
+  // --- SVG coordinate helper ---
+  const screenToSvg = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const ctm = svg.getScreenCTM()?.inverse();
+    if (!ctm) return { x: 0, y: 0 };
+    const svgPt = pt.matrixTransform(ctm);
+    return { x: svgPt.x, y: svgPt.y };
+  }, []);
+
+  // --- Marquee selection ---
+  const marqueeRef = useRef<MarqueeRect | null>(null);
+
+  const handleMarqueeEnd = useCallback(() => {
+    const m = marqueeRef.current;
+    setMarquee(null);
+    marqueeRef.current = null;
+    if (!m) return;
+
+    const sel = marqueeToRect(m);
+    if (sel.w < 2 && sel.h < 2) return;
+
+    const ids: string[] = [];
+
+    for (const row of state.rows) {
+      const railIdx = state.rows.indexOf(row);
+      const rail = layout.rails[railIdx];
+      if (!rail) continue;
+      const railLeftPx = intX + cmToPx(rail.xCm);
+      const fixingPx = cmToPx(rail.fixingMarginCm);
+      const usableOffsetXPx = railLeftPx + fixingPx;
+      const railTopPx = intY + cmToPx(rail.yCm);
+      const railHeightPx = cmToPx(1);
+      const railCenterY = railTopPx + railHeightPx / 2;
+
+      for (const mod of row.modules) {
+        const def = getModuleById(mod.moduleId);
+        if (!def) continue;
+        const mx = usableOffsetXPx + cmToPx(mod.positionCm);
+        const my = railCenterY - cmToPx(MODULE_HEIGHT_CM / 2);
+        const mw = cmToPx(def.widthCm);
+        const mh = cmToPx(MODULE_HEIGHT_CM);
+        if (rectsOverlap(sel.x, sel.y, sel.w, sel.h, mx, my, mw, mh)) {
+          ids.push(mod.instanceId);
+        }
+      }
+    }
+
+    for (const dev of state.externalDevices) {
+      const bounds = getExternalDeviceBounds(dev);
+      if (!bounds) continue;
+      if (rectsOverlap(sel.x, sel.y, sel.w, sel.h, bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY)) {
+        ids.push(dev.instanceId);
+      }
+    }
+
+    if (ids.length > 0) {
+      onSetSelection(ids);
+    }
+  }, [state, layout, intX, intY, onSetSelection]);
+
+  const didMarqueeRef = useRef(false);
+
+  const handleSvgMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if (e.button !== 0) return;
+    const tag = (e.target as SVGElement).tagName;
+    if (tag !== 'svg' && tag !== 'rect') return;
+    const cls = (e.target as SVGElement).getAttribute('class');
+    const parentCls = (e.target as SVGElement).parentElement?.getAttribute('class');
+    if (cls === 'module-block' || parentCls === 'module-block') return;
+
+    const pt = screenToSvg(e.clientX, e.clientY);
+    const rect = { startX: pt.x, startY: pt.y, currentX: pt.x, currentY: pt.y };
+    marqueeRef.current = rect;
+    didMarqueeRef.current = false;
+    setMarquee(rect);
+  }, [screenToSvg]);
+
+  const handleSvgMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if (!marqueeRef.current) return;
+    const pt = screenToSvg(e.clientX, e.clientY);
+    const updated = { ...marqueeRef.current, currentX: pt.x, currentY: pt.y };
+    marqueeRef.current = updated;
+    setMarquee(updated);
+    const r = marqueeToRect(updated);
+    if (r.w > 2 || r.h > 2) didMarqueeRef.current = true;
+  }, [screenToSvg]);
+
+  const handleSvgMouseUp = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if (e.button !== 0) return;
+    if (!marqueeRef.current) return;
+    handleMarqueeEnd();
+  }, [handleMarqueeEnd]);
+
+  // --- Keyboard: delete + zoom ---
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (state.wiringFrom) { state.cancelWiring(); return; }
         if (state.selectedWireId) { state.selectWire(null); return; }
         if (state.selectedIOId) { state.selectIO(null); return; }
-        if (selectedModule) { onSelectModule(null); return; }
+        if (selectedModules.length > 0) { onSelectModule(null); return; }
       }
       if ((e.key === 'Delete' || e.key === 'Backspace')) {
         if (state.selectedWireId) {
@@ -131,18 +261,41 @@ export const PanelView: React.FC<PanelViewProps> = ({
           if (confirm('Remover entrada/saída?')) state.removePanelIO(state.selectedIOId);
           return;
         }
-        if (selectedModule) {
-          const extDev = state.externalDevices.find((d) => d.instanceId === selectedModule);
+        if (selectedModules.length > 1) {
+          if (confirm(`Remover ${selectedModules.length} itens?`)) {
+            const moduleItems: Array<{ rowId: string; instanceId: string }> = [];
+            const extDevIds: string[] = [];
+            for (const id of selectedModules) {
+              const extDev = state.externalDevices.find((d) => d.instanceId === id);
+              if (extDev) {
+                extDevIds.push(id);
+                continue;
+              }
+              for (const row of state.rows) {
+                if (row.modules.find((m) => m.instanceId === id)) {
+                  moduleItems.push({ rowId: row.id, instanceId: id });
+                  break;
+                }
+              }
+            }
+            state.removeMultiple(moduleItems, extDevIds);
+            onSelectModule(null);
+          }
+          return;
+        }
+        if (selectedModules.length === 1) {
+          const id = selectedModules[0];
+          const extDev = state.externalDevices.find((d) => d.instanceId === id);
           if (extDev) {
             const def = getModuleById(extDev.moduleId);
             if (confirm(`Remover ${extDev.label || def?.name || 'dispositivo'}?`)) {
-              state.removeExternalDevice(selectedModule);
+              state.removeExternalDevice(id);
               onSelectModule(null);
             }
             return;
           }
           for (const row of state.rows) {
-            const mod = row.modules.find((m) => m.instanceId === selectedModule);
+            const mod = row.modules.find((m) => m.instanceId === id);
             if (mod) {
               const def = getModuleById(mod.moduleId);
               if (confirm(`Remover ${mod.label || def?.name || 'módulo'}?`)) {
@@ -154,27 +307,45 @@ export const PanelView: React.FC<PanelViewProps> = ({
           }
         }
       }
+      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        setZoom((z) => Math.min(6, z + 0.2));
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+        e.preventDefault();
+        setZoom((z) => Math.max(0.1, z - 0.2));
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        fitToContainer();
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedModule, state]);
+  }, [selectedModules, state, fitToContainer, onSelectModule]);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
+  // --- Wheel zoom (non-passive to prevent browser zoom) ---
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const handler = (e: WheelEvent) => {
       e.preventDefault();
       setZoom((z) => Math.min(6, Math.max(0.1, z - e.deltaY * 0.002)));
-    }
+    };
+    container.addEventListener('wheel', handler, { passive: false });
+    return () => container.removeEventListener('wheel', handler);
   }, []);
 
   const vb = contentBounds;
   const viewBox = `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
+
+  const marqueeDisplay = marquee ? marqueeToRect(marquee) : null;
 
   return (
     <div
       ref={containerRef}
       className="panel-view-container"
       onClick={handleClearSelection}
-      onWheel={handleWheel}
     >
       <div className="zoom-controls">
         <button onClick={() => setZoom((z) => Math.min(6, z + 0.2))}>+</button>
@@ -183,11 +354,15 @@ export const PanelView: React.FC<PanelViewProps> = ({
         <button onClick={fitToContainer} title="Ajustar ao container">⊡</button>
       </div>
       <svg
+        ref={svgRef}
         width={vb.w * zoom}
         height={vb.h * zoom}
         viewBox={viewBox}
         xmlns="http://www.w3.org/2000/svg"
         style={{ display: 'block', margin: 'auto' }}
+        onMouseDown={handleSvgMouseDown}
+        onMouseMove={handleSvgMouseMove}
+        onMouseUp={handleSvgMouseUp}
       >
         <defs>
           <pattern
@@ -260,7 +435,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
               row={row}
               interiorOffsetXPx={intX}
               interiorOffsetYPx={intY}
-              selectedModule={selectedModule}
+              selectedModules={selectedModules}
               onSelectModule={onSelectModule}
               ghostPreview={
                 ghostPreview?.rowId === row.id ? ghostPreview : null
@@ -301,7 +476,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
 
         {/* External Devices */}
         <ExternalDeviceLayer
-          selectedDeviceId={selectedModule}
+          selectedDeviceIds={selectedModules}
           onSelectDevice={onSelectModule}
           onPortClick={onPortClick}
           onPortHover={onPortHover}
@@ -309,6 +484,21 @@ export const PanelView: React.FC<PanelViewProps> = ({
           simStates={simActive ? simStates : undefined}
           onSimModeChange={simActive ? onSimModeChange : undefined}
         />
+
+        {/* Marquee selection rectangle */}
+        {marqueeDisplay && marqueeDisplay.w > 0 && marqueeDisplay.h > 0 && (
+          <rect
+            x={marqueeDisplay.x}
+            y={marqueeDisplay.y}
+            width={marqueeDisplay.w}
+            height={marqueeDisplay.h}
+            fill="rgba(33, 150, 243, 0.1)"
+            stroke="#2196f3"
+            strokeWidth={0.5}
+            strokeDasharray="2,1"
+            style={{ pointerEvents: 'none' }}
+          />
+        )}
       </svg>
     </div>
   );

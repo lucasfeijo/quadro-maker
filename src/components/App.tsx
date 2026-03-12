@@ -37,7 +37,7 @@ export const App: React.FC = () => {
     rowId: string;
   } | null>(null);
   const [ghostPreview, setGhostPreview] = useState<GhostPreview | null>(null);
-  const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [hoverTarget, setHoverTarget] = useState<{ instanceId: string; portId: string } | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('panel');
   const [simActive, setSimActive] = useState(false);
@@ -305,9 +305,31 @@ export const App: React.FC = () => {
     [store, computeSnapPosition, computeExternalDevicePosition, clearDragState, activePlaced],
   );
 
+  const handleSelectModule = useCallback((id: string | null, additive?: boolean) => {
+    if (id === null) {
+      setSelectedModules([]);
+      return;
+    }
+    if (additive) {
+      setSelectedModules((prev) =>
+        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+      );
+    } else {
+      setSelectedModules([id]);
+    }
+  }, []);
+
+  const handleSetSelection = useCallback((ids: string[]) => {
+    setSelectedModules(ids);
+  }, []);
+
   if (screen === 'setup') {
     return <PanelConfig />;
   }
+
+  const singleSelected = selectedModules.length === 1 ? selectedModules[0] : null;
+  const showProperties = singleSelected || store.selectedWireId || store.selectedIOId;
+  const showMultiInfo = selectedModules.length > 1;
 
   return (
     <DndContext
@@ -329,8 +351,9 @@ export const App: React.FC = () => {
           {viewMode === 'panel' && (
             <PanelView
               ghostPreview={ghostPreview}
-              selectedModule={selectedModule}
-              onSelectModule={setSelectedModule}
+              selectedModules={selectedModules}
+              onSelectModule={handleSelectModule}
+              onSetSelection={handleSetSelection}
               onPortClick={handlePortClick}
               onPortHover={handlePortHover}
               onPortLeave={handlePortLeave}
@@ -342,8 +365,16 @@ export const App: React.FC = () => {
             />
           )}
           {viewMode === 'schematic' && <SchematicView />}
-          {viewMode === 'panel' && (selectedModule || store.selectedWireId || store.selectedIOId) && (
-            <PropertiesPanel selectedModuleId={selectedModule} />
+          {viewMode === 'panel' && showProperties && (
+            <PropertiesPanel selectedModuleId={singleSelected} />
+          )}
+          {viewMode === 'panel' && showMultiInfo && (
+            <div className="properties-panel">
+              <h3>{selectedModules.length} itens selecionados</h3>
+              <p style={{ color: '#888', fontSize: 12, margin: '8px 0' }}>
+                Arraste para mover em grupo
+              </p>
+            </div>
           )}
           {viewMode === 'panel' && simActive && (
             <SimulationOverlay onEnergizedWiresChange={handleSimDataChange} onSimModeChange={handleSimModeRegister} />

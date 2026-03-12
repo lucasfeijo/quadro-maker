@@ -9,8 +9,8 @@ interface Props {
   row: PanelRow;
   interiorOffsetXPx: number;
   interiorOffsetYPx: number;
-  selectedModule: string | null;
-  onSelectModule: (instanceId: string) => void;
+  selectedModules: string[];
+  onSelectModule: (instanceId: string, additive?: boolean) => void;
   ghostPreview: GhostPreview | null;
   onPortClick?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
@@ -27,7 +27,7 @@ export const DinRail: React.FC<Props> = ({
   row,
   interiorOffsetXPx,
   interiorOffsetYPx,
-  selectedModule,
+  selectedModules,
   onSelectModule,
   ghostPreview,
   onPortClick,
@@ -179,7 +179,7 @@ export const DinRail: React.FC<Props> = ({
           rowId={row.id}
           railUsableOffsetXPx={usableOffsetXPx}
           railYPx={railTopPx + railHeightPx / 2}
-          selected={selectedModule === mod.instanceId}
+          selected={selectedModules.includes(mod.instanceId)}
           onSelect={onSelectModule}
           onPortClick={onPortClick}
           onPortHover={onPortHover}

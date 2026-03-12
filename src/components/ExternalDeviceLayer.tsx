@@ -6,8 +6,8 @@ import { getModeInfo, getNextMode, SIM_MODES } from '../engine/circuit';
 import type { ComponentState } from '../types';
 
 interface Props {
-  selectedDeviceId: string | null;
-  onSelectDevice: (id: string | null) => void;
+  selectedDeviceIds: string[];
+  onSelectDevice: (id: string | null, additive?: boolean) => void;
   onPortClick?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
@@ -53,7 +53,7 @@ export function getExternalDeviceBounds(
 }
 
 export const ExternalDeviceLayer: React.FC<Props> = ({
-  selectedDeviceId,
+  selectedDeviceIds,
   onSelectDevice,
   onPortClick,
   onPortHover,
@@ -63,13 +63,18 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
 }) => {
   const devices = usePanelStore((s) => s.externalDevices);
   const moveDevice = usePanelStore((s) => s.moveExternalDevice);
+  const moveDevices = usePanelStore((s) => s.moveExternalDevices);
   const removeDevice = usePanelStore((s) => s.removeExternalDevice);
   const updateLabel = usePanelStore((s) => s.updateExternalDeviceLabel);
   const wiringFrom = usePanelStore((s) => s.wiringFrom);
   const wires = usePanelStore((s) => s.wires);
 
   const [dragging, setDragging] = useState<string | null>(null);
-  const dragOrigin = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null);
+  const dragOrigin = useRef<{
+    mx: number;
+    my: number;
+    targets: Array<{ instanceId: string; ox: number; oy: number }>;
+  } | null>(null);
 
   const getSvgPoint = useCallback(
     (e: React.MouseEvent) => {
@@ -92,10 +97,18 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
       if (e.button !== 0) return;
       e.stopPropagation();
       const pt = getSvgPoint(e);
-      dragOrigin.current = { mx: pt.x, my: pt.y, ox: devX, oy: devY };
+
+      const isInSelection = selectedDeviceIds.includes(instanceId);
+      const targets = isInSelection && selectedDeviceIds.length > 1
+        ? devices
+            .filter((d) => selectedDeviceIds.includes(d.instanceId))
+            .map((d) => ({ instanceId: d.instanceId, ox: d.x, oy: d.y }))
+        : [{ instanceId, ox: devX, oy: devY }];
+
+      dragOrigin.current = { mx: pt.x, my: pt.y, targets };
       setDragging(instanceId);
     },
-    [wiringFrom, getSvgPoint],
+    [wiringFrom, getSvgPoint, selectedDeviceIds, devices],
   );
 
   const onMouseMove = useCallback(
@@ -104,11 +117,21 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
       const pt = getSvgPoint(e);
       const dx = pt.x - dragOrigin.current.mx;
       const dy = pt.y - dragOrigin.current.my;
-      const newX = dragOrigin.current.ox + dx;
-      const newY = dragOrigin.current.oy + dy;
-      moveDevice(dragging, newX, newY);
+
+      if (dragOrigin.current.targets.length === 1) {
+        const t = dragOrigin.current.targets[0];
+        moveDevice(t.instanceId, t.ox + dx, t.oy + dy);
+      } else {
+        moveDevices(
+          dragOrigin.current.targets.map((t) => ({
+            instanceId: t.instanceId,
+            x: t.ox + dx,
+            y: t.oy + dy,
+          })),
+        );
+      }
     },
-    [dragging, getSvgPoint, moveDevice],
+    [dragging, getSvgPoint, moveDevice, moveDevices],
   );
 
   const onMouseUp = useCallback(() => {
@@ -140,7 +163,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
         const boxW = cmToPx(def.widthCm) * DEV_SCALE;
         const bx = dev.x - boxW / 2;
         const by = dev.y - BOX_H / 2;
-        const isSelected = selectedDeviceId === dev.instanceId;
+        const isSelected = selectedDeviceIds.includes(dev.instanceId);
 
         const isConnected = (portId: string) => wires.some(
           (w) =>
@@ -153,7 +176,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
             key={dev.instanceId}
             onClick={(e) => {
               e.stopPropagation();
-              onSelectDevice(dev.instanceId);
+              onSelectDevice(dev.instanceId, e.ctrlKey || e.metaKey);
             }}
             onContextMenu={(e) => {
               e.preventDefault();

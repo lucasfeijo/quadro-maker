@@ -14,7 +14,7 @@ interface Props {
   railUsableOffsetXPx: number;
   railYPx: number;
   selected: boolean;
-  onSelect: (instanceId: string) => void;
+  onSelect: (instanceId: string, additive?: boolean) => void;
   isDragging?: boolean;
   onPortClick?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
@@ -91,7 +91,7 @@ export const ModuleBlock: React.FC<Props> = ({
       className="module-block"
       onClick={(e) => {
         e.stopPropagation();
-        onSelect(mod.instanceId);
+        onSelect(mod.instanceId, e.ctrlKey || e.metaKey);
       }}
       onContextMenu={handleContextMenu}
       onDoubleClick={handleDoubleClick}
