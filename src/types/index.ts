@@ -107,6 +107,7 @@ export type ComponentState = {
   tripped: boolean;
   currentA: number;
   voltageV: number;
+  mode: string;
 };
 
 // --- External Devices (fora do quadro) ---

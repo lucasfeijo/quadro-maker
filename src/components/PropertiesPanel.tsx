@@ -12,6 +12,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   timer: 'Temporizador',
   terminal: 'Borne',
   ats: 'ATS',
+  switch: 'Interruptor',
+  button: 'Botão Pulsador',
 };
 
 const GAUGE_OPTIONS = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50];
@@ -42,12 +44,15 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
   const rows = usePanelStore((s) => s.rows);
   const wires = usePanelStore((s) => s.wires);
   const panelIOs = usePanelStore((s) => s.panelIOs);
+  const externalDevices = usePanelStore((s) => s.externalDevices);
   const selectedWireId = usePanelStore((s) => s.selectedWireId);
   const selectedIOId = usePanelStore((s) => s.selectedIOId);
   const updateWireProps = usePanelStore((s) => s.updateWireProps);
   const removeWire = usePanelStore((s) => s.removeWire);
   const updatePanelIO = usePanelStore((s) => s.updatePanelIO);
   const removePanelIO = usePanelStore((s) => s.removePanelIO);
+  const removeExternalDevice = usePanelStore((s) => s.removeExternalDevice);
+  const updateExternalDeviceLabel = usePanelStore((s) => s.updateExternalDeviceLabel);
 
   const selectedWire = selectedWireId ? wires.find((w) => w.id === selectedWireId) : null;
   const selectedIO = selectedIOId ? panelIOs.find((io) => io.id === selectedIOId) : null;
@@ -57,6 +62,11 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
       const ioId = instanceId.replace('panel-io:', '');
       const io = panelIOs.find((i) => i.id === ioId);
       return io?.label ?? 'E/S';
+    }
+    const extDev = externalDevices.find((d) => d.instanceId === instanceId);
+    if (extDev) {
+      const def = getModuleById(extDev.moduleId);
+      return extDev.label || def?.name || extDev.moduleId;
     }
     for (const row of rows) {
       const mod = row.modules.find((m) => m.instanceId === instanceId);
@@ -213,6 +223,54 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
   }
 
   if (!selectedModuleId) return null;
+
+  const selectedExtDevice = externalDevices.find((d) => d.instanceId === selectedModuleId);
+  if (selectedExtDevice) {
+    const extDef = getModuleById(selectedExtDevice.moduleId);
+    if (!extDef) return null;
+    const extWires = wires.filter(
+      (w) => w.sourceInstanceId === selectedModuleId || w.targetInstanceId === selectedModuleId,
+    );
+    return (
+      <div className="properties-panel">
+        <h3>Dispositivo Externo</h3>
+        <div className="prop-module-header">
+          <span className="prop-color-dot" style={{ background: extDef.color }} />
+          <span className="prop-module-name">{extDef.name}</span>
+        </div>
+        <div className="prop-section">
+          <div className="prop-row">
+            <span className="prop-label">Categoria</span>
+            <span className="prop-value">{CATEGORY_LABELS[extDef.category] ?? extDef.category}</span>
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Rótulo</span>
+            <input
+              className="prop-input"
+              value={selectedExtDevice.label ?? ''}
+              placeholder={extDef.name}
+              onChange={(e) => updateExternalDeviceLabel(selectedModuleId, e.target.value)}
+            />
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Posição</span>
+            <span className="prop-value">Fora do quadro</span>
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Portas</span>
+            <span className="prop-value">{extDef.ports.length}</span>
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Fios</span>
+            <span className="prop-value">{extWires.length}</span>
+          </div>
+        </div>
+        <button className="toolbar-btn danger-action" onClick={() => removeExternalDevice(selectedModuleId)}>
+          Remover Dispositivo
+        </button>
+      </div>
+    );
+  }
 
   let placed: PlacedModule | undefined;
   let rowIndex = -1;

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { PlacedModule } from '../types';
+import { PlacedModule, ComponentState } from '../types';
 import { getModuleById } from '../data/modules';
 import { cmToPx } from '../utils/geometry';
 import { usePanelStore } from '../store/panelStore';
 import { ModuleIcon } from './ModuleIcon';
 import { PortDot } from './PortDot';
 import { useDraggable } from '@dnd-kit/core';
+import { getModeInfo, getNextMode, SIM_MODES } from '../engine/circuit';
 
 interface Props {
   mod: PlacedModule;
@@ -18,6 +19,8 @@ interface Props {
   onPortClick?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
+  simState?: ComponentState;
+  onSimModeChange?: (instanceId: string, newMode: string) => void;
 }
 
 const MODULE_HEIGHT_CM = 7;
@@ -33,6 +36,8 @@ export const ModuleBlock: React.FC<Props> = ({
   onPortClick,
   onPortHover,
   onPortLeave,
+  simState,
+  onSimModeChange,
 }) => {
   const def = getModuleById(mod.moduleId);
   const removeModule = usePanelStore((s) => s.removeModule);
@@ -64,7 +69,9 @@ export const ModuleBlock: React.FC<Props> = ({
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    removeModule(rowId, mod.instanceId);
+    if (confirm(`Remover ${mod.label || def.name}?`)) {
+      removeModule(rowId, mod.instanceId);
+    }
   };
 
   const handleDoubleClick = () => {
@@ -177,6 +184,62 @@ export const ModuleBlock: React.FC<Props> = ({
           {mod.label}
         </text>
       ) : null}
+      {simState && (() => {
+        const modes = SIM_MODES[def.category];
+        if (!modes || modes.length <= 1) return null;
+        const modeInfo = getModeInfo(def.category, simState.mode);
+        if (!modeInfo) return null;
+        const badgeW = Math.min(w - 2, 18);
+        const badgeH = 5;
+        const badgeX = x + (w - badgeW) / 2;
+        const badgeY = y - badgeH - 3;
+        return (
+          <g
+            style={{ cursor: 'pointer' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSimModeChange?.(mod.instanceId, getNextMode(def.category, simState.mode));
+            }}
+          >
+            <rect
+              x={badgeX}
+              y={badgeY}
+              width={badgeW}
+              height={badgeH}
+              rx={1.5}
+              fill={modeInfo.color}
+              stroke="#fff"
+              strokeWidth={0.4}
+              opacity={0.95}
+            />
+            <text
+              x={badgeX + badgeW / 2}
+              y={badgeY + badgeH / 2}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={2.8}
+              fontWeight={700}
+              fill="#fff"
+              style={{ pointerEvents: 'none', userSelect: 'none' }}
+            >
+              {modeInfo.label}
+            </text>
+            {simState.voltageV > 0 && (
+              <text
+                x={badgeX + badgeW / 2}
+                y={badgeY - 2.5}
+                textAnchor="middle"
+                fontSize={2.2}
+                fontWeight={600}
+                fill="#666"
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
+              >
+                {simState.voltageV.toFixed(0)}V {simState.currentA.toFixed(1)}A
+              </text>
+            )}
+          </g>
+        );
+      })()}
       {def.ports.map((port) => {
         const isSource = wiringFrom?.instanceId === mod.instanceId && wiringFrom?.portId === port.id;
         const isConnected = wires.some(

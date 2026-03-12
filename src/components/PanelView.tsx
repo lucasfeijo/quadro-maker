@@ -19,6 +19,7 @@ interface PanelViewProps {
   simActive?: boolean;
   energizedWires?: Set<string>;
   simStates?: ComponentState[];
+  onSimModeChange?: (instanceId: string, newMode: string) => void;
 }
 
 export const PanelView: React.FC<PanelViewProps> = ({
@@ -32,6 +33,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
   simActive,
   energizedWires,
   simStates,
+  onSimModeChange,
 }) => {
   const state = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -55,18 +57,20 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const intY = cmToPx(layout.interiorOffsetYCm);
   const intW = cmToPx(layout.interiorWidthCm);
   const intH = cmToPx(layout.interiorHeightCm);
-  const padding = 20;
+  const padding = Math.max(svgWidth, svgHeight) * 0.75;
 
   const fitToContainer = useCallback(() => {
     const container = containerRef.current;
     if (!container || svgWidth <= 0 || svgHeight <= 0) return;
-    const cssPad = 40;
+    const cssPad = 20;
     const availW = container.clientWidth - cssPad * 2;
     const availH = container.clientHeight - cssPad * 2;
     if (availW <= 0 || availH <= 0) return;
-    const fitZoom = Math.min(availW / svgWidth, availH / svgHeight);
-    setZoom(Math.min(4, Math.max(0.3, fitZoom)));
-  }, [svgWidth, svgHeight]);
+    const totalVbW = svgWidth + padding * 2;
+    const totalVbH = svgHeight + padding * 2;
+    const fitZoom = Math.min(availW / totalVbW, availH / totalVbH);
+    setZoom(Math.min(6, Math.max(0.1, fitZoom)));
+  }, [svgWidth, svgHeight, padding]);
 
   useEffect(() => {
     requestAnimationFrame(fitToContainer);
@@ -80,11 +84,18 @@ export const PanelView: React.FC<PanelViewProps> = ({
         if (state.wiringFrom) { state.cancelWiring(); return; }
         if (state.selectedWireId) { state.selectWire(null); return; }
         if (state.selectedIOId) { state.selectIO(null); return; }
+        if (selectedModule) { onSelectModule(null); return; }
       }
       if ((e.key === 'Delete' || e.key === 'Backspace')) {
         if (state.selectedWireId) { state.removeWire(state.selectedWireId); return; }
         if (state.selectedIOId) { state.removePanelIO(state.selectedIOId); return; }
         if (selectedModule) {
+          const extDev = state.externalDevices.find((d) => d.instanceId === selectedModule);
+          if (extDev) {
+            state.removeExternalDevice(selectedModule);
+            onSelectModule(null);
+            return;
+          }
           for (const row of state.rows) {
             const mod = row.modules.find((m) => m.instanceId === selectedModule);
             if (mod) {
@@ -103,7 +114,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      setZoom((z) => Math.min(4, Math.max(0.3, z - e.deltaY * 0.002)));
+      setZoom((z) => Math.min(6, Math.max(0.1, z - e.deltaY * 0.002)));
     }
   }, []);
 
@@ -117,14 +128,14 @@ export const PanelView: React.FC<PanelViewProps> = ({
       onWheel={handleWheel}
     >
       <div className="zoom-controls">
-        <button onClick={() => setZoom((z) => Math.min(4, z + 0.2))}>+</button>
+        <button onClick={() => setZoom((z) => Math.min(6, z + 0.2))}>+</button>
         <span>{Math.round(zoom * 100)}%</span>
-        <button onClick={() => setZoom((z) => Math.max(0.3, z - 0.2))}>-</button>
+        <button onClick={() => setZoom((z) => Math.max(0.1, z - 0.2))}>-</button>
         <button onClick={fitToContainer} title="Ajustar ao container">⊡</button>
       </div>
       <svg
-        width={svgWidth * zoom}
-        height={svgHeight * zoom}
+        width={(svgWidth + padding * 2) * zoom}
+        height={(svgHeight + padding * 2) * zoom}
         viewBox={viewBox}
         xmlns="http://www.w3.org/2000/svg"
         style={{ display: 'block', margin: 'auto' }}
@@ -139,7 +150,19 @@ export const PanelView: React.FC<PanelViewProps> = ({
           >
             <line x1="0" y1="0" x2="0" y2="3" stroke="#999" strokeWidth="0.5" />
           </pattern>
+          <pattern id="grid-dots" width="10" height="10" patternUnits="userSpaceOnUse">
+            <circle cx="5" cy="5" r="0.3" fill="#ccc" />
+          </pattern>
         </defs>
+
+        {/* Workspace background with dot grid */}
+        <rect
+          x={-padding}
+          y={-padding}
+          width={svgWidth + padding * 2}
+          height={svgHeight + padding * 2}
+          fill="url(#grid-dots)"
+        />
 
         {/* Exterior shell */}
         <rect
@@ -196,6 +219,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
               onPortClick={onPortClick}
               onPortHover={onPortHover}
               onPortLeave={onPortLeave}
+              simStates={simActive ? simStates : undefined}
+              onSimModeChange={simActive ? onSimModeChange : undefined}
             />
           );
         })}
@@ -230,9 +255,13 @@ export const PanelView: React.FC<PanelViewProps> = ({
           svgWidth={svgWidth}
           svgHeight={svgHeight}
           padding={padding}
+          selectedDeviceId={selectedModule}
+          onSelectDevice={onSelectModule}
           onPortClick={onPortClick}
           onPortHover={onPortHover}
           onPortLeave={onPortLeave}
+          simStates={simActive ? simStates : undefined}
+          onSimModeChange={simActive ? onSimModeChange : undefined}
         />
       </svg>
     </div>

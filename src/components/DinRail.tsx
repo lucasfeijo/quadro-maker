@@ -1,5 +1,5 @@
 import React from 'react';
-import { ResolvedRail, PanelRow, GhostPreview } from '../types';
+import { ResolvedRail, PanelRow, GhostPreview, ComponentState } from '../types';
 import { cmToPx } from '../utils/geometry';
 import { ModuleBlock } from './ModuleBlock';
 import { useDroppable } from '@dnd-kit/core';
@@ -15,6 +15,8 @@ interface Props {
   onPortClick?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
+  simStates?: ComponentState[];
+  onSimModeChange?: (instanceId: string, newMode: string) => void;
 }
 
 const RAIL_HEIGHT_CM = 1;
@@ -31,6 +33,8 @@ export const DinRail: React.FC<Props> = ({
   onPortClick,
   onPortHover,
   onPortLeave,
+  simStates,
+  onSimModeChange,
 }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `rail-${row.id}`,
@@ -180,6 +184,8 @@ export const DinRail: React.FC<Props> = ({
           onPortClick={onPortClick}
           onPortHover={onPortHover}
           onPortLeave={onPortLeave}
+          simState={simStates?.find((s) => s.instanceId === mod.instanceId)}
+          onSimModeChange={onSimModeChange}
         />
       ))}
     </g>

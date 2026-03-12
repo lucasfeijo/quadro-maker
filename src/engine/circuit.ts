@@ -23,6 +23,79 @@ export interface SimAlert {
   message: string;
 }
 
+export interface SimMode {
+  id: string;
+  label: string;
+  color: string;
+  passesEnergy: boolean;
+}
+
+export const SIM_MODES: Record<string, SimMode[]> = {
+  breaker: [
+    { id: 'on', label: 'Ligado', color: '#4caf50', passesEnergy: true },
+    { id: 'off', label: 'Desligado', color: '#f44336', passesEnergy: false },
+    { id: 'tripped', label: 'Disparado', color: '#ff9800', passesEnergy: false },
+  ],
+  dr: [
+    { id: 'on', label: 'Ligado', color: '#4caf50', passesEnergy: true },
+    { id: 'off', label: 'Desligado', color: '#f44336', passesEnergy: false },
+    { id: 'tripped', label: 'Disparado', color: '#ff9800', passesEnergy: false },
+  ],
+  dps: [
+    { id: 'ok', label: 'Normal', color: '#4caf50', passesEnergy: true },
+    { id: 'tripped', label: 'Atuado', color: '#ff9800', passesEnergy: false },
+  ],
+  contactor: [
+    { id: 'on', label: 'Energizado', color: '#4caf50', passesEnergy: true },
+    { id: 'off', label: 'Desenergizado', color: '#999', passesEnergy: false },
+  ],
+  relay: [
+    { id: 'on', label: 'Energizado', color: '#4caf50', passesEnergy: true },
+    { id: 'off', label: 'Desenergizado', color: '#999', passesEnergy: false },
+  ],
+  timer: [
+    { id: 'idle', label: 'Aguardando', color: '#999', passesEnergy: false },
+    { id: 'counting', label: 'Contando', color: '#ff9800', passesEnergy: false },
+    { id: 'done', label: 'Concluído', color: '#4caf50', passesEnergy: true },
+  ],
+  ats: [
+    { id: 'src1', label: 'Fonte 1', color: '#4caf50', passesEnergy: true },
+    { id: 'src2', label: 'Fonte 2', color: '#ff9800', passesEnergy: true },
+    { id: 'off', label: 'Desligado', color: '#f44336', passesEnergy: false },
+  ],
+  terminal: [
+    { id: 'on', label: 'Conectado', color: '#4caf50', passesEnergy: true },
+  ],
+  switch: [
+    { id: 'on', label: 'Fechado', color: '#4caf50', passesEnergy: true },
+    { id: 'off', label: 'Aberto', color: '#f44336', passesEnergy: false },
+  ],
+  button: [
+    { id: 'released', label: 'Solto', color: '#999', passesEnergy: false },
+    { id: 'pressed', label: 'Pressionado', color: '#4caf50', passesEnergy: true },
+  ],
+};
+
+export function getDefaultMode(category: string): string {
+  const modes = SIM_MODES[category];
+  if (!modes || modes.length === 0) return 'on';
+  if (category === 'switch') return 'off';
+  if (category === 'button') return 'released';
+  if (category === 'timer') return 'idle';
+  return modes[0].id;
+}
+
+export function getNextMode(category: string, currentMode: string): string {
+  const modes = SIM_MODES[category];
+  if (!modes || modes.length <= 1) return currentMode;
+  const idx = modes.findIndex((m) => m.id === currentMode);
+  return modes[(idx + 1) % modes.length].id;
+}
+
+export function getModeInfo(category: string, mode: string): SimMode | undefined {
+  return SIM_MODES[category]?.find((m) => m.id === mode);
+}
+
 const DEFAULT_VOLTAGE = 220;
 const DEFAULT_NOMINAL: Record<string, number> = {
   'breaker-1p': 16,
@@ -100,12 +173,17 @@ function buildCircuitGraph(
   return graph;
 }
 
+export interface ManualOverride {
+  on?: boolean;
+  mode?: string;
+}
+
 export function simulate(
   rows: { id: string; modules: PlacedModule[] }[],
   wires: Wire[],
   panelIOs: PanelIO[],
   externalDevices: ExternalDevice[],
-  manualOverrides?: Map<string, { on: boolean }>,
+  manualOverrides?: Map<string, ManualOverride>,
 ): SimulationResult {
   const allModules = rows.flatMap((r) => r.modules);
   const graph = buildCircuitGraph(allModules, wires, panelIOs, externalDevices);
@@ -114,13 +192,18 @@ export function simulate(
   const energizedWires = new Set<string>();
 
   for (const mod of allModules) {
+    const def = getModuleById(mod.moduleId);
+    const category = def?.category ?? 'breaker';
     const override = manualOverrides?.get(mod.instanceId);
+    const mode = override?.mode ?? getDefaultMode(category);
+    const modeInfo = getModeInfo(category, mode);
     states.set(mod.instanceId, {
       instanceId: mod.instanceId,
-      on: override?.on ?? true,
-      tripped: false,
+      on: override?.on ?? (modeInfo?.passesEnergy ?? true),
+      tripped: mode === 'tripped',
       currentA: 0,
       voltageV: 0,
+      mode,
     });
   }
 
@@ -133,18 +216,23 @@ export function simulate(
       tripped: false,
       currentA: 0,
       voltageV: 0,
+      mode: 'on',
     });
   }
 
   for (const dev of externalDevices) {
+    const defObj = getModuleById(dev.moduleId);
+    const category = defObj?.category ?? 'switch';
     const override = manualOverrides?.get(dev.instanceId);
-    const defCat = getModuleById(dev.moduleId)?.category;
+    const mode = override?.mode ?? getDefaultMode(category);
+    const modeInfo = getModeInfo(category, mode);
     states.set(dev.instanceId, {
       instanceId: dev.instanceId,
-      on: override?.on ?? (defCat === 'switch' ? false : true),
+      on: override?.on ?? (modeInfo?.passesEnergy ?? false),
       tripped: false,
       currentA: 0,
       voltageV: 0,
+      mode,
     });
   }
 
@@ -178,7 +266,7 @@ export function simulate(
 
   const visited = new Set<string>();
 
-  function propagate(id: string, voltage: number, currentBudget: number) {
+  function propagate(id: string, voltage: number, currentBudget: number, sourcePortHint?: string) {
     if (visited.has(id)) return;
     visited.add(id);
 
@@ -189,7 +277,9 @@ export function simulate(
     state.voltageV = voltage;
     state.currentA = currentBudget;
 
-    if (!state.on) {
+    const modeInfo = getModeInfo(node.category, state.mode);
+
+    if (!state.on || (modeInfo && !modeInfo.passesEnergy)) {
       state.voltageV = 0;
       state.currentA = 0;
       return;
@@ -198,6 +288,7 @@ export function simulate(
     if ((node.category === 'breaker' || node.category === 'dr') && currentBudget > node.nominalCurrentA) {
       state.tripped = true;
       state.on = false;
+      state.mode = 'tripped';
       alerts.push({
         type: 'tripped',
         instanceId: id,

@@ -42,9 +42,14 @@ export const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('panel');
   const [simActive, setSimActive] = useState(false);
   const [simData, setSimData] = useState<{ energizedWires: Set<string>; states: ComponentState[] }>({ energizedWires: new Set(), states: [] });
+  const [simModeHandler, setSimModeHandler] = useState<((instanceId: string, newMode: string) => void) | null>(null);
 
   const handleSimDataChange = useCallback((energizedWires: Set<string>, states: ComponentState[]) => {
     setSimData({ energizedWires, states });
+  }, []);
+
+  const handleSimModeRegister = useCallback((handler: (instanceId: string, newMode: string) => void) => {
+    setSimModeHandler(() => handler);
   }, []);
 
   const handlePortClick = useCallback(
@@ -305,6 +310,7 @@ export const App: React.FC = () => {
               simActive={simActive}
               energizedWires={simData.energizedWires}
               simStates={simData.states}
+              onSimModeChange={simModeHandler ?? undefined}
             />
           )}
           {viewMode === 'schematic' && <SchematicView />}
@@ -312,7 +318,7 @@ export const App: React.FC = () => {
             <PropertiesPanel selectedModuleId={selectedModule} />
           )}
           {viewMode === 'panel' && simActive && (
-            <SimulationOverlay onEnergizedWiresChange={handleSimDataChange} />
+            <SimulationOverlay onEnergizedWiresChange={handleSimDataChange} onSimModeChange={handleSimModeRegister} />
           )}
         </div>
       </div>

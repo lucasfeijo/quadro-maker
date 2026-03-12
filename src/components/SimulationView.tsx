@@ -1,7 +1,8 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { getModuleById } from '../data/modules';
-import { simulate } from '../engine/circuit';
+import { simulate, getNextMode, getModeInfo, SIM_MODES, getDefaultMode } from '../engine/circuit';
+import type { ManualOverride } from '../engine/circuit';
 import type { ComponentState } from '../types';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -45,27 +46,52 @@ const ALERT_ICONS: Record<string, string> = {
 
 interface SimulationOverlayProps {
   onEnergizedWiresChange?: (wires: Set<string>, states: ComponentState[]) => void;
+  onSimModeChange?: (handler: (instanceId: string, newMode: string) => void) => void;
 }
 
-export const SimulationOverlay: React.FC<SimulationOverlayProps> = ({ onEnergizedWiresChange }) => {
+export const SimulationOverlay: React.FC<SimulationOverlayProps> = ({ onEnergizedWiresChange, onSimModeChange }) => {
   const rows = usePanelStore((s) => s.rows);
   const wires = usePanelStore((s) => s.wires);
   const panelIOs = usePanelStore((s) => s.panelIOs);
   const externalDevices = usePanelStore((s) => s.externalDevices);
 
-  const [overrides, setOverrides] = useState<Map<string, { on: boolean }>>(new Map());
+  const [overrides, setOverrides] = useState<Map<string, ManualOverride>>(new Map());
+
+  const setMode = useCallback((instanceId: string, newMode: string) => {
+    setOverrides((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(instanceId) ?? {};
+      next.set(instanceId, { ...existing, mode: newMode });
+      return next;
+    });
+  }, []);
+
+  React.useEffect(() => {
+    onSimModeChange?.(setMode);
+  }, [onSimModeChange, setMode]);
+
+  const cycleMode = useCallback((instanceId: string, category: string) => {
+    setOverrides((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(instanceId);
+      const currentMode = existing?.mode ?? getDefaultMode(category);
+      const nextMode = getNextMode(category, currentMode);
+      next.set(instanceId, { ...existing, mode: nextMode });
+      return next;
+    });
+  }, []);
 
   const toggleModule = useCallback((instanceId: string) => {
     setOverrides((prev) => {
       const next = new Map(prev);
       const current = next.get(instanceId);
-      if (current !== undefined) {
-        next.set(instanceId, { on: !current.on });
+      if (current?.on !== undefined) {
+        next.set(instanceId, { ...current, on: !current.on });
       } else {
         const extDev = externalDevices.find((d) => d.instanceId === instanceId);
         const def = extDev ? getModuleById(extDev.moduleId) : null;
         const defaultOn = def?.category === 'switch' ? false : true;
-        next.set(instanceId, { on: !defaultOn });
+        next.set(instanceId, { ...current, on: !defaultOn });
       }
       return next;
     });
@@ -167,18 +193,21 @@ export const SimulationOverlay: React.FC<SimulationOverlayProps> = ({ onEnergize
               if (!mod) return null;
               const def = getModuleById(mod.moduleId);
               if (!def) return null;
+              const modeInfo = getModeInfo(def.category, state.mode);
+              const modes = SIM_MODES[def.category];
+              const hasModes = modes && modes.length > 1;
 
               return (
                 <div
                   key={state.instanceId}
                   className={`sim-item ${state.tripped ? 'sim-item-tripped' : state.on ? 'sim-item-on' : 'sim-item-off'}`}
-                  onClick={() => toggleModule(state.instanceId)}
-                  title="Clique para ligar/desligar"
+                  onClick={() => hasModes ? cycleMode(state.instanceId, def.category) : toggleModule(state.instanceId)}
+                  title={hasModes ? `Clique para trocar estado (${modes.map((m) => m.label).join(' → ')})` : 'Clique para ligar/desligar'}
                 >
-                  <span className="sim-item-color" style={{ background: def.color }} />
+                  <span className="sim-item-color" style={{ background: modeInfo?.color ?? def.color }} />
                   <span className="sim-item-name">{mod.label || def.name}</span>
-                  <span className="sim-item-status">
-                    {state.tripped ? 'DISP' : state.on ? 'ON' : 'OFF'}
+                  <span className="sim-item-status" style={{ color: modeInfo?.color }}>
+                    {modeInfo?.label ?? (state.on ? 'ON' : 'OFF')}
                   </span>
                   <span className="sim-item-metrics">
                     {state.voltageV.toFixed(0)}V {state.currentA.toFixed(1)}A
@@ -199,24 +228,24 @@ export const SimulationOverlay: React.FC<SimulationOverlayProps> = ({ onEnergize
               if (!dev) return null;
               const def = getModuleById(dev.moduleId);
               if (!def) return null;
-              const isSwitch = def.category === 'switch';
-              const isButton = def.category === 'button';
+              const modeInfo = getModeInfo(def.category, state.mode);
+              const modes = SIM_MODES[def.category];
+              const hasModes = modes && modes.length > 1;
 
               return (
                 <div
                   key={state.instanceId}
                   className={`sim-item ${state.on ? 'sim-item-on' : 'sim-item-off'}`}
-                  onClick={() => toggleModule(state.instanceId)}
-                  title={isSwitch ? 'Clique para ligar/desligar interruptor' : isButton ? 'Clique para pressionar botão' : 'Clique para ligar/desligar'}
+                  onClick={() => hasModes ? cycleMode(state.instanceId, def.category) : toggleModule(state.instanceId)}
+                  title={hasModes ? `Clique para trocar (${modes.map((m) => m.label).join(' → ')})` : 'Clique para ligar/desligar'}
                   style={{ cursor: 'pointer' }}
                 >
-                  <span className="sim-item-color" style={{ background: state.on ? def.color : '#555' }} />
+                  <span className="sim-item-color" style={{ background: modeInfo?.color ?? '#555' }} />
                   <span className="sim-item-name">
-                    {state.on ? '🟢 ' : '🔴 '}
                     {dev.label || def.name}
                   </span>
-                  <span className="sim-item-status">
-                    {state.on ? 'ON' : 'OFF'}
+                  <span className="sim-item-status" style={{ color: modeInfo?.color }}>
+                    {modeInfo?.label ?? (state.on ? 'ON' : 'OFF')}
                   </span>
                   <span className="sim-item-metrics">
                     {state.voltageV.toFixed(0)}V {state.currentA.toFixed(1)}A

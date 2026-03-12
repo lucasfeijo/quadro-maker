@@ -2,14 +2,20 @@ import React, { useCallback, useRef, useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { getModuleById } from '../data/modules';
 import { cmToPx } from '../utils/geometry';
+import { getModeInfo, getNextMode, SIM_MODES } from '../engine/circuit';
+import type { ComponentState } from '../types';
 
 interface Props {
   svgWidth: number;
   svgHeight: number;
   padding: number;
+  selectedDeviceId: string | null;
+  onSelectDevice: (id: string | null) => void;
   onPortClick?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
+  simStates?: ComponentState[];
+  onSimModeChange?: (instanceId: string, newMode: string) => void;
 }
 
 const DEV_SCALE = 1;
@@ -46,17 +52,22 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
   svgWidth,
   svgHeight,
   padding,
+  selectedDeviceId,
+  onSelectDevice,
   onPortClick,
   onPortHover,
   onPortLeave,
+  simStates,
+  onSimModeChange,
 }) => {
   const devices = usePanelStore((s) => s.externalDevices);
   const moveDevice = usePanelStore((s) => s.moveExternalDevice);
-  const removeDevice = usePanelStore((s) => s.removeExternalDevice);
+  const updateLabel = usePanelStore((s) => s.updateExternalDeviceLabel);
   const wiringFrom = usePanelStore((s) => s.wiringFrom);
 
   const [dragging, setDragging] = useState<string | null>(null);
   const dragOrigin = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null);
+  const didDrag = useRef(false);
 
   const totalW = svgWidth + padding * 2;
   const totalH = svgHeight + padding * 2;
@@ -92,6 +103,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
       const cx = -padding + (xPercent / 100) * totalW;
       const cy = -padding + (yPercent / 100) * totalH;
       dragOrigin.current = { mx: pt.x, my: pt.y, ox: cx, oy: cy };
+      didDrag.current = false;
       setDragging(instanceId);
     },
     [wiringFrom, getSvgPoint, padding, totalW, totalH],
@@ -103,6 +115,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
       const pt = getSvgPoint(e);
       const dx = pt.x - dragOrigin.current.mx;
       const dy = pt.y - dragOrigin.current.my;
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) didDrag.current = true;
       const newX = dragOrigin.current.ox + dx;
       const newY = dragOrigin.current.oy + dy;
       const pct = toPercent(newX, newY);
@@ -112,9 +125,25 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
   );
 
   const onMouseUp = useCallback(() => {
+    const wasDragging = dragging;
+    const wasDragged = didDrag.current;
     setDragging(null);
     dragOrigin.current = null;
-  }, []);
+    if (wasDragging && !wasDragged) {
+      onSelectDevice(wasDragging);
+    }
+  }, [dragging, onSelectDevice]);
+
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent, instanceId: string, currentLabel: string, defName: string) => {
+      e.stopPropagation();
+      const newLabel = prompt('Rótulo do dispositivo:', currentLabel || defName);
+      if (newLabel !== null) {
+        updateLabel(instanceId, newLabel);
+      }
+    },
+    [updateLabel],
+  );
 
   return (
     <g
@@ -143,9 +172,25 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
         const boxH = 18 * DEV_SCALE;
         const bx = cx - boxW / 2;
         const by = cy - boxH / 2;
+        const isSelected = selectedDeviceId === dev.instanceId;
 
         return (
           <g key={dev.instanceId}>
+            {/* Selection highlight */}
+            {isSelected && (
+              <rect
+                x={bx - 3}
+                y={by - 3}
+                width={boxW + 6}
+                height={boxH + 6}
+                rx={3}
+                fill="none"
+                stroke="#ffd600"
+                strokeWidth={1.2}
+              />
+            )}
+
+            {/* Dashed external indicator */}
             <rect
               x={bx - 1}
               y={by - 1}
@@ -159,6 +204,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
               opacity={0.5}
             />
 
+            {/* Main box */}
             <rect
               x={bx}
               y={by}
@@ -166,20 +212,15 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
               height={boxH}
               rx={1.5}
               fill={def.color}
-              stroke={dragging === dev.instanceId ? '#ff9800' : '#555'}
-              strokeWidth={dragging === dev.instanceId ? 1 : 0.5}
+              stroke={dragging === dev.instanceId ? '#ff9800' : isSelected ? '#ffd600' : '#555'}
+              strokeWidth={dragging === dev.instanceId ? 1 : isSelected ? 0.8 : 0.5}
               cursor={wiringFrom ? 'default' : 'grab'}
               onMouseDown={(e) => onMouseDown(e, dev.instanceId, dev.xPercent, dev.yPercent)}
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                if (confirm(`Remover ${dev.label || def.name}?`)) {
-                  removeDevice(dev.instanceId);
-                }
-              }}
+              onDoubleClick={(e) => handleDoubleClick(e, dev.instanceId, dev.label || '', def.name)}
             />
 
             {def.category === 'switch' && (
-              <g opacity={0.9}>
+              <g opacity={0.9} style={{ pointerEvents: 'none' }}>
                 <line
                   x1={bx + boxW / 2}
                   y1={by + 4}
@@ -194,7 +235,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
               </g>
             )}
             {def.category === 'button' && (
-              <g opacity={0.9}>
+              <g opacity={0.9} style={{ pointerEvents: 'none' }}>
                 <line
                   x1={bx + boxW / 2 - 4}
                   y1={by + boxH / 2}
@@ -223,9 +264,56 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
               fontSize={3.2}
               fontWeight={600}
               fill="#333"
+              style={{ pointerEvents: 'none' }}
             >
               {dev.label || def.name}
             </text>
+
+            {(() => {
+              const simState = simStates?.find((s) => s.instanceId === dev.instanceId);
+              if (!simState) return null;
+              const modes = SIM_MODES[def.category];
+              if (!modes || modes.length <= 1) return null;
+              const modeInfo = getModeInfo(def.category, simState.mode);
+              if (!modeInfo) return null;
+              const badgeW = Math.min(boxW - 2, 18);
+              const badgeH = 5;
+              const badgeX = bx + (boxW - badgeW) / 2;
+              const badgeY = by - badgeH - 3;
+              return (
+                <g
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSimModeChange?.(dev.instanceId, getNextMode(def.category, simState.mode));
+                  }}
+                >
+                  <rect
+                    x={badgeX}
+                    y={badgeY}
+                    width={badgeW}
+                    height={badgeH}
+                    rx={1.5}
+                    fill={modeInfo.color}
+                    stroke="#fff"
+                    strokeWidth={0.4}
+                    opacity={0.95}
+                  />
+                  <text
+                    x={badgeX + badgeW / 2}
+                    y={badgeY + badgeH / 2}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={2.8}
+                    fontWeight={700}
+                    fill="#fff"
+                    style={{ pointerEvents: 'none', userSelect: 'none' }}
+                  >
+                    {modeInfo.label}
+                  </text>
+                </g>
+              );
+            })()}
 
             {def.ports.map((port) => {
               const px = bx + cmToPx(port.offsetXCm) * DEV_SCALE;
