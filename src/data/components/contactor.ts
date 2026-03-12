@@ -4,6 +4,7 @@ export const CONTACTORS: ComponentSpec[] = [
   {
     id: 'contactor',
     name: 'Contator',
+    description: 'Chave eletromagnética de potência. Quando a bobina (A1/A2) é energizada, os contatos de força (L1→T1, L2→T2, L3→T3) fecham, permitindo a passagem de corrente para a carga. Usado para ligar motores, iluminação e outras cargas de alta corrente.',
     widthCm: 6,
     category: 'contactor',
     color: '#6a1b9a',
@@ -18,6 +19,16 @@ export const CONTACTORS: ComponentSpec[] = [
       { id: 'out-T2', label: 'T2', side: 'bottom', offsetXCm: 3.5, type: 'phase' },
       { id: 'out-T3', label: 'T3', side: 'bottom', offsetXCm: 5, type: 'phase' },
     ],
+    portDescriptions: {
+      'coil-A1': 'Bobina — terminal positivo (comando)',
+      'coil-A2': 'Bobina — terminal negativo (comando)',
+      'in-L1': 'Entrada de potência fase 1',
+      'in-L2': 'Entrada de potência fase 2',
+      'in-L3': 'Entrada de potência fase 3',
+      'out-T1': 'Saída de potência fase 1 (carga)',
+      'out-T2': 'Saída de potência fase 2 (carga)',
+      'out-T3': 'Saída de potência fase 3 (carga)',
+    },
     modes: [
       {
         id: 'on', label: 'Energizado', color: '#4caf50',
@@ -31,5 +42,6 @@ export const CONTACTORS: ComponentSpec[] = [
     ],
     defaultMode: 'off',
     nominalCurrentA: 25,
+    autoMode: { type: 'coil', port: 'coil-A1', energizedMode: 'on', defaultMode: 'off' },
   },
 ];

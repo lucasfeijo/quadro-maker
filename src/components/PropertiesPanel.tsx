@@ -1,6 +1,8 @@
 import React from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { getModuleById } from '../data/modules';
+import { getComponentById } from '../data/components';
+import type { ComponentSpec } from '../data/components';
 import type { PlacedModule, PanelIOType } from '../types';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -35,6 +37,87 @@ const IO_TYPE_OPTIONS: { value: PanelIOType; label: string }[] = [
   { value: 'dc_neg', label: 'DC-' },
   { value: 'signal', label: 'Sinal' },
 ];
+
+const PORT_TYPE_LABELS: Record<string, string> = {
+  phase: 'Fase',
+  neutral: 'Neutro',
+  ground: 'Terra',
+  any: 'Genérico',
+};
+
+function ComponentInfoSection({ spec }: { spec: ComponentSpec }) {
+  return (
+    <>
+      {spec.description && (
+        <div className="prop-section" style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>Funcionamento</div>
+          <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>{spec.description}</div>
+        </div>
+      )}
+
+      {spec.ports.length > 0 && (
+        <div className="prop-section" style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>Portas</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {spec.ports.map((port) => {
+              const desc = spec.portDescriptions?.[port.id];
+              return (
+                <div key={port.id} style={{ fontSize: 11, lineHeight: 1.4 }}>
+                  <span style={{
+                    display: 'inline-block',
+                    fontWeight: 600,
+                    color: '#333',
+                    background: port.side === 'top' ? '#e3f2fd' : '#fce4ec',
+                    padding: '1px 5px',
+                    borderRadius: 3,
+                    marginRight: 4,
+                    minWidth: 32,
+                    textAlign: 'center',
+                    fontSize: 10,
+                  }}>
+                    {port.label}
+                  </span>
+                  <span style={{ color: '#888', fontSize: 10 }}>
+                    ({port.side === 'top' ? '↓ cima' : '↑ baixo'} · {PORT_TYPE_LABELS[port.type] ?? port.type})
+                  </span>
+                  {desc && (
+                    <div style={{ color: '#666', marginLeft: 4, marginTop: 1 }}>{desc}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {spec.modes.length > 1 && (
+        <div className="prop-section" style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>Estados</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {spec.modes.map((mode) => (
+              <div key={mode.id} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{
+                  display: 'inline-block',
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: mode.color,
+                  flexShrink: 0,
+                }} />
+                <span style={{ fontWeight: 600, color: '#333' }}>{mode.label}</span>
+                <span style={{ color: '#888' }}>
+                  — {mode.routes.length > 0
+                    ? mode.routes.map((r) => `${r.from} → ${r.to}`).join(', ')
+                    : 'sem condução'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 interface Props {
   selectedModuleId: string | null;
@@ -245,6 +328,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
   if (selectedExtDevice) {
     const extDef = getModuleById(selectedExtDevice.moduleId);
     if (!extDef) return null;
+    const extSpec = getComponentById(selectedExtDevice.moduleId);
     const extWires = wires.filter(
       (w) => w.sourceInstanceId === selectedModuleId || w.targetInstanceId === selectedModuleId,
     );
@@ -270,19 +354,12 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
             />
           </div>
           <div className="prop-row">
-            <span className="prop-label">Posição</span>
-            <span className="prop-value">Fora do quadro</span>
-          </div>
-          <div className="prop-row">
-            <span className="prop-label">Portas</span>
-            <span className="prop-value">{extDef.ports.length}</span>
-          </div>
-          <div className="prop-row">
             <span className="prop-label">Fios</span>
             <span className="prop-value">{extWires.length}</span>
           </div>
         </div>
-        <button className="toolbar-btn danger-action" onClick={() => { if (confirm(`Remover ${extDef.name}?`)) removeExternalDevice(selectedModuleId); }}>
+        {extSpec && <ComponentInfoSection spec={extSpec} />}
+        <button className="toolbar-btn danger-action" style={{ marginTop: 8 }} onClick={() => { if (confirm(`Remover ${extDef.name}?`)) removeExternalDevice(selectedModuleId); }}>
           Remover Dispositivo
         </button>
       </div>
@@ -299,6 +376,8 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
 
   const def = getModuleById(placed.moduleId);
   if (!def) return null;
+
+  const spec = getComponentById(placed.moduleId);
 
   const moduleWires = wires.filter(
     (w) => w.sourceInstanceId === selectedModuleId || w.targetInstanceId === selectedModuleId,
@@ -341,15 +420,12 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
           </div>
         )}
         <div className="prop-row">
-          <span className="prop-label">Portas</span>
-          <span className="prop-value">{def.ports.length}</span>
-        </div>
-        <div className="prop-row">
           <span className="prop-label">Fios</span>
           <span className="prop-value">{moduleWires.length}</span>
         </div>
       </div>
-      <div className="prop-hint">
+      {spec && <ComponentInfoSection spec={spec} />}
+      <div className="prop-hint" style={{ marginTop: 8 }}>
         Dica: Clique duplo no módulo para editar o rótulo.
         Use o modo Fiação para conectar portas.
       </div>

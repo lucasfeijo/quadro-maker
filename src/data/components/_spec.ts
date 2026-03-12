@@ -20,11 +20,18 @@ export interface PropertySpec {
   defaultValue: number | string;
 }
 
+export type AutoModeRule =
+  | { type: 'coil'; port: string; energizedMode: string; defaultMode: string }
+  | { type: 'source-priority'; sources: Array<{ ports: string[]; mode: string }>; fallbackMode: string };
+
 export interface ComponentSpec extends ModuleDefinition {
   modes: ModeSpec[];
   defaultMode: string;
   properties?: PropertySpec[];
   nominalCurrentA?: number;
+  description?: string;
+  portDescriptions?: Record<string, string>;
+  autoMode?: AutoModeRule;
 }
 
 export function makePorts(

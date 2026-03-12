@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { MODULE_DEFINITIONS, isExternalModule } from '../data/modules';
 import { ModuleCategory, PanelIODirection, PanelIOType, PanelEdge } from '../types';
 import { useDraggable } from '@dnd-kit/core';
@@ -142,19 +142,97 @@ function ExternalDeviceItem({ moduleId, name, color }: { moduleId: string; name:
   );
 }
 
+function CollapsibleGroup({ label, defaultOpen, children, visible }: {
+  label: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+  visible: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? true);
+  if (!visible) return null;
+  return (
+    <div className="library-group" style={{ marginBottom: open ? 16 : 8 }}>
+      <div
+        className="library-group-label"
+        onClick={() => setOpen((v) => !v)}
+        style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
+      >
+        <span style={{
+          display: 'inline-block',
+          width: 0,
+          height: 0,
+          borderLeft: open ? '4px solid transparent' : '5px solid currentColor',
+          borderRight: open ? '4px solid transparent' : 'none',
+          borderTop: open ? '5px solid currentColor' : '4px solid transparent',
+          borderBottom: open ? 'none' : '4px solid transparent',
+          transition: 'all 0.15s',
+          flexShrink: 0,
+        }} />
+        {label}
+      </div>
+      {open && children}
+    </div>
+  );
+}
+
+function normalize(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 export const ModuleLibrary: React.FC = () => {
-  const grouped = CATEGORY_ORDER.map((cat) => ({
-    category: cat,
-    label: CATEGORY_LABELS[cat] ?? cat,
-    modules: MODULE_DEFINITIONS.filter((m) => m.category === cat && !isExternalModule(m.id)),
-  })).filter((g) => g.modules.length > 0);
+  const [filter, setFilter] = useState('');
+  const q = normalize(filter.trim());
+
+  const matchesFilter = useCallback((text: string) => {
+    if (!q) return true;
+    return normalize(text).includes(q);
+  }, [q]);
+
+  const grouped = useMemo(() =>
+    CATEGORY_ORDER.map((cat) => {
+      const label = CATEGORY_LABELS[cat] ?? cat;
+      const modules = MODULE_DEFINITIONS.filter(
+        (m) => m.category === cat && !isExternalModule(m.id),
+      );
+      const filtered = q
+        ? modules.filter((m) => matchesFilter(m.name) || matchesFilter(label))
+        : modules;
+      return { category: cat, label, modules: filtered };
+    }).filter((g) => g.modules.length > 0),
+    [q, matchesFilter],
+  );
+
+  const filteredInputIO = useMemo(
+    () => IO_ITEMS.filter((i) => i.direction === 'input' && matchesFilter(i.label)),
+    [matchesFilter],
+  );
+  const filteredOutputIO = useMemo(
+    () => IO_ITEMS.filter((i) => i.direction === 'output' && matchesFilter(i.label)),
+    [matchesFilter],
+  );
+  const filteredExternal = useMemo(
+    () => EXTERNAL_MODULES.filter((m) => matchesFilter(m.name)),
+    [matchesFilter],
+  );
+
+  const hasIO = filteredInputIO.length > 0 || filteredOutputIO.length > 0;
+  const hasExternal = filteredExternal.length > 0;
 
   return (
     <div className="module-library">
-      <h3>Módulos</h3>
+      <div style={{ position: 'sticky', top: 0, background: 'var(--sidebar-bg)', zIndex: 2, paddingBottom: 8 }}>
+        <input
+          type="text"
+          className="library-filter-input"
+          placeholder="Filtrar componentes..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+      </div>
+
+      {grouped.length > 0 && <h3 style={{ marginTop: 4 }}>Módulos</h3>}
       {grouped.map((group) => (
-        <div key={group.category} className="library-group">
-          <div className="library-group-label">{group.label}</div>
+        <CollapsibleGroup key={group.category} label={group.label} visible defaultOpen>
           {group.modules.map((mod) => (
             <DraggableModule
               key={mod.id}
@@ -166,29 +244,33 @@ export const ModuleLibrary: React.FC = () => {
               imageUrl={mod.imageUrl}
             />
           ))}
-        </div>
+        </CollapsibleGroup>
       ))}
 
-      <h3 style={{ marginTop: 20 }}>Entradas & Saídas</h3>
-      <div className="library-group">
-        <div className="library-group-label">Entradas</div>
-        {IO_ITEMS.filter((i) => i.direction === 'input').map((item) => (
+      {hasIO && <h3 style={{ marginTop: 20 }}>Entradas & Saídas</h3>}
+      <CollapsibleGroup label="Entradas" visible={filteredInputIO.length > 0} defaultOpen>
+        {filteredInputIO.map((item) => (
           <IOItem key={`${item.direction}-${item.type}`} {...item} />
         ))}
-      </div>
-      <div className="library-group">
-        <div className="library-group-label">Saídas</div>
-        {IO_ITEMS.filter((i) => i.direction === 'output').map((item) => (
+      </CollapsibleGroup>
+      <CollapsibleGroup label="Saídas" visible={filteredOutputIO.length > 0} defaultOpen>
+        {filteredOutputIO.map((item) => (
           <IOItem key={`${item.direction}-${item.type}`} {...item} />
         ))}
-      </div>
+      </CollapsibleGroup>
 
-      <h3 style={{ marginTop: 20 }}>Dispositivos Externos</h3>
-      <div className="library-group">
-        {EXTERNAL_MODULES.map((mod) => (
+      {hasExternal && <h3 style={{ marginTop: 20 }}>Dispositivos Externos</h3>}
+      <CollapsibleGroup label="Dispositivos" visible={hasExternal} defaultOpen>
+        {filteredExternal.map((mod) => (
           <ExternalDeviceItem key={mod.id} moduleId={mod.id} name={mod.name} color={mod.color} />
         ))}
-      </div>
+      </CollapsibleGroup>
+
+      {q && grouped.length === 0 && !hasIO && !hasExternal && (
+        <div style={{ color: '#888', fontSize: 12, textAlign: 'center', marginTop: 24 }}>
+          Nenhum componente encontrado.
+        </div>
+      )}
     </div>
   );
 };
