@@ -1,4 +1,4 @@
-import { PlacedModule, Wire, PanelIO, ComponentState } from '../types';
+import { PlacedModule, Wire, PanelIO, ExternalDevice, ComponentState } from '../types';
 import { getModuleById } from '../data/modules';
 
 interface CircuitNode {
@@ -43,6 +43,7 @@ function buildCircuitGraph(
   allModules: PlacedModule[],
   wires: Wire[],
   panelIOs: PanelIO[],
+  externalDevices: ExternalDevice[],
 ): Map<string, CircuitNode> {
   const graph = new Map<string, CircuitNode>();
 
@@ -66,9 +67,23 @@ function buildCircuitGraph(
       instanceId,
       moduleId: `panel-io-${io.type}`,
       category: 'panel-io',
-      nominalCurrentA: 999,
+      nominalCurrentA: io.direction === 'input' ? (io.maxCurrentA ?? 63) : 999,
       isInput: io.direction === 'input',
       isOutput: io.direction === 'output',
+      connectedTo: [],
+    });
+  }
+
+  for (const dev of externalDevices) {
+    const def = getModuleById(dev.moduleId);
+    if (!def) continue;
+    graph.set(dev.instanceId, {
+      instanceId: dev.instanceId,
+      moduleId: dev.moduleId,
+      category: def.category,
+      nominalCurrentA: DEFAULT_NOMINAL[dev.moduleId] ?? 16,
+      isInput: false,
+      isOutput: false,
       connectedTo: [],
     });
   }
@@ -89,10 +104,11 @@ export function simulate(
   rows: { id: string; modules: PlacedModule[] }[],
   wires: Wire[],
   panelIOs: PanelIO[],
+  externalDevices: ExternalDevice[],
   manualOverrides?: Map<string, { on: boolean }>,
 ): SimulationResult {
   const allModules = rows.flatMap((r) => r.modules);
-  const graph = buildCircuitGraph(allModules, wires, panelIOs);
+  const graph = buildCircuitGraph(allModules, wires, panelIOs, externalDevices);
   const states = new Map<string, ComponentState>();
   const alerts: SimAlert[] = [];
   const energizedWires = new Set<string>();
@@ -114,6 +130,18 @@ export function simulate(
     states.set(instanceId, {
       instanceId,
       on: override?.on ?? true,
+      tripped: false,
+      currentA: 0,
+      voltageV: 0,
+    });
+  }
+
+  for (const dev of externalDevices) {
+    const override = manualOverrides?.get(dev.instanceId);
+    const defCat = getModuleById(dev.moduleId)?.category;
+    states.set(dev.instanceId, {
+      instanceId: dev.instanceId,
+      on: override?.on ?? (defCat === 'switch' ? false : true),
       tripped: false,
       currentA: 0,
       voltageV: 0,
@@ -188,11 +216,31 @@ export function simulate(
     }
   }
 
-  const totalLoad = Math.max(allModules.length * 2, 10);
+  const outputLoads = panelIOs
+    .filter((io) => io.direction === 'output' && (io.consumptionA ?? 0) > 0)
+    .reduce((sum, io) => sum + (io.consumptionA ?? 0), 0);
+  const totalLoad = outputLoads > 0 ? outputLoads : Math.max(allModules.length * 2, 10);
+
   for (const rootId of roots) {
     const rootIO = panelIOs.find((io) => `panel-io:${io.id}` === rootId);
-    const voltage = rootIO?.type === 'dc_pos' || rootIO?.type === 'dc_neg' ? 24 : DEFAULT_VOLTAGE;
-    propagate(rootId, voltage, totalLoad);
+    const voltage = rootIO?.voltageV ?? (rootIO?.type === 'dc_pos' || rootIO?.type === 'dc_neg' ? 24 : DEFAULT_VOLTAGE);
+    const maxCurrent = rootIO?.maxCurrentA ?? totalLoad;
+    const currentForRoot = Math.min(totalLoad, maxCurrent);
+    propagate(rootId, voltage, currentForRoot);
+  }
+
+  for (const io of panelIOs) {
+    if (io.direction === 'input' && (io.maxCurrentA ?? 0) > 0) {
+      const instanceId = `panel-io:${io.id}`;
+      const state = states.get(instanceId);
+      if (state && state.currentA > (io.maxCurrentA ?? Infinity)) {
+        alerts.push({
+          type: 'overload',
+          instanceId,
+          message: `Entrada "${io.label}" sobrecarregada: ${state.currentA.toFixed(1)}A > ${io.maxCurrentA}A máx`,
+        });
+      }
+    }
   }
 
   const hasGroundIO = panelIOs.some((io) => io.type === 'ground');

@@ -5,6 +5,7 @@ import { cmToPx } from '../utils/geometry';
 import { DinRail } from './DinRail';
 import { WireLayer } from './WireLayer';
 import { PanelIOLayer } from './PanelIOLayer';
+import { ExternalDeviceLayer } from './ExternalDeviceLayer';
 import type { GhostPreview, ComponentState } from '../types';
 
 interface PanelViewProps {
@@ -206,6 +207,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
           interiorOffsetYPx={intY}
           svgWidth={svgWidth}
           svgHeight={svgHeight}
+          padding={padding}
           selectedWireId={state.selectedWireId}
           onSelectWire={(id) => state.selectWire(id)}
           hoverTarget={hoverTarget}
@@ -218,6 +220,16 @@ export const PanelView: React.FC<PanelViewProps> = ({
           svgHeight={svgHeight}
           selectedIOId={state.selectedIOId}
           onSelectIO={(id) => state.selectIO(id)}
+          onPortClick={onPortClick}
+          onPortHover={onPortHover}
+          onPortLeave={onPortLeave}
+        />
+
+        {/* External Devices */}
+        <ExternalDeviceLayer
+          svgWidth={svgWidth}
+          svgHeight={svgHeight}
+          padding={padding}
           onPortClick={onPortClick}
           onPortHover={onPortHover}
           onPortLeave={onPortLeave}

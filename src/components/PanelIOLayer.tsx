@@ -162,6 +162,30 @@ export const PanelIOLayer: React.FC<Props> = ({
                 {io.label}
               </text>
             )}
+            {/* Specs line */}
+            {(() => {
+              const specs = io.direction === 'input'
+                ? `${io.voltageV ?? 220}V / ${io.maxCurrentA ?? 63}A`
+                : (io.consumptionA ? `${io.consumptionA}A` : '');
+              if (!specs) return null;
+              const specY = io.edge === 'bottom'
+                ? pos.boxY + pos.boxH + (io.label ? 9 : 5)
+                : pos.boxY - (io.label ? 7 : 3);
+              return (
+                <text
+                  x={pos.boxX + pos.boxW / 2}
+                  y={specY}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize={2.5}
+                  fill="#888"
+                  fontWeight={500}
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {specs}
+                </text>
+              );
+            })()}
 
             {/* Port dot for wiring */}
             <g

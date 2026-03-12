@@ -94,6 +94,9 @@ export type PanelIO = {
   type: PanelIOType;
   edge: PanelEdge;
   positionPercent: number;
+  voltageV?: number;
+  maxCurrentA?: number;
+  consumptionA?: number;
 };
 
 // --- Simulation ---

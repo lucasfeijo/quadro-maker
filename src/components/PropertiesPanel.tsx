@@ -129,9 +129,10 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
     const ioWires = wires.filter(
       (w) => w.sourceInstanceId === ioInstanceId || w.targetInstanceId === ioInstanceId,
     );
+    const isInput = selectedIO.direction === 'input';
     return (
       <div className="properties-panel">
-        <h3>{selectedIO.direction === 'input' ? 'Entrada' : 'Saída'} do Quadro</h3>
+        <h3>{isInput ? 'Entrada' : 'Saída'} do Quadro</h3>
         <div className="prop-section">
           <div className="prop-row">
             <span className="prop-label">Rótulo</span>
@@ -155,15 +156,57 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
           </div>
           <div className="prop-row">
             <span className="prop-label">Direção</span>
-            <span className="prop-value">{selectedIO.direction === 'input' ? 'Entrada' : 'Saída'}</span>
+            <span className="prop-value">{isInput ? 'Entrada' : 'Saída'}</span>
           </div>
+
+          {isInput && (
+            <>
+              <div className="prop-row">
+                <span className="prop-label">Tensão (V)</span>
+                <input
+                  className="prop-input"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={selectedIO.voltageV ?? 220}
+                  onChange={(e) => updatePanelIO(selectedIO.id, { voltageV: Number(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="prop-row">
+                <span className="prop-label">Corrente máx (A)</span>
+                <input
+                  className="prop-input"
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={selectedIO.maxCurrentA ?? 63}
+                  onChange={(e) => updatePanelIO(selectedIO.id, { maxCurrentA: Number(e.target.value) || 0 })}
+                />
+              </div>
+            </>
+          )}
+
+          {!isInput && (
+            <div className="prop-row">
+              <span className="prop-label">Consumo (A)</span>
+              <input
+                className="prop-input"
+                type="number"
+                min={0}
+                step={0.1}
+                value={selectedIO.consumptionA ?? 0}
+                onChange={(e) => updatePanelIO(selectedIO.id, { consumptionA: Number(e.target.value) || 0 })}
+              />
+            </div>
+          )}
+
           <div className="prop-row">
             <span className="prop-label">Fios</span>
             <span className="prop-value">{ioWires.length}</span>
           </div>
         </div>
         <button className="toolbar-btn danger-action" onClick={() => removePanelIO(selectedIO.id)}>
-          Remover {selectedIO.direction === 'input' ? 'Entrada' : 'Saída'}
+          Remover {isInput ? 'Entrada' : 'Saída'}
         </button>
       </div>
     );

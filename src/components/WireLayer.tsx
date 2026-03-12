@@ -4,6 +4,7 @@ import { getModuleById } from '../data/modules';
 import { cmToPx } from '../utils/geometry';
 import { usePanelStore } from '../store/panelStore';
 import { getIOPortPosition } from '../utils/panelIO';
+import { getExternalDevicePortPosition } from './ExternalDeviceLayer';
 
 const MODULE_HEIGHT_CM = 7;
 const WIRE_COLORS: Record<string, string> = {
@@ -25,6 +26,7 @@ interface Props {
   interiorOffsetYPx: number;
   svgWidth: number;
   svgHeight: number;
+  padding: number;
   selectedWireId: string | null;
   onSelectWire: (wireId: string) => void;
   hoverTarget?: { instanceId: string; portId: string } | null;
@@ -96,6 +98,7 @@ export const WireLayer: React.FC<Props> = ({
   interiorOffsetYPx,
   svgWidth,
   svgHeight,
+  padding,
   selectedWireId,
   onSelectWire,
   hoverTarget,
@@ -104,6 +107,7 @@ export const WireLayer: React.FC<Props> = ({
   const rows = usePanelStore((s) => s.rows);
   const wires = usePanelStore((s) => s.wires);
   const panelIOs = usePanelStore((s) => s.panelIOs);
+  const externalDevices = usePanelStore((s) => s.externalDevices);
   const wiringFrom = usePanelStore((s) => s.wiringFrom);
 
   const getPos = (instanceId: string, portId: string): PortPosition | null => {
@@ -112,6 +116,11 @@ export const WireLayer: React.FC<Props> = ({
       const io = panelIOs.find((i) => i.id === ioId);
       if (!io) return null;
       return getIOPortPosition(io, svgWidth, svgHeight);
+    }
+    const extDev = externalDevices.find((d) => d.instanceId === instanceId);
+    if (extDev) {
+      const pos = getExternalDevicePortPosition(extDev, portId, svgWidth, svgHeight, padding);
+      if (pos) return { x: pos.x, y: pos.y, type: 'any' };
     }
     const mr = findModuleAndRow(rows, instanceId);
     if (!mr) return null;

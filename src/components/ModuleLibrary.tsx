@@ -1,12 +1,12 @@
 import React from 'react';
-import { MODULE_DEFINITIONS } from '../data/modules';
+import { MODULE_DEFINITIONS, isExternalModule } from '../data/modules';
 import { ModuleCategory, PanelIODirection, PanelIOType, PanelEdge } from '../types';
 import { useDraggable } from '@dnd-kit/core';
 import { usePanelStore } from '../store/panelStore';
 import { ModuleIcon } from './ModuleIcon';
 import { findDefaultPositionPercent } from '../utils/panelIO';
 
-const CATEGORY_LABELS: Record<ModuleCategory, string> = {
+const CATEGORY_LABELS: Partial<Record<ModuleCategory, string>> = {
   breaker: 'Disjuntores',
   dr: 'DRs',
   dps: 'DPS',
@@ -48,8 +48,6 @@ const IO_ITEMS: {
   { direction: 'output', type: 'dc_pos', defaultEdge: 'bottom', label: 'Saída DC+', color: '#c62828', abbr: 'DC+' },
   { direction: 'output', type: 'dc_neg', defaultEdge: 'bottom', label: 'Saída DC-', color: '#1a237e', abbr: 'DC-' },
   { direction: 'output', type: 'signal', defaultEdge: 'right', label: 'Saída Sinal', color: '#f57c00', abbr: 'SIG' },
-  { direction: 'input', type: 'switch', defaultEdge: 'left', label: 'Interruptor', color: '#7b1fa2', abbr: 'SW' },
-  { direction: 'input', type: 'button', defaultEdge: 'left', label: 'Botão Pulsador', color: '#9c27b0', abbr: 'BTN' },
 ];
 
 function DraggableModule({ moduleId, name, color, widthCm, icon, imageUrl }: {
@@ -114,11 +112,36 @@ function IOItem({ direction, type, defaultEdge, label, color, abbr }: typeof IO_
   );
 }
 
+const EXTERNAL_MODULES = MODULE_DEFINITIONS.filter((m) => isExternalModule(m.id));
+
+function ExternalDeviceItem({ moduleId, name, color }: { moduleId: string; name: string; color: string }) {
+  const addDevice = usePanelStore((s) => s.addExternalDevice);
+
+  const handleClick = () => {
+    addDevice(moduleId, 50, 5);
+  };
+
+  return (
+    <div className="library-item io-item" style={{ borderLeftColor: color }} onClick={handleClick}>
+      <div
+        className="library-item-icon"
+        style={{ background: color, borderRadius: 4, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700 }}
+      >
+        {moduleId.startsWith('switch') ? 'SW' : 'BTN'}
+      </div>
+      <div className="library-item-info">
+        <span className="library-item-name">{name}</span>
+        <span className="library-item-size">Fora do quadro</span>
+      </div>
+    </div>
+  );
+}
+
 export const ModuleLibrary: React.FC = () => {
   const grouped = CATEGORY_ORDER.map((cat) => ({
     category: cat,
-    label: CATEGORY_LABELS[cat],
-    modules: MODULE_DEFINITIONS.filter((m) => m.category === cat),
+    label: CATEGORY_LABELS[cat] ?? cat,
+    modules: MODULE_DEFINITIONS.filter((m) => m.category === cat && !isExternalModule(m.id)),
   })).filter((g) => g.modules.length > 0);
 
   return (
@@ -144,7 +167,7 @@ export const ModuleLibrary: React.FC = () => {
       <h3 style={{ marginTop: 20 }}>Entradas & Saídas</h3>
       <div className="library-group">
         <div className="library-group-label">Entradas</div>
-        {IO_ITEMS.filter((i) => i.direction === 'input' && i.type !== 'switch' && i.type !== 'button').map((item) => (
+        {IO_ITEMS.filter((i) => i.direction === 'input').map((item) => (
           <IOItem key={`${item.direction}-${item.type}`} {...item} />
         ))}
       </div>
@@ -154,10 +177,11 @@ export const ModuleLibrary: React.FC = () => {
           <IOItem key={`${item.direction}-${item.type}`} {...item} />
         ))}
       </div>
+
+      <h3 style={{ marginTop: 20 }}>Dispositivos Externos</h3>
       <div className="library-group">
-        <div className="library-group-label">Dispositivos Externos</div>
-        {IO_ITEMS.filter((i) => i.type === 'switch' || i.type === 'button').map((item) => (
-          <IOItem key={`${item.direction}-${item.type}`} {...item} />
+        {EXTERNAL_MODULES.map((mod) => (
+          <ExternalDeviceItem key={mod.id} moduleId={mod.id} name={mod.name} color={mod.color} />
         ))}
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
-import { PanelState, PanelRow, DisplayMode, Wire, PanelIO, PanelIODirection, PanelIOType, PanelEdge } from '../types';
+import { PanelState, PanelRow, DisplayMode, Wire, PanelIO, PanelIODirection, PanelIOType, PanelEdge, ExternalDevice } from '../types';
 import { getEnclosureById } from '../data/enclosures';
 
 type EditorScreen = 'setup' | 'editor';
@@ -39,9 +39,15 @@ interface PanelStore extends PanelState {
   // Panel I/O
   addPanelIO: (direction: PanelIODirection, type: PanelIOType, edge: PanelEdge, positionPercent: number, label?: string) => void;
   removePanelIO: (ioId: string) => void;
-  updatePanelIO: (ioId: string, props: Partial<Pick<PanelIO, 'label' | 'type'>>) => void;
+  updatePanelIO: (ioId: string, props: Partial<Pick<PanelIO, 'label' | 'type' | 'voltageV' | 'maxCurrentA' | 'consumptionA'>>) => void;
   movePanelIO: (ioId: string, edge: PanelEdge, positionPercent: number) => void;
   selectIO: (ioId: string | null) => void;
+
+  // External Devices
+  addExternalDevice: (moduleId: string, xPercent: number, yPercent: number) => void;
+  moveExternalDevice: (instanceId: string, xPercent: number, yPercent: number) => void;
+  removeExternalDevice: (instanceId: string) => void;
+  updateExternalDeviceLabel: (instanceId: string, label: string) => void;
 
   setName: (name: string) => void;
   loadState: (state: PanelState) => void;
@@ -72,6 +78,7 @@ export const usePanelStore = create<PanelStore>((set) => ({
   rows: [],
   wires: [],
   panelIOs: [],
+  externalDevices: [],
   displayMode: 'icon' as DisplayMode,
   wiringFrom: null,
   selectedWireId: null,
@@ -86,6 +93,7 @@ export const usePanelStore = create<PanelStore>((set) => ({
       rows: makeRows(rowCount),
       wires: [],
       panelIOs: [],
+      externalDevices: [],
     }),
 
   configureFromEnclosure: (enclosureId) => {
@@ -99,6 +107,7 @@ export const usePanelStore = create<PanelStore>((set) => ({
       rows: enc.rails.map((r) => ({ id: r.id, modules: [] })),
       wires: [],
       panelIOs: [],
+      externalDevices: [],
     });
   },
 
@@ -191,9 +200,20 @@ export const usePanelStore = create<PanelStore>((set) => ({
       const sameDir = s.panelIOs.filter((io) => io.direction === direction);
       const nextIndex = sameDir.length;
       const autoLabel = label || `${direction === 'input' ? 'E' : 'S'}${nextIndex + 1} ${IO_TYPE_LABELS[type] ?? type}`;
-      return {
-        panelIOs: [...s.panelIOs, { id: nanoid(), label: autoLabel, direction, type, edge, positionPercent }],
+      const isDC = type === 'dc_pos' || type === 'dc_neg';
+      const defaultVoltage = isDC ? 24 : 220;
+      const newIO: PanelIO = {
+        id: nanoid(),
+        label: autoLabel,
+        direction,
+        type,
+        edge,
+        positionPercent,
+        ...(direction === 'input'
+          ? { voltageV: defaultVoltage, maxCurrentA: 63 }
+          : { consumptionA: 0 }),
       };
+      return { panelIOs: [...s.panelIOs, newIO] };
     }),
 
   removePanelIO: (ioId) =>
@@ -219,6 +239,31 @@ export const usePanelStore = create<PanelStore>((set) => ({
 
   selectIO: (ioId) => set({ selectedIOId: ioId }),
 
+  addExternalDevice: (moduleId, xPercent, yPercent) =>
+    set((s) => ({
+      externalDevices: [...s.externalDevices, { instanceId: nanoid(), moduleId, xPercent, yPercent }],
+    })),
+
+  moveExternalDevice: (instanceId, xPercent, yPercent) =>
+    set((s) => ({
+      externalDevices: s.externalDevices.map((d) =>
+        d.instanceId === instanceId ? { ...d, xPercent, yPercent } : d,
+      ),
+    })),
+
+  removeExternalDevice: (instanceId) =>
+    set((s) => ({
+      externalDevices: s.externalDevices.filter((d) => d.instanceId !== instanceId),
+      wires: s.wires.filter((w) => w.sourceInstanceId !== instanceId && w.targetInstanceId !== instanceId),
+    })),
+
+  updateExternalDeviceLabel: (instanceId, label) =>
+    set((s) => ({
+      externalDevices: s.externalDevices.map((d) =>
+        d.instanceId === instanceId ? { ...d, label } : d,
+      ),
+    })),
+
   setName: (name) => set({ name }),
 
   loadState: (state) =>
@@ -227,5 +272,6 @@ export const usePanelStore = create<PanelStore>((set) => ({
       ...state,
       wires: state.wires ?? [],
       panelIOs: state.panelIOs ?? [],
+      externalDevices: state.externalDevices ?? [],
     }),
 }));
