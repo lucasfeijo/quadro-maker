@@ -24,6 +24,8 @@ interface Props {
   rails: ResolvedRail[];
   interiorOffsetXPx: number;
   interiorOffsetYPx: number;
+  panelWidth: number;
+  panelHeight: number;
   svgWidth: number;
   svgHeight: number;
   padding: number;
@@ -104,6 +106,8 @@ export const WireLayer: React.FC<Props> = ({
   rails,
   interiorOffsetXPx,
   interiorOffsetYPx,
+  panelWidth,
+  panelHeight,
   svgWidth,
   svgHeight,
   padding,
@@ -129,7 +133,7 @@ export const WireLayer: React.FC<Props> = ({
       const ioId = instanceId.replace('panel-io:', '');
       const io = panelIOs.find((i) => i.id === ioId);
       if (!io) return null;
-      return getIOPortPosition(io, svgWidth, svgHeight);
+      return getIOPortPosition(io, panelWidth, panelHeight);
     }
     const extDev = externalDevices.find((d) => d.instanceId === instanceId);
     if (extDev) {

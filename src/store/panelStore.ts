@@ -10,6 +10,12 @@ interface WiringFrom {
   portId: string;
 }
 
+export interface PasteData {
+  modules: Array<{ oldId: string; moduleId: string; positionCm: number; rowId: string; label?: string }>;
+  externalDevices: Array<{ oldId: string; moduleId: string; x: number; y: number; label?: string }>;
+  wires: Array<{ sourceOldId: string; sourcePortId: string; targetOldId: string; targetPortId: string }>;
+}
+
 interface PanelStore extends PanelState {
   screen: EditorScreen;
   displayMode: DisplayMode;
@@ -54,6 +60,7 @@ interface PanelStore extends PanelState {
   removeExternalDevice: (instanceId: string) => void;
   removeMultiple: (moduleItems: Array<{ rowId: string; instanceId: string }>, externalDeviceIds: string[]) => void;
   updateExternalDeviceLabel: (instanceId: string, label: string) => void;
+  pasteElements: (data: PasteData) => string[];
 
   setName: (name: string) => void;
   loadState: (state: PanelState) => void;
@@ -329,6 +336,51 @@ export const usePanelStore = create<PanelStore>((set) => ({
         d.instanceId === instanceId ? { ...d, label } : d,
       ),
     })),
+
+  pasteElements: (data) => {
+    const idMap = new Map<string, string>();
+    for (const m of data.modules) idMap.set(m.oldId, nanoid());
+    for (const d of data.externalDevices) idMap.set(d.oldId, nanoid());
+
+    set((s) => ({
+      rows: s.rows.map((row) => {
+        const newMods = data.modules
+          .filter((m) => m.rowId === row.id)
+          .map((m) => ({
+            instanceId: idMap.get(m.oldId)!,
+            moduleId: m.moduleId,
+            positionCm: m.positionCm,
+            label: m.label,
+          }));
+        if (newMods.length === 0) return row;
+        return { ...row, modules: [...row.modules, ...newMods] };
+      }),
+      externalDevices: [
+        ...s.externalDevices,
+        ...data.externalDevices.map((d) => ({
+          instanceId: idMap.get(d.oldId)!,
+          moduleId: d.moduleId,
+          x: d.x,
+          y: d.y,
+          label: d.label,
+        })),
+      ],
+      wires: [
+        ...s.wires,
+        ...data.wires
+          .filter((w) => idMap.has(w.sourceOldId) && idMap.has(w.targetOldId))
+          .map((w) => ({
+            id: nanoid(),
+            sourceInstanceId: idMap.get(w.sourceOldId)!,
+            sourcePortId: w.sourcePortId,
+            targetInstanceId: idMap.get(w.targetOldId)!,
+            targetPortId: w.targetPortId,
+          })),
+      ],
+    }));
+
+    return Array.from(idMap.values());
+  },
 
   setName: (name) => set({ name }),
 

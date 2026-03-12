@@ -1,8 +1,9 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { resolveLayout } from '../utils/panelLayout';
-import { cmToPx } from '../utils/geometry';
+import { cmToPx, canPlace, snapToCm } from '../utils/geometry';
 import { getModuleById } from '../data/modules';
+import type { PasteData } from '../store/panelStore';
 import { DinRail } from './DinRail';
 import { WireLayer } from './WireLayer';
 import { PanelIOLayer } from './PanelIOLayer';
@@ -33,6 +34,27 @@ function marqueeToRect(m: MarqueeRect) {
   const w = Math.abs(m.currentX - m.startX);
   const h = Math.abs(m.currentY - m.startY);
   return { x, y, w, h };
+}
+
+interface ClipboardData {
+  modules: Array<{ oldId: string; moduleId: string; positionCm: number; rowId: string; label?: string }>;
+  externalDevices: Array<{ oldId: string; moduleId: string; x: number; y: number; label?: string }>;
+  wires: Array<{ sourceOldId: string; sourcePortId: string; targetOldId: string; targetPortId: string }>;
+}
+
+function findFirstFit(
+  occupied: { start: number; end: number }[],
+  widthCm: number,
+  railWidthCm: number,
+): number {
+  const sorted = [...occupied].sort((a, b) => a.start - b.start);
+  let pos = 0;
+  for (const seg of sorted) {
+    if (pos + widthCm <= seg.start) return snapToCm(pos);
+    pos = Math.max(pos, seg.end);
+  }
+  if (pos + widthCm <= railWidthCm) return snapToCm(pos);
+  return -1;
 }
 
 interface PanelViewProps {
@@ -69,6 +91,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
   const [zoom, setZoom] = useState(1);
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
+  const clipboardRef = useRef<{ data: ClipboardData; pasteCount: number } | null>(null);
 
   const layout = useMemo(
     () =>
@@ -319,10 +342,111 @@ export const PanelView: React.FC<PanelViewProps> = ({
         e.preventDefault();
         fitToContainer();
       }
+
+      const isInput = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'x') && !isInput) {
+        if (selectedModules.length === 0) return;
+        e.preventDefault();
+        const selectedSet = new Set(selectedModules);
+        const cbData: ClipboardData = { modules: [], externalDevices: [], wires: [] };
+
+        for (const id of selectedModules) {
+          const extDev = state.externalDevices.find((d) => d.instanceId === id);
+          if (extDev) {
+            cbData.externalDevices.push({
+              oldId: id, moduleId: extDev.moduleId, x: extDev.x, y: extDev.y, label: extDev.label,
+            });
+            continue;
+          }
+          for (const row of state.rows) {
+            const mod = row.modules.find((m) => m.instanceId === id);
+            if (mod) {
+              cbData.modules.push({
+                oldId: id, moduleId: mod.moduleId, positionCm: mod.positionCm, rowId: row.id, label: mod.label,
+              });
+              break;
+            }
+          }
+        }
+
+        for (const wire of state.wires) {
+          if (selectedSet.has(wire.sourceInstanceId) && selectedSet.has(wire.targetInstanceId)) {
+            cbData.wires.push({
+              sourceOldId: wire.sourceInstanceId, sourcePortId: wire.sourcePortId,
+              targetOldId: wire.targetInstanceId, targetPortId: wire.targetPortId,
+            });
+          }
+        }
+
+        clipboardRef.current = { data: cbData, pasteCount: 0 };
+
+        if (e.key === 'x') {
+          const moduleItems: Array<{ rowId: string; instanceId: string }> = [];
+          const extDevIds: string[] = [];
+          for (const id of selectedModules) {
+            if (state.externalDevices.find((d) => d.instanceId === id)) {
+              extDevIds.push(id);
+            } else {
+              for (const row of state.rows) {
+                if (row.modules.find((m) => m.instanceId === id)) {
+                  moduleItems.push({ rowId: row.id, instanceId: id });
+                  break;
+                }
+              }
+            }
+          }
+          state.removeMultiple(moduleItems, extDevIds);
+          onSelectModule(null);
+        }
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !isInput) {
+        if (!clipboardRef.current) return;
+        e.preventDefault();
+        const cb = clipboardRef.current;
+        cb.pasteCount++;
+        const offset = cb.pasteCount;
+        const EXT_OFFSET = 15;
+
+        const pasteData: PasteData = { modules: [], externalDevices: [], wires: cb.data.wires };
+
+        for (const ext of cb.data.externalDevices) {
+          pasteData.externalDevices.push({
+            ...ext,
+            x: ext.x + EXT_OFFSET * offset,
+            y: ext.y + EXT_OFFSET * offset,
+          });
+        }
+
+        for (const mod of cb.data.modules) {
+          const def = getModuleById(mod.moduleId);
+          if (!def) continue;
+          const rowIdx = state.rows.findIndex((r) => r.id === mod.rowId);
+          const rail = rowIdx >= 0 ? layout.rails[rowIdx] : undefined;
+          if (!rail) continue;
+          const row = state.rows[rowIdx];
+
+          let targetPos = snapToCm(mod.positionCm + 2 * offset);
+          if (!canPlace(row.modules, targetPos, def.widthCm, rail.usableWidthCm)) {
+            const occupied = row.modules.map((m) => {
+              const md = getModuleById(m.moduleId);
+              return { start: m.positionCm, end: m.positionCm + (md?.widthCm ?? 0) };
+            });
+            targetPos = findFirstFit(occupied, def.widthCm, rail.usableWidthCm);
+          }
+          if (targetPos >= 0 && canPlace(row.modules, targetPos, def.widthCm, rail.usableWidthCm)) {
+            pasteData.modules.push({ ...mod, positionCm: targetPos });
+          }
+        }
+
+        const newIds = state.pasteElements(pasteData);
+        onSetSelection(newIds);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedModules, state, fitToContainer, onSelectModule]);
+  }, [selectedModules, state, layout, fitToContainer, onSelectModule, onSetSelection]);
 
   // --- Wheel zoom (non-passive to prevent browser zoom) ---
   useEffect(() => {
@@ -454,6 +578,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
           rails={layout.rails}
           interiorOffsetXPx={intX}
           interiorOffsetYPx={intY}
+          panelWidth={svgWidth}
+          panelHeight={svgHeight}
           svgWidth={vb.w}
           svgHeight={vb.h}
           padding={-vb.x}

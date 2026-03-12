@@ -91,7 +91,7 @@ export const ModuleBlock: React.FC<Props> = ({
       className="module-block"
       onClick={(e) => {
         e.stopPropagation();
-        onSelect(mod.instanceId, e.ctrlKey || e.metaKey);
+        onSelect(mod.instanceId, e.ctrlKey || e.metaKey || e.shiftKey);
       }}
       onContextMenu={handleContextMenu}
       onDoubleClick={handleDoubleClick}

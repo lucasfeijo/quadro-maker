@@ -5,6 +5,7 @@ const ROW_HEIGHT_CM = 10;
 const ROW_SPACING_CM = 3;
 const WALL_THICKNESS_CM = 3;
 const DEFAULT_FIXING_MARGIN = 3;
+const RAIL_INSET_CM = 1.5;
 
 export function resolveLayout(state: PanelState): ResolvedLayout {
   if (state.enclosureId) {
@@ -28,7 +29,12 @@ function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
     interiorHeightCm: enc.interiorHeightCm,
     interiorOffsetXCm: origWallX + extraX,
     interiorOffsetYCm: origWallY + extraY,
-    rails: enc.rails.map((r) => ({ ...r })),
+    rails: enc.rails.map((r) => ({
+      ...r,
+      xCm: r.xCm + RAIL_INSET_CM,
+      widthCm: r.widthCm - RAIL_INSET_CM * 2,
+      usableWidthCm: r.usableWidthCm - RAIL_INSET_CM * 2,
+    })),
     mountingHoles: enc.mountingHoles,
     isEnclosure: true,
   };
@@ -48,10 +54,10 @@ function resolveCustomLayout(
 
   const rails = Array.from({ length: rowCount }, (_, i) => ({
     id: `row-${i}`,
-    xCm: 0,
+    xCm: RAIL_INSET_CM,
     yCm: i * (ROW_HEIGHT_CM + ROW_SPACING_CM) + ROW_HEIGHT_CM / 2 - 0.5,
-    widthCm: railWidth,
-    usableWidthCm: usableWidth,
+    widthCm: railWidth - RAIL_INSET_CM * 2,
+    usableWidthCm: usableWidth - RAIL_INSET_CM * 2,
     fixingMarginCm: DEFAULT_FIXING_MARGIN,
   }));
 

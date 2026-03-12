@@ -176,7 +176,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
             key={dev.instanceId}
             onClick={(e) => {
               e.stopPropagation();
-              onSelectDevice(dev.instanceId, e.ctrlKey || e.metaKey);
+              onSelectDevice(dev.instanceId, e.ctrlKey || e.metaKey || e.shiftKey);
             }}
             onContextMenu={(e) => {
               e.preventDefault();
