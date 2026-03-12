@@ -4,11 +4,13 @@ import { saveProject, listProjects, loadProject, deleteProject } from '../utils/
 import { SavedProject } from '../types';
 
 interface ToolbarProps {
-  viewMode: 'panel' | 'schematic' | 'simulation';
-  onViewModeChange: (mode: 'panel' | 'schematic' | 'simulation') => void;
+  viewMode: 'panel' | 'schematic';
+  onViewModeChange: (mode: 'panel' | 'schematic') => void;
+  simActive: boolean;
+  onSimToggle: () => void;
 }
 
-export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange }) => {
+export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, simActive, onSimToggle }) => {
   const store = usePanelStore();
   const [projectId, setProjectId] = useState<string | null>(null);
   const [showLoadModal, setShowLoadModal] = useState(false);
@@ -82,13 +84,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange }) 
           >
             Unifilar
           </button>
-          <button
-            className={`toolbar-btn ${viewMode === 'simulation' ? 'toolbar-btn-active' : ''}`}
-            onClick={() => onViewModeChange('simulation')}
-          >
-            Simular
-          </button>
         </div>
+        <button
+          className={`toolbar-btn ${simActive ? 'toolbar-btn-sim-active' : ''}`}
+          onClick={onSimToggle}
+          title="Ligar/desligar simulação"
+        >
+          {simActive ? '⚡ Simulando' : '⚡ Simular'}
+        </button>
         <button className="toolbar-btn" onClick={handleSave}>
           Salvar
         </button>

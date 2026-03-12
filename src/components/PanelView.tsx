@@ -5,7 +5,7 @@ import { cmToPx } from '../utils/geometry';
 import { DinRail } from './DinRail';
 import { WireLayer } from './WireLayer';
 import { PanelIOLayer } from './PanelIOLayer';
-import type { GhostPreview } from '../types';
+import type { GhostPreview, ComponentState } from '../types';
 
 interface PanelViewProps {
   ghostPreview: GhostPreview | null;
@@ -15,6 +15,9 @@ interface PanelViewProps {
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
   hoverTarget?: { instanceId: string; portId: string } | null;
+  simActive?: boolean;
+  energizedWires?: Set<string>;
+  simStates?: ComponentState[];
 }
 
 export const PanelView: React.FC<PanelViewProps> = ({
@@ -25,6 +28,9 @@ export const PanelView: React.FC<PanelViewProps> = ({
   onPortHover,
   onPortLeave,
   hoverTarget,
+  simActive,
+  energizedWires,
+  simStates,
 }) => {
   const state = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -203,6 +209,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
           selectedWireId={state.selectedWireId}
           onSelectWire={(id) => state.selectWire(id)}
           hoverTarget={hoverTarget}
+          energizedWires={simActive ? energizedWires : undefined}
         />
 
         {/* Panel I/O */}

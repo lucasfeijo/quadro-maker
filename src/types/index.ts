@@ -38,7 +38,9 @@ export type ModuleCategory =
   | 'relay'
   | 'timer'
   | 'terminal'
-  | 'ats';
+  | 'ats'
+  | 'switch'
+  | 'button';
 
 export type PortType = 'phase' | 'neutral' | 'ground' | 'any';
 export type PortSide = 'top' | 'bottom';
@@ -104,6 +106,16 @@ export type ComponentState = {
   voltageV: number;
 };
 
+// --- External Devices (fora do quadro) ---
+
+export type ExternalDevice = {
+  instanceId: string;
+  moduleId: string;
+  xPercent: number;
+  yPercent: number;
+  label?: string;
+};
+
 // --- Panel State ---
 
 export type PlacedModule = {
@@ -126,6 +138,7 @@ export type PanelState = {
   rows: PanelRow[];
   wires: Wire[];
   panelIOs: PanelIO[];
+  externalDevices: ExternalDevice[];
 };
 
 // --- Resolved layout for rendering ---

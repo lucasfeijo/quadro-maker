@@ -28,6 +28,7 @@ interface Props {
   selectedWireId: string | null;
   onSelectWire: (wireId: string) => void;
   hoverTarget?: { instanceId: string; portId: string } | null;
+  energizedWires?: Set<string>;
 }
 
 function findModuleAndRow(
@@ -69,7 +70,7 @@ function getPortAbsolutePosition(
   const moduleH = cmToPx(MODULE_HEIGHT_CM);
 
   const x = moduleX + cmToPx(port.offsetXCm);
-  const y = port.side === 'top' ? moduleY - 1 : moduleY + moduleH + 1;
+  const y = port.side === 'top' ? moduleY - 2 : moduleY + moduleH + 2;
 
   return { x, y, type: port.type };
 }
@@ -98,6 +99,7 @@ export const WireLayer: React.FC<Props> = ({
   selectedWireId,
   onSelectWire,
   hoverTarget,
+  energizedWires,
 }) => {
   const rows = usePanelStore((s) => s.rows);
   const wires = usePanelStore((s) => s.wires);
@@ -124,18 +126,30 @@ export const WireLayer: React.FC<Props> = ({
         if (!src || !tgt) return null;
 
         const isSelected = wire.id === selectedWireId;
-        const color = wire.wireColor ?? WIRE_COLORS[src.type] ?? '#333';
+        const isEnergized = energizedWires?.has(wire.id);
+        const baseColor = wire.wireColor ?? WIRE_COLORS[src.type] ?? '#333';
+        const color = isEnergized ? '#ffab00' : baseColor;
         const isGround = src.type === 'ground' || tgt.type === 'ground';
         const path = buildManhattanPath(src, tgt);
 
         return (
           <g key={wire.id} onClick={(e) => { e.stopPropagation(); onSelectWire(wire.id); }} style={{ cursor: 'pointer' }}>
             <path d={path} fill="none" stroke="transparent" strokeWidth={3} />
+            {isEnergized && (
+              <path
+                d={path}
+                fill="none"
+                stroke="#ffab00"
+                strokeWidth={2}
+                opacity={0.25}
+                style={{ pointerEvents: 'none' }}
+              />
+            )}
             <path
               d={path}
               fill="none"
               stroke={isSelected ? '#ffd600' : color}
-              strokeWidth={isSelected ? 0.8 : 0.5}
+              strokeWidth={isSelected ? 0.8 : isEnergized ? 0.7 : 0.5}
               strokeDasharray={isGround ? '1.5 0.8' : 'none'}
               opacity={0.9}
             />

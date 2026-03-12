@@ -707,197 +707,175 @@ html, body, #root {
   font-size: 0.95rem;
 }
 
-/* ===== Simulation View ===== */
+/* ===== Simulation Overlay ===== */
 
-.simulation-view {
-  flex: 1;
+.sim-overlay {
+  width: 260px;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
   overflow-y: auto;
-  background: #1a1a2e;
-  color: #e0e0e0;
-  padding: 24px;
+  padding: 14px 12px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--toolbar-border);
+  animation: slide-in-right 0.15s ease-out;
 }
 
-.simulation-empty {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #1a1a2e;
-  color: #666;
-  font-size: 0.95rem;
-}
-
-.sim-header {
+.sim-overlay-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
-.sim-header h2 {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: #89b4fa;
-}
-
-.sim-alerts {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.sim-alert {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 8px;
+.sim-overlay-header h3 {
   font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.5;
+  margin: 0;
 }
 
-.sim-alert-tripped {
-  background: rgba(243, 139, 168, 0.15);
-  border: 1px solid rgba(243, 139, 168, 0.3);
-  color: #f38ba8;
+.sim-reset-btn {
+  padding: 3px 10px !important;
+  font-size: 0.72rem !important;
 }
 
-.sim-alert-no-ground {
-  background: rgba(250, 179, 135, 0.15);
-  border: 1px solid rgba(250, 179, 135, 0.3);
-  color: #fab387;
+.sim-overlay-empty {
+  font-size: 0.8rem;
+  opacity: 0.5;
+  text-align: center;
+  padding: 16px 0;
 }
 
-.sim-alert-overload,
-.sim-alert-short-circuit {
-  background: rgba(243, 139, 168, 0.2);
-  border: 1px solid rgba(243, 139, 168, 0.4);
-  color: #f38ba8;
-}
-
-.sim-alert-icon {
-  font-size: 1rem;
-}
-
-.sim-stats {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.sim-stat {
-  background: rgba(255,255,255,0.05);
-  border-radius: 8px;
-  padding: 12px 18px;
+.sim-overlay-alerts {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  min-width: 80px;
-}
-
-.sim-stat-label {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  opacity: 0.5;
-  margin-bottom: 4px;
-}
-
-.sim-stat-value {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: #89b4fa;
-}
-
-.sim-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-}
-
-.sim-card {
-  border-radius: 10px;
-  padding: 14px;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
-  border: 1px solid rgba(255,255,255,0.08);
-}
-
-.sim-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-.sim-card-on {
-  background: rgba(166, 227, 161, 0.1);
-  border-color: rgba(166, 227, 161, 0.3);
-}
-
-.sim-card-off {
-  background: rgba(255,255,255,0.03);
-  border-color: rgba(255,255,255,0.06);
-  opacity: 0.6;
-}
-
-.sim-card-tripped {
-  background: rgba(243, 139, 168, 0.15);
-  border-color: rgba(243, 139, 168, 0.4);
-  animation: pulse-danger 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse-danger {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(243, 139, 168, 0); }
-  50% { box-shadow: 0 0 12px 2px rgba(243, 139, 168, 0.3); }
-}
-
-.sim-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 4px;
   margin-bottom: 10px;
 }
 
-.sim-card-color {
-  width: 8px;
-  height: 8px;
+.sim-alert-mini {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.sim-alert-mini.sim-alert-tripped {
+  background: rgba(243, 139, 168, 0.15);
+  color: #f38ba8;
+}
+
+.sim-alert-mini.sim-alert-no-ground {
+  background: rgba(250, 179, 135, 0.12);
+  color: #fab387;
+}
+
+.sim-alert-mini.sim-alert-overload,
+.sim-alert-mini.sim-alert-short-circuit {
+  background: rgba(243, 139, 168, 0.15);
+  color: #f38ba8;
+}
+
+.sim-alert-mini.sim-alert-info {
+  background: rgba(137, 180, 250, 0.1);
+  color: #89b4fa;
+  opacity: 0.7;
+}
+
+.sim-overlay-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 0.7rem;
+  opacity: 0.5;
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+
+.sim-section-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.4;
+  padding: 8px 2px 4px;
+}
+
+.sim-overlay-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sim-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 0.78rem;
+}
+
+.sim-item:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.sim-item-color {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.sim-card-name {
-  font-weight: 600;
-  font-size: 0.85rem;
+.sim-item-name {
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 500;
 }
 
-.sim-card-type {
-  font-size: 0.7rem;
-  opacity: 0.5;
-}
-
-.sim-card-body {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.sim-card-status {
-  font-size: 0.75rem;
+.sim-item-status {
   font-weight: 700;
+  font-size: 0.68rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
 }
 
-.sim-card-on .sim-card-status { color: #a6e3a1; }
-.sim-card-off .sim-card-status { color: #666; }
-.sim-card-tripped .sim-card-status { color: #f38ba8; }
+.sim-item-metrics {
+  font-size: 0.68rem;
+  opacity: 0.6;
+  flex-shrink: 0;
+  min-width: 60px;
+  text-align: right;
+}
 
-.sim-card-metrics {
-  display: flex;
-  gap: 10px;
-  font-size: 0.75rem;
-  opacity: 0.7;
+.sim-item-on .sim-item-status { color: #a6e3a1; }
+.sim-item-off .sim-item-status { color: #585b70; }
+.sim-item-off { opacity: 0.5; }
+
+.sim-item-tripped {
+  background: rgba(243, 139, 168, 0.1);
+}
+
+.sim-item-tripped .sim-item-status {
+  color: #f38ba8;
+  animation: pulse-text 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.toolbar-btn-sim-active {
+  background: rgba(255, 171, 0, 0.2) !important;
+  border-color: #ffab00 !important;
+  color: #ffab00 !important;
+  font-weight: 600;
 }

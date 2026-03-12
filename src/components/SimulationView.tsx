@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { getModuleById } from '../data/modules';
-import { simulate, SimAlert } from '../engine/circuit';
+import { simulate } from '../engine/circuit';
 import type { ComponentState } from '../types';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -15,10 +15,40 @@ const CATEGORY_LABELS: Record<string, string> = {
   ats: 'ATS',
 };
 
-export const SimulationView: React.FC = () => {
+const IO_TYPE_LABELS: Record<string, string> = {
+  phase: 'Fase',
+  neutral: 'Neutro',
+  ground: 'Terra',
+  dc_pos: 'DC+',
+  dc_neg: 'DC-',
+  signal: 'Sinal',
+};
+
+const IO_COLORS: Record<string, string> = {
+  phase: '#d32f2f',
+  neutral: '#1565c0',
+  ground: '#2e7d32',
+  dc_pos: '#c62828',
+  dc_neg: '#1a237e',
+  signal: '#f57c00',
+};
+
+const ALERT_ICONS: Record<string, string> = {
+  tripped: '⚠',
+  'no-ground': '⏚',
+  overload: '!',
+  'short-circuit': '!',
+  info: 'ℹ',
+};
+
+interface SimulationOverlayProps {
+  onEnergizedWiresChange?: (wires: Set<string>, states: ComponentState[]) => void;
+}
+
+export const SimulationOverlay: React.FC<SimulationOverlayProps> = ({ onEnergizedWiresChange }) => {
   const rows = usePanelStore((s) => s.rows);
   const wires = usePanelStore((s) => s.wires);
-  const busbars = usePanelStore((s) => s.busbars);
+  const panelIOs = usePanelStore((s) => s.panelIOs);
 
   const [overrides, setOverrides] = useState<Map<string, { on: boolean }>>(new Map());
 
@@ -33,91 +63,121 @@ export const SimulationView: React.FC = () => {
 
   const resetAll = useCallback(() => setOverrides(new Map()), []);
 
-  const result = useMemo(
-    () => simulate(rows, wires, busbars, overrides),
-    [rows, wires, busbars, overrides],
-  );
+  const result = useMemo(() => {
+    const r = simulate(rows, wires, panelIOs, overrides);
+    onEnergizedWiresChange?.(r.energizedWires, r.states);
+    return r;
+  }, [rows, wires, panelIOs, overrides, onEnergizedWiresChange]);
 
   const allModules = rows.flatMap((r) => r.modules);
 
-  if (allModules.length === 0) {
+  if (allModules.length === 0 && panelIOs.length === 0) {
     return (
-      <div className="simulation-empty">
-        <p>Nenhum módulo no painel. Adicione módulos para simular.</p>
+      <div className="sim-overlay">
+        <div className="sim-overlay-header">
+          <h3>Simulação</h3>
+        </div>
+        <p className="sim-overlay-empty">Nenhum módulo no painel.</p>
       </div>
     );
   }
 
+  const moduleStates = result.states.filter((s) => !s.instanceId.startsWith('panel-io:'));
+  const ioStates = result.states.filter((s) => s.instanceId.startsWith('panel-io:'));
+
   return (
-    <div className="simulation-view">
-      <div className="sim-header">
-        <h2>Simulação de Circuito</h2>
-        <button className="toolbar-btn" onClick={resetAll}>Resetar</button>
+    <div className="sim-overlay">
+      <div className="sim-overlay-header">
+        <h3>Simulação</h3>
+        <button className="toolbar-btn sim-reset-btn" onClick={resetAll}>Resetar</button>
       </div>
 
       {result.alerts.length > 0 && (
-        <div className="sim-alerts">
+        <div className="sim-overlay-alerts">
           {result.alerts.map((alert, i) => (
-            <div key={i} className={`sim-alert sim-alert-${alert.type}`}>
-              <span className="sim-alert-icon">
-                {alert.type === 'tripped' ? '⚠️' : alert.type === 'no-ground' ? '🔌' : '❗'}
-              </span>
+            <div key={i} className={`sim-alert-mini sim-alert-${alert.type}`}>
+              <span>{ALERT_ICONS[alert.type] ?? 'ℹ'}</span>
               <span>{alert.message}</span>
             </div>
           ))}
         </div>
       )}
 
-      <div className="sim-stats">
-        <div className="sim-stat">
-          <span className="sim-stat-label">Módulos</span>
-          <span className="sim-stat-value">{allModules.length}</span>
-        </div>
-        <div className="sim-stat">
-          <span className="sim-stat-label">Fios</span>
-          <span className="sim-stat-value">{wires.length}</span>
-        </div>
-        <div className="sim-stat">
-          <span className="sim-stat-label">Energizados</span>
-          <span className="sim-stat-value">{result.energizedWires.size}</span>
-        </div>
-        <div className="sim-stat">
-          <span className="sim-stat-label">Alertas</span>
-          <span className="sim-stat-value">{result.alerts.length}</span>
-        </div>
+      <div className="sim-overlay-stats">
+        <span>{allModules.length} mod</span>
+        <span>{wires.length} fios</span>
+        <span>{result.energizedWires.size} energ.</span>
       </div>
 
-      <div className="sim-grid">
-        {result.states.map((state) => {
-          const mod = allModules.find((m) => m.instanceId === state.instanceId);
-          if (!mod) return null;
-          const def = getModuleById(mod.moduleId);
-          if (!def) return null;
+      {ioStates.length > 0 && (
+        <>
+          <div className="sim-section-label">Entradas / Saídas</div>
+          <div className="sim-overlay-list">
+            {ioStates.map((state) => {
+              const ioId = state.instanceId.replace('panel-io:', '');
+              const io = panelIOs.find((i) => i.id === ioId);
+              if (!io) return null;
+              const color = IO_COLORS[io.type] ?? '#999';
+              const energized = state.voltageV > 0;
+              const isSwitch = io.type === 'switch' || io.type === 'button';
 
-          return (
-            <div
-              key={state.instanceId}
-              className={`sim-card ${state.tripped ? 'sim-card-tripped' : state.on ? 'sim-card-on' : 'sim-card-off'}`}
-              onClick={() => toggleModule(state.instanceId)}
-            >
-              <div className="sim-card-header">
-                <span className="sim-card-color" style={{ background: def.color }} />
-                <span className="sim-card-name">{mod.label || def.name}</span>
-                <span className="sim-card-type">{CATEGORY_LABELS[def.category]}</span>
-              </div>
-              <div className="sim-card-body">
-                <div className="sim-card-status">
-                  {state.tripped ? 'DISPARADO' : state.on ? 'LIGADO' : 'DESLIGADO'}
+              return (
+                <div
+                  key={state.instanceId}
+                  className={`sim-item ${state.on ? (energized ? 'sim-item-on' : 'sim-item-on') : 'sim-item-off'}`}
+                  onClick={() => toggleModule(state.instanceId)}
+                  title="Clique para ligar/desligar"
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span className="sim-item-color" style={{ background: state.on ? color : '#555' }} />
+                  <span className="sim-item-name">
+                    {isSwitch && (state.on ? '🟢 ' : '🔴 ')}
+                    {io.label || `${io.direction === 'input' ? 'E' : 'S'} ${IO_TYPE_LABELS[io.type] ?? io.type}`}
+                  </span>
+                  <span className="sim-item-status">
+                    {state.on ? (energized ? `${state.voltageV.toFixed(0)}V` : 'ON') : 'OFF'}
+                  </span>
+                  <span className="sim-item-metrics">
+                    {state.currentA.toFixed(1)}A
+                  </span>
                 </div>
-                <div className="sim-card-metrics">
-                  <span>{state.voltageV.toFixed(0)}V</span>
-                  <span>{state.currentA.toFixed(1)}A</span>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {moduleStates.length > 0 && (
+        <>
+          <div className="sim-section-label">Módulos</div>
+          <div className="sim-overlay-list">
+            {moduleStates.map((state) => {
+              const mod = allModules.find((m) => m.instanceId === state.instanceId);
+              if (!mod) return null;
+              const def = getModuleById(mod.moduleId);
+              if (!def) return null;
+
+              return (
+                <div
+                  key={state.instanceId}
+                  className={`sim-item ${state.tripped ? 'sim-item-tripped' : state.on ? 'sim-item-on' : 'sim-item-off'}`}
+                  onClick={() => toggleModule(state.instanceId)}
+                  title="Clique para ligar/desligar"
+                >
+                  <span className="sim-item-color" style={{ background: def.color }} />
+                  <span className="sim-item-name">{mod.label || def.name}</span>
+                  <span className="sim-item-status">
+                    {state.tripped ? 'DISP' : state.on ? 'ON' : 'OFF'}
+                  </span>
+                  <span className="sim-item-metrics">
+                    {state.voltageV.toFixed(0)}V {state.currentA.toFixed(1)}A
+                  </span>
                 </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 };

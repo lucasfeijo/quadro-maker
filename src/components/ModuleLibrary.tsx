@@ -48,6 +48,8 @@ const IO_ITEMS: {
   { direction: 'output', type: 'dc_pos', defaultEdge: 'bottom', label: 'Saída DC+', color: '#c62828', abbr: 'DC+' },
   { direction: 'output', type: 'dc_neg', defaultEdge: 'bottom', label: 'Saída DC-', color: '#1a237e', abbr: 'DC-' },
   { direction: 'output', type: 'signal', defaultEdge: 'right', label: 'Saída Sinal', color: '#f57c00', abbr: 'SIG' },
+  { direction: 'input', type: 'switch', defaultEdge: 'left', label: 'Interruptor', color: '#7b1fa2', abbr: 'SW' },
+  { direction: 'input', type: 'button', defaultEdge: 'left', label: 'Botão Pulsador', color: '#9c27b0', abbr: 'BTN' },
 ];
 
 function DraggableModule({ moduleId, name, color, widthCm, icon, imageUrl }: {
@@ -142,13 +144,19 @@ export const ModuleLibrary: React.FC = () => {
       <h3 style={{ marginTop: 20 }}>Entradas & Saídas</h3>
       <div className="library-group">
         <div className="library-group-label">Entradas</div>
-        {IO_ITEMS.filter((i) => i.direction === 'input').map((item) => (
+        {IO_ITEMS.filter((i) => i.direction === 'input' && i.type !== 'switch' && i.type !== 'button').map((item) => (
           <IOItem key={`${item.direction}-${item.type}`} {...item} />
         ))}
       </div>
       <div className="library-group">
         <div className="library-group-label">Saídas</div>
         {IO_ITEMS.filter((i) => i.direction === 'output').map((item) => (
+          <IOItem key={`${item.direction}-${item.type}`} {...item} />
+        ))}
+      </div>
+      <div className="library-group">
+        <div className="library-group-label">Dispositivos Externos</div>
+        {IO_ITEMS.filter((i) => i.type === 'switch' || i.type === 'button').map((item) => (
           <IOItem key={`${item.direction}-${item.type}`} {...item} />
         ))}
       </div>

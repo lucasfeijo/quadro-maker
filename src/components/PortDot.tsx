@@ -22,7 +22,7 @@ interface Props {
   onPortLeave: () => void;
 }
 
-const RADIUS = 1.2;
+const RADIUS = 2;
 
 export const PortDot: React.FC<Props> = ({
   port,
@@ -37,7 +37,7 @@ export const PortDot: React.FC<Props> = ({
   onPortLeave,
 }) => {
   const cx = moduleX + cmToPx(port.offsetXCm);
-  const cy = port.side === 'top' ? moduleY - 1 : moduleY + moduleH + 1;
+  const cy = port.side === 'top' ? moduleY - 2 : moduleY + moduleH + 2;
   const color = PORT_COLORS[port.type] ?? '#999';
 
   return (
@@ -51,8 +51,8 @@ export const PortDot: React.FC<Props> = ({
       onMouseLeave={onPortLeave}
     >
       {isWiringSource && (
-        <circle cx={cx} cy={cy} r={RADIUS + 1.5} fill="none" stroke="#ffd600" strokeWidth={0.5} opacity={0.8}>
-          <animate attributeName="r" values={`${RADIUS + 1};${RADIUS + 2.5};${RADIUS + 1}`} dur="1s" repeatCount="indefinite" />
+        <circle cx={cx} cy={cy} r={RADIUS + 2} fill="none" stroke="#ffd600" strokeWidth={0.6} opacity={0.8}>
+          <animate attributeName="r" values={`${RADIUS + 1.5};${RADIUS + 3};${RADIUS + 1.5}`} dur="1s" repeatCount="indefinite" />
         </circle>
       )}
       <circle
@@ -61,16 +61,16 @@ export const PortDot: React.FC<Props> = ({
         r={RADIUS}
         fill={isConnected ? color : '#fff'}
         stroke={color}
-        strokeWidth={0.5}
+        strokeWidth={0.6}
       />
       <text
         x={cx}
-        y={cy + (port.side === 'top' ? -2.5 : 3.5)}
+        y={cy + (port.side === 'top' ? -4 : 5)}
         textAnchor="middle"
         dominantBaseline="middle"
-        fontSize={1.8}
-        fill="#666"
-        fontWeight={500}
+        fontSize={3.2}
+        fill="#444"
+        fontWeight={600}
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
         {port.label}

@@ -18,13 +18,14 @@ import { Toolbar } from './Toolbar';
 import { PropertiesPanel } from './PropertiesPanel';
 import { DragOverlayContent } from './DragOverlayContent';
 import { SchematicView } from './SchematicView';
-import { SimulationView } from './SimulationView';
+import { SimulationOverlay } from './SimulationView';
 import { getModuleById } from '../data/modules';
+import type { ComponentState } from '../types';
 import { snapToCm, pxToCm, canPlace } from '../utils/geometry';
 import { resolveLayout } from '../utils/panelLayout';
 import type { ResolvedRail, GhostPreview } from '../types';
 
-type ViewMode = 'panel' | 'schematic' | 'simulation';
+type ViewMode = 'panel' | 'schematic';
 
 export const App: React.FC = () => {
   const screen = usePanelStore((s) => s.screen);
@@ -39,6 +40,12 @@ export const App: React.FC = () => {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [hoverTarget, setHoverTarget] = useState<{ instanceId: string; portId: string } | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('panel');
+  const [simActive, setSimActive] = useState(false);
+  const [simData, setSimData] = useState<{ energizedWires: Set<string>; states: ComponentState[] }>({ energizedWires: new Set(), states: [] });
+
+  const handleSimDataChange = useCallback((energizedWires: Set<string>, states: ComponentState[]) => {
+    setSimData({ energizedWires, states });
+  }, []);
 
   const handlePortClick = useCallback(
     (instanceId: string, portId: string) => {
@@ -278,7 +285,12 @@ export const App: React.FC = () => {
       onDragCancel={handleDragCancel}
     >
       <div className="editor-layout">
-        <Toolbar viewMode={viewMode} onViewModeChange={setViewMode} />
+        <Toolbar
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          simActive={simActive}
+          onSimToggle={() => setSimActive((v) => !v)}
+        />
         <div className="editor-body">
           {viewMode === 'panel' && <ModuleLibrary />}
           {viewMode === 'panel' && (
@@ -290,12 +302,17 @@ export const App: React.FC = () => {
               onPortHover={handlePortHover}
               onPortLeave={handlePortLeave}
               hoverTarget={hoverTarget}
+              simActive={simActive}
+              energizedWires={simData.energizedWires}
+              simStates={simData.states}
             />
           )}
           {viewMode === 'schematic' && <SchematicView />}
-          {viewMode === 'simulation' && <SimulationView />}
           {viewMode === 'panel' && (selectedModule || store.selectedWireId || store.selectedIOId) && (
             <PropertiesPanel selectedModuleId={selectedModule} />
+          )}
+          {viewMode === 'panel' && simActive && (
+            <SimulationOverlay onEnergizedWiresChange={handleSimDataChange} />
           )}
         </div>
       </div>

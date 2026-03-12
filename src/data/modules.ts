@@ -170,8 +170,50 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
       { id: 'out-L2', label: 'O-L2', side: 'bottom', offsetXCm: 11, type: 'phase' },
     ],
   },
+  {
+    id: 'switch-1p',
+    name: 'Interruptor Simples',
+    widthCm: 3,
+    category: 'switch' as const,
+    poles: 1,
+    color: '#7b1fa2',
+    icon: 'switch',
+    ports: [
+      { id: 'in', label: 'E', side: 'top' as const, offsetXCm: 1.5, type: 'any' as const },
+      { id: 'out', label: 'S', side: 'bottom' as const, offsetXCm: 1.5, type: 'any' as const },
+    ],
+  },
+  {
+    id: 'switch-2p',
+    name: 'Interruptor Duplo',
+    widthCm: 6,
+    category: 'switch' as const,
+    poles: 2,
+    color: '#6a1b9a',
+    icon: 'switch',
+    ports: makePorts(2, 6, ['E1', 'E2'], ['any', 'any']),
+  },
+  {
+    id: 'button-1p',
+    name: 'Botão Pulsador',
+    widthCm: 3,
+    category: 'button' as const,
+    poles: 1,
+    color: '#9c27b0',
+    icon: 'button',
+    ports: [
+      { id: 'in', label: 'E', side: 'top' as const, offsetXCm: 1.5, type: 'any' as const },
+      { id: 'out', label: 'S', side: 'bottom' as const, offsetXCm: 1.5, type: 'any' as const },
+    ],
+  },
 ];
+
+export const EXTERNAL_MODULE_IDS = new Set(['switch-1p', 'switch-2p', 'button-1p']);
 
 export function getModuleById(id: string): ModuleDefinition | undefined {
   return MODULE_DEFINITIONS.find((m) => m.id === id);
+}
+
+export function isExternalModule(id: string): boolean {
+  return EXTERNAL_MODULE_IDS.has(id);
 }
