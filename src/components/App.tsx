@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -322,6 +322,18 @@ export const App: React.FC = () => {
   const handleSetSelection = useCallback((ids: string[]) => {
     setSelectedModules(ids);
   }, []);
+
+  useEffect(() => {
+    if (screen !== 'editor') return;
+    const handler = (e: BeforeUnloadEvent) => {
+      if (store.getIsDirty()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [screen, store]);
 
   if (screen === 'setup') {
     return <PanelConfig />;

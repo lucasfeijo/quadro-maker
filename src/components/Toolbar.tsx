@@ -30,6 +30,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
       projectId ?? undefined,
     );
     setProjectId(id);
+    store.markAsSaved();
   };
 
   const handleOpenLoad = () => {
@@ -42,6 +43,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
     if (state) {
       store.loadState(state);
       setProjectId(id);
+      store.markAsSaved();
     }
     setShowLoadModal(false);
   };

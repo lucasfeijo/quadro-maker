@@ -65,6 +65,22 @@ interface PanelStore extends PanelState {
 
   setName: (name: string) => void;
   loadState: (state: PanelState) => void;
+
+  markAsSaved: () => void;
+  getIsDirty: () => boolean;
+}
+
+function getSavableSnapshot(s: PanelStore): string {
+  const snap = {
+    name: s.name,
+    enclosureId: s.enclosureId,
+    widthUnits: s.widthUnits,
+    rowCount: s.rowCount,
+    rows: s.rows,
+    wires: s.wires,
+    panelIOs: s.panelIOs,
+  };
+  return JSON.stringify(snap);
 }
 
 function makeRows(count: number): PanelRow[] {
@@ -83,7 +99,9 @@ const IO_TYPE_LABELS: Record<string, string> = {
   signal: 'Sinal',
 };
 
-export const usePanelStore = create<PanelStore>((set) => ({
+let lastSavedSnapshot: string | null = null;
+
+export const usePanelStore = create<PanelStore>((set, get) => ({
   screen: 'setup',
   name: 'Novo Projeto',
   enclosureId: null,
@@ -411,7 +429,16 @@ export const usePanelStore = create<PanelStore>((set) => ({
 
   setName: (name) => set({ name }),
 
-  loadState: (state) =>
+  loadState: (state) => {
+    lastSavedSnapshot = JSON.stringify({
+      name: state.name,
+      enclosureId: state.enclosureId,
+      widthUnits: state.widthUnits,
+      rowCount: state.rowCount,
+      rows: state.rows,
+      wires: state.wires ?? [],
+      panelIOs: state.panelIOs ?? [],
+    });
     set({
       screen: 'editor',
       ...state,
@@ -422,5 +449,15 @@ export const usePanelStore = create<PanelStore>((set) => ({
         x: d.x ?? 0,
         y: d.y ?? -(d.yPercent != null ? 40 : 40),
       })),
-    }),
+    });
+  },
+
+  markAsSaved: () => {
+    lastSavedSnapshot = getSavableSnapshot(get());
+  },
+
+  getIsDirty: () => {
+    if (!lastSavedSnapshot) return true;
+    return getSavableSnapshot(get()) !== lastSavedSnapshot;
+  },
 }));
