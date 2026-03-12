@@ -17,10 +17,14 @@ import { PanelView } from './PanelView';
 import { Toolbar } from './Toolbar';
 import { PropertiesPanel } from './PropertiesPanel';
 import { DragOverlayContent } from './DragOverlayContent';
+import { SchematicView } from './SchematicView';
+import { SimulationView } from './SimulationView';
 import { getModuleById } from '../data/modules';
 import { snapToCm, pxToCm, canPlace } from '../utils/geometry';
 import { resolveLayout } from '../utils/panelLayout';
 import type { ResolvedRail, GhostPreview } from '../types';
+
+type ViewMode = 'panel' | 'schematic' | 'simulation';
 
 export const App: React.FC = () => {
   const screen = usePanelStore((s) => s.screen);
@@ -33,6 +37,36 @@ export const App: React.FC = () => {
   } | null>(null);
   const [ghostPreview, setGhostPreview] = useState<GhostPreview | null>(null);
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [hoverTarget, setHoverTarget] = useState<{ instanceId: string; portId: string } | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('panel');
+
+  const handlePortClick = useCallback(
+    (instanceId: string, portId: string) => {
+      const wf = store.wiringFrom;
+      if (!wf) {
+        store.startWiring(instanceId, portId);
+      } else {
+        if (wf.instanceId === instanceId && wf.portId === portId) {
+          store.cancelWiring();
+        } else {
+          store.addWire(wf.instanceId, wf.portId, instanceId, portId);
+          setHoverTarget(null);
+        }
+      }
+    },
+    [store],
+  );
+
+  const handlePortHover = useCallback(
+    (instanceId: string, portId: string) => {
+      setHoverTarget({ instanceId, portId });
+    },
+    [],
+  );
+
+  const handlePortLeave = useCallback(() => {
+    setHoverTarget(null);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -244,15 +278,23 @@ export const App: React.FC = () => {
       onDragCancel={handleDragCancel}
     >
       <div className="editor-layout">
-        <Toolbar />
+        <Toolbar viewMode={viewMode} onViewModeChange={setViewMode} />
         <div className="editor-body">
-          <ModuleLibrary />
-          <PanelView
-            ghostPreview={ghostPreview}
-            selectedModule={selectedModule}
-            onSelectModule={setSelectedModule}
-          />
-          {selectedModule && (
+          {viewMode === 'panel' && <ModuleLibrary />}
+          {viewMode === 'panel' && (
+            <PanelView
+              ghostPreview={ghostPreview}
+              selectedModule={selectedModule}
+              onSelectModule={setSelectedModule}
+              onPortClick={handlePortClick}
+              onPortHover={handlePortHover}
+              onPortLeave={handlePortLeave}
+              hoverTarget={hoverTarget}
+            />
+          )}
+          {viewMode === 'schematic' && <SchematicView />}
+          {viewMode === 'simulation' && <SimulationView />}
+          {viewMode === 'panel' && (selectedModule || store.selectedWireId || store.selectedIOId) && (
             <PropertiesPanel selectedModuleId={selectedModule} />
           )}
         </div>

@@ -4,6 +4,7 @@ import { getModuleById } from '../data/modules';
 import { cmToPx } from '../utils/geometry';
 import { usePanelStore } from '../store/panelStore';
 import { ModuleIcon } from './ModuleIcon';
+import { PortDot } from './PortDot';
 import { useDraggable } from '@dnd-kit/core';
 
 interface Props {
@@ -14,6 +15,9 @@ interface Props {
   selected: boolean;
   onSelect: (instanceId: string) => void;
   isDragging?: boolean;
+  onPortClick?: (instanceId: string, portId: string) => void;
+  onPortHover?: (instanceId: string, portId: string) => void;
+  onPortLeave?: () => void;
 }
 
 const MODULE_HEIGHT_CM = 7;
@@ -26,11 +30,16 @@ export const ModuleBlock: React.FC<Props> = ({
   selected,
   onSelect,
   isDragging: isDraggingProp = false,
+  onPortClick,
+  onPortHover,
+  onPortLeave,
 }) => {
   const def = getModuleById(mod.moduleId);
   const removeModule = usePanelStore((s) => s.removeModule);
   const updateLabel = usePanelStore((s) => s.updateLabel);
   const displayMode = usePanelStore((s) => s.displayMode);
+  const wiringFrom = usePanelStore((s) => s.wiringFrom);
+  const wires = usePanelStore((s) => s.wires);
   const [editing, setEditing] = useState(false);
 
   const { attributes, listeners, setNodeRef, isDragging: isDraggingLocal } = useDraggable({
@@ -168,6 +177,29 @@ export const ModuleBlock: React.FC<Props> = ({
           {mod.label}
         </text>
       ) : null}
+      {def.ports.map((port) => {
+        const isSource = wiringFrom?.instanceId === mod.instanceId && wiringFrom?.portId === port.id;
+        const isConnected = wires.some(
+          (w) =>
+            (w.sourceInstanceId === mod.instanceId && w.sourcePortId === port.id) ||
+            (w.targetInstanceId === mod.instanceId && w.targetPortId === port.id),
+        );
+        return (
+          <PortDot
+            key={port.id}
+            port={port}
+            moduleX={x}
+            moduleY={y}
+            moduleH={h}
+            instanceId={mod.instanceId}
+            isWiringSource={isSource}
+            isConnected={isConnected}
+            onPortClick={onPortClick ?? (() => {})}
+            onPortHover={onPortHover ?? (() => {})}
+            onPortLeave={onPortLeave ?? (() => {})}
+          />
+        );
+      })}
     </g>
   );
 };

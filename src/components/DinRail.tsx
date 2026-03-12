@@ -12,6 +12,9 @@ interface Props {
   selectedModule: string | null;
   onSelectModule: (instanceId: string) => void;
   ghostPreview: GhostPreview | null;
+  onPortClick?: (instanceId: string, portId: string) => void;
+  onPortHover?: (instanceId: string, portId: string) => void;
+  onPortLeave?: () => void;
 }
 
 const RAIL_HEIGHT_CM = 1;
@@ -25,6 +28,9 @@ export const DinRail: React.FC<Props> = ({
   selectedModule,
   onSelectModule,
   ghostPreview,
+  onPortClick,
+  onPortHover,
+  onPortLeave,
 }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `rail-${row.id}`,
@@ -171,6 +177,9 @@ export const DinRail: React.FC<Props> = ({
           railYPx={railTopPx + railHeightPx / 2}
           selected={selectedModule === mod.instanceId}
           onSelect={onSelectModule}
+          onPortClick={onPortClick}
+          onPortHover={onPortHover}
+          onPortLeave={onPortLeave}
         />
       ))}
     </g>

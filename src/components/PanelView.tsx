@@ -3,18 +3,28 @@ import { usePanelStore } from '../store/panelStore';
 import { resolveLayout } from '../utils/panelLayout';
 import { cmToPx } from '../utils/geometry';
 import { DinRail } from './DinRail';
+import { WireLayer } from './WireLayer';
+import { PanelIOLayer } from './PanelIOLayer';
 import type { GhostPreview } from '../types';
 
 interface PanelViewProps {
   ghostPreview: GhostPreview | null;
   selectedModule: string | null;
   onSelectModule: (id: string | null) => void;
+  onPortClick?: (instanceId: string, portId: string) => void;
+  onPortHover?: (instanceId: string, portId: string) => void;
+  onPortLeave?: () => void;
+  hoverTarget?: { instanceId: string; portId: string } | null;
 }
 
 export const PanelView: React.FC<PanelViewProps> = ({
   ghostPreview,
   selectedModule,
   onSelectModule,
+  onPortClick,
+  onPortHover,
+  onPortLeave,
+  hoverTarget,
 }) => {
   const state = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,20 +48,43 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const intY = cmToPx(layout.interiorOffsetYCm);
   const intW = cmToPx(layout.interiorWidthCm);
   const intH = cmToPx(layout.interiorHeightCm);
+  const padding = 20;
+
+  const fitToContainer = useCallback(() => {
+    const container = containerRef.current;
+    if (!container || svgWidth <= 0 || svgHeight <= 0) return;
+    const cssPad = 40;
+    const availW = container.clientWidth - cssPad * 2;
+    const availH = container.clientHeight - cssPad * 2;
+    if (availW <= 0 || availH <= 0) return;
+    const fitZoom = Math.min(availW / svgWidth, availH / svgHeight);
+    setZoom(Math.min(4, Math.max(0.3, fitZoom)));
+  }, [svgWidth, svgHeight]);
+
+  useEffect(() => {
+    requestAnimationFrame(fitToContainer);
+  }, [fitToContainer]);
 
   const handleClearSelection = useCallback(() => onSelectModule(null), [onSelectModule]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedModule) {
-        for (const row of state.rows) {
-          const mod = row.modules.find(
-            (m) => m.instanceId === selectedModule,
-          );
-          if (mod) {
-            state.removeModule(row.id, mod.instanceId);
-            onSelectModule(null);
-            break;
+      if (e.key === 'Escape') {
+        if (state.wiringFrom) { state.cancelWiring(); return; }
+        if (state.selectedWireId) { state.selectWire(null); return; }
+        if (state.selectedIOId) { state.selectIO(null); return; }
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace')) {
+        if (state.selectedWireId) { state.removeWire(state.selectedWireId); return; }
+        if (state.selectedIOId) { state.removePanelIO(state.selectedIOId); return; }
+        if (selectedModule) {
+          for (const row of state.rows) {
+            const mod = row.modules.find((m) => m.instanceId === selectedModule);
+            if (mod) {
+              state.removeModule(row.id, mod.instanceId);
+              onSelectModule(null);
+              break;
+            }
           }
         }
       }
@@ -67,7 +100,6 @@ export const PanelView: React.FC<PanelViewProps> = ({
     }
   }, []);
 
-  const padding = 20;
   const viewBox = `${-padding} ${-padding} ${svgWidth + padding * 2} ${svgHeight + padding * 2}`;
 
   return (
@@ -81,6 +113,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
         <button onClick={() => setZoom((z) => Math.min(4, z + 0.2))}>+</button>
         <span>{Math.round(zoom * 100)}%</span>
         <button onClick={() => setZoom((z) => Math.max(0.3, z - 0.2))}>-</button>
+        <button onClick={fitToContainer} title="Ajustar ao container">⊡</button>
       </div>
       <svg
         width={svgWidth * zoom}
@@ -153,9 +186,35 @@ export const PanelView: React.FC<PanelViewProps> = ({
               ghostPreview={
                 ghostPreview?.rowId === row.id ? ghostPreview : null
               }
+              onPortClick={onPortClick}
+              onPortHover={onPortHover}
+              onPortLeave={onPortLeave}
             />
           );
         })}
+
+        {/* Wires */}
+        <WireLayer
+          rails={layout.rails}
+          interiorOffsetXPx={intX}
+          interiorOffsetYPx={intY}
+          svgWidth={svgWidth}
+          svgHeight={svgHeight}
+          selectedWireId={state.selectedWireId}
+          onSelectWire={(id) => state.selectWire(id)}
+          hoverTarget={hoverTarget}
+        />
+
+        {/* Panel I/O */}
+        <PanelIOLayer
+          svgWidth={svgWidth}
+          svgHeight={svgHeight}
+          selectedIOId={state.selectedIOId}
+          onSelectIO={(id) => state.selectIO(id)}
+          onPortClick={onPortClick}
+          onPortHover={onPortHover}
+          onPortLeave={onPortLeave}
+        />
       </svg>
     </div>
   );

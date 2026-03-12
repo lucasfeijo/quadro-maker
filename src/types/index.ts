@@ -40,6 +40,18 @@ export type ModuleCategory =
   | 'terminal'
   | 'ats';
 
+export type PortType = 'phase' | 'neutral' | 'ground' | 'any';
+export type PortSide = 'top' | 'bottom';
+
+export type PortDefinition = {
+  id: string;
+  label: string;
+  side: PortSide;
+  offsetXCm: number;
+  type: PortType;
+  maxCurrentA?: number;
+};
+
 export type ModuleDefinition = {
   id: string;
   name: string;
@@ -49,9 +61,48 @@ export type ModuleDefinition = {
   color: string;
   icon?: string;
   imageUrl?: string;
+  ports: PortDefinition[];
 };
 
 export type DisplayMode = 'icon' | 'image';
+
+// --- Wiring ---
+
+export type Wire = {
+  id: string;
+  sourceInstanceId: string;
+  sourcePortId: string;
+  targetInstanceId: string;
+  targetPortId: string;
+  wireGaugeMm2?: number;
+  wireColor?: string;
+  label?: string;
+};
+
+// --- Panel I/O (entradas e saídas do quadro) ---
+
+export type PanelIODirection = 'input' | 'output';
+export type PanelIOType = 'phase' | 'neutral' | 'ground' | 'dc_pos' | 'dc_neg' | 'signal';
+export type PanelEdge = 'top' | 'bottom' | 'left' | 'right';
+
+export type PanelIO = {
+  id: string;
+  label: string;
+  direction: PanelIODirection;
+  type: PanelIOType;
+  edge: PanelEdge;
+  positionPercent: number;
+};
+
+// --- Simulation ---
+
+export type ComponentState = {
+  instanceId: string;
+  on: boolean;
+  tripped: boolean;
+  currentA: number;
+  voltageV: number;
+};
 
 // --- Panel State ---
 
@@ -73,6 +124,8 @@ export type PanelState = {
   widthUnits: number;
   rowCount: number;
   rows: PanelRow[];
+  wires: Wire[];
+  panelIOs: PanelIO[];
 };
 
 // --- Resolved layout for rendering ---

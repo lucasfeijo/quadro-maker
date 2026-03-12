@@ -3,7 +3,12 @@ import { usePanelStore } from '../store/panelStore';
 import { saveProject, listProjects, loadProject, deleteProject } from '../utils/storage';
 import { SavedProject } from '../types';
 
-export const Toolbar: React.FC = () => {
+interface ToolbarProps {
+  viewMode: 'panel' | 'schematic' | 'simulation';
+  onViewModeChange: (mode: 'panel' | 'schematic' | 'simulation') => void;
+}
+
+export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange }) => {
   const store = usePanelStore();
   const [projectId, setProjectId] = useState<string | null>(null);
   const [showLoadModal, setShowLoadModal] = useState(false);
@@ -17,6 +22,8 @@ export const Toolbar: React.FC = () => {
         widthUnits: store.widthUnits,
         rowCount: store.rowCount,
         rows: store.rows,
+        wires: store.wires,
+        panelIOs: store.panelIOs,
       },
       projectId ?? undefined,
     );
@@ -62,6 +69,26 @@ export const Toolbar: React.FC = () => {
         >
           {store.displayMode === 'icon' ? '🔧 Ícones' : '📷 Fotos'}
         </button>
+        <div className="toolbar-view-toggle">
+          <button
+            className={`toolbar-btn ${viewMode === 'panel' ? 'toolbar-btn-active' : ''}`}
+            onClick={() => onViewModeChange('panel')}
+          >
+            Painel
+          </button>
+          <button
+            className={`toolbar-btn ${viewMode === 'schematic' ? 'toolbar-btn-active' : ''}`}
+            onClick={() => onViewModeChange('schematic')}
+          >
+            Unifilar
+          </button>
+          <button
+            className={`toolbar-btn ${viewMode === 'simulation' ? 'toolbar-btn-active' : ''}`}
+            onClick={() => onViewModeChange('simulation')}
+          >
+            Simular
+          </button>
+        </div>
         <button className="toolbar-btn" onClick={handleSave}>
           Salvar
         </button>
