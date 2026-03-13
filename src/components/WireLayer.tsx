@@ -17,7 +17,9 @@ const WIRE_COLORS: Record<string, string> = {
 const OBSTACLE_MARGIN = 3;
 const CHANNEL_SPACING = 1.5;
 const BRIDGE_RADIUS = 2;
-const PORT_EXTEND = 4;
+const MIN_STRAIGHT_BEFORE_BRIDGE = 12;
+const MIN_STRAIGHT_FROM_PORT = 10;
+const PORT_EXTEND = MIN_STRAIGHT_FROM_PORT;
 const VERTEX_RADIUS = 2;
 const HIT_WIDTH = 4;
 const PORT_OBSTACLE_R = 2;
@@ -40,6 +42,7 @@ interface ObstacleRect {
 }
 
 type Point = { x: number; y: number };
+type VerticalSegment = { x: number; yMin: number; yMax: number };
 
 interface Segment {
   x1: number;
@@ -268,50 +271,61 @@ function findClearChannel(
   return applyOffset(idealMidY);
 }
 
+function overlapsVertically(
+  x1: number, yMin1: number, yMax1: number,
+  x2: number, yMin2: number, yMax2: number,
+  xTol: number,
+): boolean {
+  if (Math.abs(x1 - x2) >= xTol) return false;
+  return yMax1 > yMin2 && yMin1 < yMax2;
+}
+
 function findClearVerticalChannel(
   idealX: number, y1: number, y2: number,
-  obstacles: ObstacleRect[], usedVerticalChannels: Map<number, number>,
+  obstacles: ObstacleRect[],
+  placedVerticalSegments: Array<{ x: number; yMin: number; yMax: number }>,
 ): number {
-  const applyOffset = (x: number): number => {
-    const key = Math.round(x);
-    const count = usedVerticalChannels.get(key) ?? 0;
-    usedVerticalChannels.set(key, count + 1);
-    return x + count * CHANNEL_SPACING;
-  };
-
-  if (verticalSegmentClear(idealX, y1, y2, obstacles, OBSTACLE_MARGIN)) {
-    return applyOffset(idealX);
-  }
-
   const yMin = Math.min(y1, y2);
   const yMax = Math.max(y1, y2);
+  const xTol = CHANNEL_SPACING + 0.5;
+
+  const tryX = (x: number): boolean => {
+    if (!verticalSegmentClear(x, y1, y2, obstacles, OBSTACLE_MARGIN)) return false;
+    const overlaps = placedVerticalSegments.some(s =>
+      overlapsVertically(x, yMin, yMax, s.x, s.yMin, s.yMax, xTol),
+    );
+    return !overlaps;
+  };
+
+  const useAndRecord = (x: number): number => {
+    placedVerticalSegments.push({ x, yMin, yMax });
+    return x;
+  };
+
+  if (tryX(idealX)) return useAndRecord(idealX);
+
   const blocking = obstacles.filter(r =>
     yMax > r.y - OBSTACLE_MARGIN && yMin < r.y + r.h + OBSTACLE_MARGIN,
   );
 
-  if (blocking.length === 0) return applyOffset(idealX);
-
-  const leftX = Math.min(...blocking.map(r => r.x)) - OBSTACLE_MARGIN;
-  const rightX = Math.max(...blocking.map(r => r.x + r.w)) + OBSTACLE_MARGIN;
-  const candidates = [leftX, rightX].sort((a, b) =>
-    Math.abs(a - idealX) - Math.abs(b - idealX),
-  );
-
-  for (const x of candidates) {
-    if (verticalSegmentClear(x, y1, y2, obstacles, OBSTACLE_MARGIN)) {
-      return applyOffset(x);
+  if (blocking.length > 0) {
+    const leftX = Math.min(...blocking.map(r => r.x)) - OBSTACLE_MARGIN;
+    const rightX = Math.max(...blocking.map(r => r.x + r.w)) + OBSTACLE_MARGIN;
+    const candidates = [leftX, rightX].sort((a, b) =>
+      Math.abs(a - idealX) - Math.abs(b - idealX),
+    );
+    for (const x of candidates) {
+      if (tryX(x)) return useAndRecord(x);
     }
   }
 
   for (let delta = 1; delta <= 50; delta++) {
-    for (const x of [idealX - delta * 2, idealX + delta * 2]) {
-      if (verticalSegmentClear(x, y1, y2, obstacles, OBSTACLE_MARGIN)) {
-        return applyOffset(x);
-      }
+    for (const x of [idealX - delta * CHANNEL_SPACING, idealX + delta * CHANNEL_SPACING]) {
+      if (tryX(x)) return useAndRecord(x);
     }
   }
 
-  return applyOffset(idealX);
+  return useAndRecord(idealX);
 }
 
 // --- Smart Manhattan routing ---
@@ -320,7 +334,7 @@ function buildSmartRoute(
   src: PortPosition, tgt: PortPosition,
   obstacles: ObstacleRect[],
   usedChannels: Map<number, number>,
-  usedVerticalChannels: Map<number, number>,
+  verticalSegments: VerticalSegment[],
 ): Point[] {
   const srcExtend = src.side === 'top' ? -PORT_EXTEND
     : src.side === 'bottom' ? PORT_EXTEND
@@ -335,8 +349,8 @@ function buildSmartRoute(
   const idealMidY = (srcExtY + tgtExtY) / 2;
   const midY = findClearChannel(src.x, tgt.x, idealMidY, obstacles, usedChannels);
 
-  const srcVertX = findClearVerticalChannel(src.x, srcExtY, midY, obstacles, usedVerticalChannels);
-  const tgtVertX = findClearVerticalChannel(tgt.x, midY, tgtExtY, obstacles, usedVerticalChannels);
+  const srcVertX = findClearVerticalChannel(src.x, srcExtY, midY, obstacles, verticalSegments);
+  const tgtVertX = findClearVerticalChannel(tgt.x, midY, tgtExtY, obstacles, verticalSegments);
 
   const raw: Point[] = [
     { x: src.x, y: src.y },
@@ -357,8 +371,12 @@ function buildSmartRoute(
 // --- Simple Manhattan (for wiring preview) ---
 
 function buildPreviewPath(src: PortPosition, tgt: PortPosition): string {
-  const extSrc = src.y < tgt.y ? PORT_EXTEND : -PORT_EXTEND;
-  const extTgt = tgt.y > src.y ? -PORT_EXTEND : PORT_EXTEND;
+  const extSrc = src.side === 'top' ? -PORT_EXTEND
+    : src.side === 'bottom' ? PORT_EXTEND
+    : (src.y < tgt.y ? PORT_EXTEND : -PORT_EXTEND);
+  const extTgt = tgt.side === 'top' ? -PORT_EXTEND
+    : tgt.side === 'bottom' ? PORT_EXTEND
+    : (tgt.y > src.y ? -PORT_EXTEND : PORT_EXTEND);
   const midY = (src.y + extSrc + tgt.y + extTgt) / 2;
   return [
     `M ${src.x} ${src.y}`,
@@ -439,6 +457,8 @@ function findCrossingsForWire(
 }
 
 // --- Bridge rendering ---
+// Sempre desenha o arco em cruzamentos. Quando o cruzamento está perto de curva/extremo,
+// insere L extra no path para criar espaço reto antes do arco (não pula o arco).
 
 function buildPathWithBridges(
   points: Point[],
@@ -448,6 +468,7 @@ function buildPathWithBridges(
     return pointsToPathString(points);
   }
 
+  const needed = MIN_STRAIGHT_BEFORE_BRIDGE + BRIDGE_RADIUS;
   const parts: string[] = [`M ${points[0].x} ${points[0].y}`];
 
   for (let i = 0; i < points.length - 1; i++) {
@@ -460,18 +481,32 @@ function buildPathWithBridges(
       continue;
     }
 
-    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
     const len = Math.sqrt(dx * dx + dy * dy);
-    if (len < 0.01) { parts.push(`L ${p2.x} ${p2.y}`); continue; }
-    const ux = dx / len, uy = dy / len;
-
+    if (len < 0.01) {
+      parts.push(`L ${p2.x} ${p2.y}`);
+      continue;
+    }
+    const ux = dx / len;
+    const uy = dy / len;
     const isHorizontal = Math.abs(dx) > Math.abs(dy);
-    const sweep = isHorizontal
-      ? (dx >= 0 ? 0 : 1)
-      : (dy >= 0 ? 1 : 0);
+    const sweep = isHorizontal ? (dx >= 0 ? 0 : 1) : (dy >= 0 ? 1 : 0);
 
     for (const crossing of crossings) {
-      const cx = crossing.point.x, cy = crossing.point.y;
+      const cx = crossing.point.x;
+      const cy = crossing.point.y;
+      const distFromStart = crossing.t * len;
+      const distFromEnd = len - distFromStart;
+      const straightBefore = distFromStart - BRIDGE_RADIUS;
+      const straightAfter = distFromEnd - BRIDGE_RADIUS;
+
+      if (straightBefore < MIN_STRAIGHT_BEFORE_BRIDGE && distFromStart > needed) {
+        const pInsertX = cx - ux * needed;
+        const pInsertY = cy - uy * needed;
+        parts.push(`L ${pInsertX} ${pInsertY}`);
+      }
+
       const beforeX = cx - ux * BRIDGE_RADIUS;
       const beforeY = cy - uy * BRIDGE_RADIUS;
       const afterX = cx + ux * BRIDGE_RADIUS;
@@ -479,6 +514,12 @@ function buildPathWithBridges(
 
       parts.push(`L ${beforeX} ${beforeY}`);
       parts.push(`A ${BRIDGE_RADIUS} ${BRIDGE_RADIUS} 0 0 ${sweep} ${afterX} ${afterY}`);
+
+      if (straightAfter < MIN_STRAIGHT_BEFORE_BRIDGE && distFromEnd > needed) {
+        const pInsertX = cx + ux * needed;
+        const pInsertY = cy + uy * needed;
+        parts.push(`L ${pInsertX} ${pInsertY}`);
+      }
     }
 
     parts.push(`L ${p2.x} ${p2.y}`);
@@ -589,7 +630,7 @@ export const WireLayer: React.FC<Props> = ({
   // ---- Smart route computation ----
 
   const usedChannels = new Map<number, number>();
-  const usedVerticalChannels = new Map<number, number>();
+  const verticalSegments: VerticalSegment[] = [];
 
   const computedWires: Array<{
     wire: typeof wires[0];
@@ -621,7 +662,7 @@ export const WireLayer: React.FC<Props> = ({
         ),
         ...allPortObstacles.filter(r => !wireEndpoints.has(r.instanceId)),
       ];
-      points = buildSmartRoute(src, tgt, obstacles, usedChannels, usedVerticalChannels);
+      points = buildSmartRoute(src, tgt, obstacles, usedChannels, verticalSegments);
     }
 
     computedWires.push({ wire, src, tgt, points, hasWaypoints });
