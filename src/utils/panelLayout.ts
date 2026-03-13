@@ -5,7 +5,7 @@ const ROW_HEIGHT_CM = 10;
 const ROW_SPACING_CM = 3;
 const WALL_THICKNESS_CM = 3;
 const DEFAULT_FIXING_MARGIN = 3;
-const VERTICAL_PADDING_CM = 2;
+const VERTICAL_PADDING_CM = 4;
 const RAIL_INSET_CM = 1.5;
 
 export function resolveLayout(state: PanelState): ResolvedLayout {
