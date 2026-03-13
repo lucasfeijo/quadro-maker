@@ -17,13 +17,12 @@ export const DragOverlayContent: React.FC<Props> = ({ moduleId }) => {
 
   const w = cmToPx(def.widthCm);
   const h = cmToPx(MODULE_HEIGHT_CM);
-  const scale = 3;
   const iconSize = Math.min(w * 0.6, h * 0.35);
 
   return (
     <svg
-      width={w * scale}
-      height={h * scale}
+      width={w}
+      height={h}
       viewBox={`0 0 ${w} ${h}`}
       style={{
         opacity: 0.8,
