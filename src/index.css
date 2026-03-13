@@ -677,6 +677,43 @@ html, body, #root {
   text-align: center;
 }
 
+.history-controls {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.7);
+  border-radius: 8px;
+  padding: 4px 8px;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.history-controls button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-controls button:hover:not(:disabled) {
+  background: rgba(255,255,255,0.15);
+}
+
+.history-controls button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 /* ===== Modal ===== */
 
 .modal-overlay {

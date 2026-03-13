@@ -72,6 +72,10 @@ interface PanelViewProps {
   energizedWires?: Set<string>;
   simStates?: ComponentState[];
   onSimModeChange?: (instanceId: string, newMode: string) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 export const PanelView: React.FC<PanelViewProps> = ({
@@ -87,6 +91,10 @@ export const PanelView: React.FC<PanelViewProps> = ({
   energizedWires,
   simStates,
   onSimModeChange,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }) => {
   const state = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -349,6 +357,19 @@ export const PanelView: React.FC<PanelViewProps> = ({
       }
 
       const isInput = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+      const isUndo = (e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z';
+      const isRedo = (e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'));
+
+      if (isUndo && !isInput) {
+        e.preventDefault();
+        onUndo?.();
+        return;
+      }
+      if (isRedo && !isInput) {
+        e.preventDefault();
+        onRedo?.();
+        return;
+      }
 
       if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'x') && !isInput) {
         if (selectedModules.length === 0) return;
@@ -453,7 +474,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedModules, state, layout, fitToContainer, onSelectModule, onSetSelection, clampZoom]);
+  }, [selectedModules, state, layout, fitToContainer, onSelectModule, onSetSelection, clampZoom, onUndo, onRedo]);
 
   // --- Ctrl+Wheel zoom toward cursor ---
   useEffect(() => {
@@ -506,10 +527,28 @@ export const PanelView: React.FC<PanelViewProps> = ({
       className="panel-view-container"
       onClick={handleClearSelection}
     >
+      <div className="history-controls">
+        <button
+          onClick={onUndo}
+          title="Desfazer (Ctrl+Z)"
+          disabled={!canUndo}
+          aria-label="Desfazer"
+        >
+          ↶
+        </button>
+        <button
+          onClick={onRedo}
+          title="Refazer (Ctrl+Y)"
+          disabled={!canRedo}
+          aria-label="Refazer"
+        >
+          ↷
+        </button>
+      </div>
       <div className="zoom-controls">
-        <button onClick={() => setZoom((z) => clampZoom(z + 0.2))}>+</button>
-        <span>{Math.round(zoom * 100)}%</span>
         <button onClick={() => setZoom((z) => clampZoom(z - 0.2))}>-</button>
+        <span>{Math.round(zoom * 100)}%</span>
+        <button onClick={() => setZoom((z) => clampZoom(z + 0.2))}>+</button>
         <button onClick={fitToContainer} title="Ajustar ao container">⊡</button>
       </div>
       <div className="panel-view-inner">

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -20,7 +20,7 @@ import { DragOverlayContent } from './DragOverlayContent';
 import { SchematicView } from './SchematicView';
 import { SimulationOverlay } from './SimulationView';
 import { getModuleById } from '../data/modules';
-import type { ComponentState } from '../types';
+import type { ComponentState, PanelState } from '../types';
 import { snapToCm, pxToCm, canPlace } from '../utils/geometry';
 import { resolveLayout } from '../utils/panelLayout';
 import type { ResolvedRail, GhostPreview } from '../types';
@@ -43,6 +43,13 @@ export const App: React.FC = () => {
   const [simActive, setSimActive] = useState(false);
   const [simData, setSimData] = useState<{ energizedWires: Set<string>; states: ComponentState[] }>({ energizedWires: new Set(), states: [] });
   const [simModeHandler, setSimModeHandler] = useState<((instanceId: string, newMode: string) => void) | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const historyPastRef = useRef<PanelState[]>([]);
+  const historyFutureRef = useRef<PanelState[]>([]);
+  const lastSnapshotRef = useRef<string | null>(null);
+  const lastStateRef = useRef<PanelState | null>(null);
+  const isRestoringHistoryRef = useRef(false);
 
   const handleSimDataChange = useCallback((energizedWires: Set<string>, states: ComponentState[]) => {
     setSimData({ energizedWires, states });
@@ -97,6 +104,92 @@ export const App: React.FC = () => {
       }),
     [store.enclosureId, store.widthUnits, store.rowCount, store.rows, store.name],
   );
+
+  const panelStateSnapshot = useMemo<PanelState>(
+    () => ({
+      name: store.name,
+      enclosureId: store.enclosureId,
+      widthUnits: store.widthUnits,
+      rowCount: store.rowCount,
+      rows: store.rows,
+      wires: store.wires,
+      panelIOs: store.panelIOs,
+      externalDevices: store.externalDevices,
+    }),
+    [
+      store.name,
+      store.enclosureId,
+      store.widthUnits,
+      store.rowCount,
+      store.rows,
+      store.wires,
+      store.panelIOs,
+      store.externalDevices,
+    ],
+  );
+
+  const snapshotKey = useMemo(() => JSON.stringify(panelStateSnapshot), [panelStateSnapshot]);
+
+  const updateHistoryFlags = useCallback(() => {
+    setCanUndo(historyPastRef.current.length > 0);
+    setCanRedo(historyFutureRef.current.length > 0);
+  }, []);
+
+  useEffect(() => {
+    if (screen !== 'editor') {
+      historyPastRef.current = [];
+      historyFutureRef.current = [];
+      lastSnapshotRef.current = null;
+      lastStateRef.current = null;
+      updateHistoryFlags();
+      return;
+    }
+    if (isRestoringHistoryRef.current) {
+      isRestoringHistoryRef.current = false;
+      updateHistoryFlags();
+      return;
+    }
+    if (lastSnapshotRef.current === null) {
+      lastSnapshotRef.current = snapshotKey;
+      lastStateRef.current = clonePanelState(panelStateSnapshot);
+      updateHistoryFlags();
+      return;
+    }
+    if (snapshotKey === lastSnapshotRef.current) return;
+
+    if (lastStateRef.current) {
+      historyPastRef.current.push(lastStateRef.current);
+      if (historyPastRef.current.length > 100) historyPastRef.current.shift();
+    }
+    historyFutureRef.current = [];
+    lastSnapshotRef.current = snapshotKey;
+    lastStateRef.current = clonePanelState(panelStateSnapshot);
+    updateHistoryFlags();
+  }, [screen, snapshotKey, panelStateSnapshot, updateHistoryFlags]);
+
+  const handleUndo = useCallback(() => {
+    if (screen !== 'editor') return;
+    const previous = historyPastRef.current.pop();
+    if (!previous) return;
+    historyFutureRef.current.push(clonePanelState(panelStateSnapshot));
+    isRestoringHistoryRef.current = true;
+    lastStateRef.current = clonePanelState(previous);
+    lastSnapshotRef.current = JSON.stringify(previous);
+    store.loadState(previous);
+    updateHistoryFlags();
+  }, [screen, panelStateSnapshot, store, updateHistoryFlags]);
+
+  const handleRedo = useCallback(() => {
+    if (screen !== 'editor') return;
+    const next = historyFutureRef.current.pop();
+    if (!next) return;
+    historyPastRef.current.push(clonePanelState(panelStateSnapshot));
+    isRestoringHistoryRef.current = true;
+    lastStateRef.current = clonePanelState(next);
+    lastSnapshotRef.current = JSON.stringify(next);
+    store.loadState(next);
+    updateHistoryFlags();
+  }, [screen, panelStateSnapshot, store, updateHistoryFlags]);
 
   const computeSnapPosition = useCallback(
     (
@@ -374,6 +467,10 @@ export const App: React.FC = () => {
               energizedWires={simData.energizedWires}
               simStates={simData.states}
               onSimModeChange={simModeHandler ?? undefined}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              canUndo={canUndo}
+              canRedo={canRedo}
             />
           )}
           {viewMode === 'schematic' && <SchematicView />}
@@ -401,6 +498,10 @@ export const App: React.FC = () => {
     </DndContext>
   );
 };
+
+function clonePanelState(state: PanelState): PanelState {
+  return JSON.parse(JSON.stringify(state)) as PanelState;
+}
 
 function findFirstFit(
   occupied: { start: number; end: number }[],
