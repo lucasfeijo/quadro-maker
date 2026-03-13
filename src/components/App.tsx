@@ -82,26 +82,42 @@ export const App: React.FC = () => {
 
   const handlePortMouseDown = useCallback(
     (instanceId: string, portId: string) => {
-      wiringDragRef.current = true;
-      wiringDragSourceRef.current = { instanceId, portId };
       const wf = store.wiringFrom;
-      if (!wf || wf.instanceId !== instanceId || wf.portId !== portId) {
-        store.startWiring(instanceId, portId);
+
+      if (wf && !(wf.instanceId === instanceId && wf.portId === portId)) {
+        store.addWire(wf.instanceId, wf.portId, instanceId, portId);
+        setHoverTarget(null);
+        hoverPortRef.current = null;
+        wiringDragRef.current = false;
+        wiringDragSourceRef.current = null;
+        return;
       }
 
-      const resolvePortUnderCursor = (ev: MouseEvent): { instanceId: string; portId: string } | null => {
+      if (wf && wf.instanceId === instanceId && wf.portId === portId) {
+        store.cancelWiring();
+        wiringDragRef.current = false;
+        wiringDragSourceRef.current = null;
+        return;
+      }
+
+      wiringDragRef.current = true;
+      wiringDragSourceRef.current = { instanceId, portId };
+      store.startWiring(instanceId, portId);
+
+      const resolvePortUnderCursor = (ev: PointerEvent): { instanceId: string; portId: string } | null => {
         const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
         const portEl = el?.closest('[data-wire-instance-id][data-wire-port-id]') as HTMLElement | null;
         if (!portEl) return null;
-        const targetInstanceId = portEl.dataset.wireInstanceId;
-        const targetPortId = portEl.dataset.wirePortId;
-        if (!targetInstanceId || !targetPortId) return null;
-        return { instanceId: targetInstanceId, portId: targetPortId };
+        const tid = portEl.getAttribute('data-wire-instance-id');
+        const tpid = portEl.getAttribute('data-wire-port-id');
+        if (!tid || !tpid) return null;
+        return { instanceId: tid, portId: tpid };
       };
 
-      const onWindowMouseUp = (ev: MouseEvent) => {
+      const onWindowPointerUp = (ev: PointerEvent) => {
         const source = wiringDragSourceRef.current;
         const target = resolvePortUnderCursor(ev) ?? hoverPortRef.current;
+
         if (source && target && !(source.instanceId === target.instanceId && source.portId === target.portId)) {
           store.addWire(source.instanceId, source.portId, target.instanceId, target.portId);
           setHoverTarget(null);
@@ -112,7 +128,7 @@ export const App: React.FC = () => {
           wiringDragRef.current = false;
         });
       };
-      window.addEventListener('mouseup', onWindowMouseUp, { once: true });
+      window.addEventListener('pointerup', onWindowPointerUp, { once: true });
     },
     [store],
   );
