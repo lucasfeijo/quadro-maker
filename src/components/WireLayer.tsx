@@ -725,10 +725,24 @@ export const WireLayer: React.FC<Props> = ({
     (e: React.MouseEvent, wireId: string, segmentIndex: number, pathPoints: Point[], hasWaypoints: boolean) => {
       e.stopPropagation();
       const pt = getSvgPoint(e);
+      const p1 = pathPoints[segmentIndex];
+      const p2 = pathPoints[segmentIndex + 1];
+      let x = pt.x;
+      let y = pt.y;
+      if (p1 && p2) {
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq > 0.001) {
+          const t = Math.max(0, Math.min(1, ((pt.x - p1.x) * dx + (pt.y - p1.y) * dy) / lenSq));
+          x = p1.x + t * dx;
+          y = p1.y + t * dy;
+        }
+      }
       if (hasWaypoints) {
-        addWireWaypoint(wireId, segmentIndex, pt.x, pt.y);
+        addWireWaypoint(wireId, segmentIndex, x, y);
       } else {
-        addWireWaypointFromPath(wireId, segmentIndex, pt.x, pt.y, pathPoints);
+        addWireWaypointFromPath(wireId, segmentIndex, x, y, pathPoints);
       }
     },
     [getSvgPoint, addWireWaypoint, addWireWaypointFromPath],
