@@ -386,6 +386,16 @@ html, body, #root {
   border-right: 1px solid var(--toolbar-border);
 }
 
+.library-filter-sticky {
+  position: sticky;
+  top: -16px;
+  z-index: 3;
+  margin: -16px -12px 8px;
+  padding: 16px 12px 8px;
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--toolbar-border);
+}
+
 .module-library h3 {
   font-size: 0.85rem;
   text-transform: uppercase;

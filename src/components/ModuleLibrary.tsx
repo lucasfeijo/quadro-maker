@@ -220,7 +220,7 @@ export const ModuleLibrary: React.FC = () => {
 
   return (
     <div className="module-library">
-      <div style={{ position: 'sticky', top: 0, background: 'var(--sidebar-bg)', zIndex: 2, paddingBottom: 8 }}>
+      <div className="library-filter-sticky">
         <input
           type="text"
           className="library-filter-input"
