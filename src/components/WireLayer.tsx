@@ -23,6 +23,8 @@ const PORT_EXTEND = MIN_STRAIGHT_FROM_PORT;
 const VERTEX_RADIUS = 2;
 const HIT_WIDTH = 4;
 const PORT_OBSTACLE_R = 2;
+const SNAP_TOLERANCE = 3;
+const SEGMENT_DRAG_THRESHOLD = 3;
 
 // --- Types ---
 
@@ -550,10 +552,28 @@ export const WireLayer: React.FC<Props> = ({
   const externalDevices = usePanelStore((s) => s.externalDevices);
   const wiringFrom = usePanelStore((s) => s.wiringFrom);
   const addWireWaypoint = usePanelStore((s) => s.addWireWaypoint);
+  const addWireWaypointFromPath = usePanelStore((s) => s.addWireWaypointFromPath);
+  const materializeWireWaypoints = usePanelStore((s) => s.materializeWireWaypoints);
   const moveWireWaypoint = usePanelStore((s) => s.moveWireWaypoint);
+  const moveWireSegment = usePanelStore((s) => s.moveWireSegment);
   const removeWireWaypoint = usePanelStore((s) => s.removeWireWaypoint);
+  const wireSnapAlignment = usePanelStore((s) => s.wireSnapAlignment);
 
   const [draggingWp, setDraggingWp] = useState<{ wireId: string; wpIndex: number } | null>(null);
+  const [draggingSegment, setDraggingSegment] = useState<{
+    wireId: string;
+    segmentIndex: number;
+    startP1: Point;
+    startP2: Point;
+    lastMouse: Point;
+  } | null>(null);
+  const [pendingSegmentDrag, setPendingSegmentDrag] = useState<{
+    wireId: string;
+    segmentIndex: number;
+    startMouse: Point;
+    startP1: Point;
+    startP2: Point;
+  } | null>(null);
   const dragRef = useRef<boolean>(false);
 
   const getPos = (instanceId: string, portId: string): PortPosition | null => {
@@ -599,16 +619,101 @@ export const WireLayer: React.FC<Props> = ({
     dragRef.current = false;
   }, []);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!draggingWp) return;
-    dragRef.current = true;
-    const pt = getSvgPoint(e);
-    moveWireWaypoint(draggingWp.wireId, draggingWp.wpIndex, pt.x, pt.y);
-  }, [draggingWp, getSvgPoint, moveWireWaypoint]);
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      const pt = getSvgPoint(e);
+
+      if (draggingSegment) {
+        const dx = pt.x - draggingSegment.lastMouse.x;
+        const dy = pt.y - draggingSegment.lastMouse.y;
+        const segDx = draggingSegment.startP2.x - draggingSegment.startP1.x;
+        const segDy = draggingSegment.startP2.y - draggingSegment.startP1.y;
+        const len = Math.sqrt(segDx * segDx + segDy * segDy);
+        if (len > 0.01) {
+          const perpX = -segDy / len;
+          const perpY = segDx / len;
+          const deltaPerpX = (dx * perpX + dy * perpY) * perpX;
+          const deltaPerpY = (dx * perpX + dy * perpY) * perpY;
+          moveWireSegment(draggingSegment.wireId, draggingSegment.segmentIndex, deltaPerpX, deltaPerpY);
+        }
+        setDraggingSegment((s) => (s ? { ...s, lastMouse: pt } : null));
+        return;
+      }
+
+      if (pendingSegmentDrag) {
+        const dist = Math.sqrt(
+          (pt.x - pendingSegmentDrag.startMouse.x) ** 2 + (pt.y - pendingSegmentDrag.startMouse.y) ** 2,
+        );
+        if (dist > SEGMENT_DRAG_THRESHOLD) {
+          setDraggingSegment({
+            wireId: pendingSegmentDrag.wireId,
+            segmentIndex: pendingSegmentDrag.segmentIndex,
+            startP1: pendingSegmentDrag.startP1,
+            startP2: pendingSegmentDrag.startP2,
+            lastMouse: pt,
+          });
+          setPendingSegmentDrag(null);
+        }
+        return;
+      }
+
+      if (!draggingWp) return;
+      dragRef.current = true;
+      const wire = wires.find((w) => w.id === draggingWp.wireId);
+      if (wire) {
+        const waypoints = wire.waypoints ?? [];
+        const src = getPos(wire.sourceInstanceId, wire.sourcePortId);
+        const tgt = getPos(wire.targetInstanceId, wire.targetPortId);
+        const prev = draggingWp.wpIndex > 0 ? waypoints[draggingWp.wpIndex - 1] : src;
+        const next =
+          draggingWp.wpIndex < waypoints.length - 1 ? waypoints[draggingWp.wpIndex + 1] : tgt;
+        let ptX = pt.x;
+        let ptY = pt.y;
+        if (wireSnapAlignment && prev && next) {
+          if (Math.abs(pt.x - prev.x) <= SNAP_TOLERANCE) ptX = prev.x;
+          else if (Math.abs(pt.x - next.x) <= SNAP_TOLERANCE) ptX = next.x;
+          if (Math.abs(pt.y - prev.y) <= SNAP_TOLERANCE) ptY = prev.y;
+          else if (Math.abs(pt.y - next.y) <= SNAP_TOLERANCE) ptY = next.y;
+        }
+        moveWireWaypoint(draggingWp.wireId, draggingWp.wpIndex, ptX, ptY);
+      } else {
+        moveWireWaypoint(draggingWp.wireId, draggingWp.wpIndex, pt.x, pt.y);
+      }
+    },
+    [
+      draggingWp,
+      draggingSegment,
+      pendingSegmentDrag,
+      getSvgPoint,
+      moveWireWaypoint,
+      moveWireSegment,
+      wires,
+      getPos,
+      wireSnapAlignment,
+    ],
+  );
 
   const handleMouseUp = useCallback(() => {
     setDraggingWp(null);
+    setDraggingSegment(null);
+    setPendingSegmentDrag(null);
   }, []);
+
+  const handleSegmentMouseDown = useCallback(
+    (e: React.MouseEvent, wireId: string, segmentIndex: number, points: Point[], hasWaypoints: boolean) => {
+      e.stopPropagation();
+      if (e.button !== 0) return;
+      const pt = getSvgPoint(e);
+      const p1 = points[segmentIndex];
+      const p2 = points[segmentIndex + 1];
+      if (!p1 || !p2) return;
+      if (!hasWaypoints) {
+        materializeWireWaypoints(wireId, points);
+      }
+      setPendingSegmentDrag({ wireId, segmentIndex, startMouse: pt, startP1: p1, startP2: p2 });
+    },
+    [getSvgPoint, materializeWireWaypoints],
+  );
 
   const handleWpRightClick = useCallback((e: React.MouseEvent, wireId: string, wpIndex: number) => {
     e.preventDefault();
@@ -616,11 +721,18 @@ export const WireLayer: React.FC<Props> = ({
     removeWireWaypoint(wireId, wpIndex);
   }, [removeWireWaypoint]);
 
-  const handleSegmentDoubleClick = useCallback((e: React.MouseEvent, wireId: string, segmentIndex: number) => {
-    e.stopPropagation();
-    const pt = getSvgPoint(e);
-    addWireWaypoint(wireId, segmentIndex, pt.x, pt.y);
-  }, [getSvgPoint, addWireWaypoint]);
+  const handleSegmentDoubleClick = useCallback(
+    (e: React.MouseEvent, wireId: string, segmentIndex: number, pathPoints: Point[], hasWaypoints: boolean) => {
+      e.stopPropagation();
+      const pt = getSvgPoint(e);
+      if (hasWaypoints) {
+        addWireWaypoint(wireId, segmentIndex, pt.x, pt.y);
+      } else {
+        addWireWaypointFromPath(wireId, segmentIndex, pt.x, pt.y, pathPoints);
+      }
+    },
+    [getSvgPoint, addWireWaypoint, addWireWaypointFromPath],
+  );
 
   // ---- Collect all obstacles once ----
 
@@ -685,15 +797,17 @@ export const WireLayer: React.FC<Props> = ({
     hitPath: pointsToPathString(cw.points),
   }));
 
+  const isDragging = draggingWp || draggingSegment || pendingSegmentDrag;
+
   return (
     <g
       className="wire-layer"
       style={{ pointerEvents: 'stroke' }}
-      onMouseMove={draggingWp ? handleMouseMove : undefined}
-      onMouseUp={draggingWp ? handleMouseUp : undefined}
-      onMouseLeave={draggingWp ? handleMouseUp : undefined}
+      onMouseMove={isDragging ? handleMouseMove : undefined}
+      onMouseUp={isDragging ? handleMouseUp : undefined}
+      onMouseLeave={isDragging ? handleMouseUp : undefined}
     >
-      {draggingWp && (
+      {isDragging && (
         <rect
           x={-padding}
           y={-padding}
@@ -726,7 +840,14 @@ export const WireLayer: React.FC<Props> = ({
                     strokeWidth={HIT_WIDTH}
                     style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
                     onClick={(e) => { e.stopPropagation(); onSelectWire(wire.id); }}
-                    onDoubleClick={(e) => handleSegmentDoubleClick(e, wire.id, i)}
+                    onMouseDown={
+                      isSelected
+                        ? (e) => handleSegmentMouseDown(e, wire.id, i, points, true)
+                        : undefined
+                    }
+                    onDoubleClick={(e) =>
+                      handleSegmentDoubleClick(e, wire.id, i, points, true)
+                    }
                   />
                 );
               })
@@ -738,7 +859,14 @@ export const WireLayer: React.FC<Props> = ({
                 strokeWidth={HIT_WIDTH}
                 style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
                 onClick={(e) => { e.stopPropagation(); onSelectWire(wire.id); }}
-                onDoubleClick={(e) => handleSegmentDoubleClick(e, wire.id, 0)}
+                onMouseDown={
+                  isSelected
+                    ? (e) => handleSegmentMouseDown(e, wire.id, 0, points, false)
+                    : undefined
+                }
+                onDoubleClick={(e) =>
+                  handleSegmentDoubleClick(e, wire.id, 0, points, false)
+                }
               />
             )}
 
@@ -777,17 +905,6 @@ export const WireLayer: React.FC<Props> = ({
                 onContextMenu={(e) => handleWpRightClick(e, wire.id, i)}
               />
             ))}
-
-            {isSelected && !hasWaypoints && (
-              <path
-                d={hitPath}
-                fill="none"
-                stroke="transparent"
-                strokeWidth={HIT_WIDTH}
-                style={{ cursor: 'crosshair', pointerEvents: 'stroke' }}
-                onDoubleClick={(e) => handleSegmentDoubleClick(e, wire.id, 0)}
-              />
-            )}
           </g>
         );
       })}

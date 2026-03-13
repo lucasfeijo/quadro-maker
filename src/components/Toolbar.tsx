@@ -18,6 +18,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [optWidth, setOptWidth] = useState(store.widthUnits);
   const [optRows, setOptRows] = useState(store.rowCount);
+  const [optWireSnap, setOptWireSnap] = useState(store.wireSnapAlignment);
 
   const handleSave = () => {
     const id = saveProject(
@@ -92,11 +93,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
   const handleOpenOptions = () => {
     setOptWidth(store.widthUnits);
     setOptRows(store.rowCount);
+    setOptWireSnap(store.wireSnapAlignment);
     setShowOptionsModal(true);
   };
 
   const handleApplyOptions = () => {
     store.resizePanel(optWidth, optRows);
+    store.setWireSnapAlignment(optWireSnap);
     setShowOptionsModal(false);
   };
 
@@ -186,6 +189,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="options-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                id="opt-wire-snap"
+                checked={optWireSnap}
+                onChange={(e) => setOptWireSnap(e.target.checked)}
+              />
+              <label htmlFor="opt-wire-snap" style={{ marginBottom: 0 }}>
+                Alinhamento Manhattan nos fios (trava H/V ao arrastar vértices)
+              </label>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button className="toolbar-btn" style={{ flex: 1 }} onClick={handleApplyOptions}>

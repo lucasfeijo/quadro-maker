@@ -19,6 +19,7 @@ export interface PasteData {
 interface PanelStore extends PanelState {
   screen: EditorScreen;
   displayMode: DisplayMode;
+  wireSnapAlignment: boolean;
   wiringFrom: WiringFrom | null;
   selectedWireId: string | null;
   selectedIOId: string | null;
@@ -33,6 +34,7 @@ interface PanelStore extends PanelState {
   updateLabel: (rowId: string, instanceId: string, label: string) => void;
 
   setDisplayMode: (mode: DisplayMode) => void;
+  setWireSnapAlignment: (enabled: boolean) => void;
 
   // Wiring
   startWiring: (instanceId: string, portId: string) => void;
@@ -42,7 +44,10 @@ interface PanelStore extends PanelState {
   updateWireProps: (wireId: string, props: Partial<Pick<Wire, 'wireGaugeMm2' | 'wireColor' | 'label'>>) => void;
   selectWire: (wireId: string | null) => void;
   addWireWaypoint: (wireId: string, index: number, x: number, y: number) => void;
+  addWireWaypointFromPath: (wireId: string, segmentIndex: number, x: number, y: number, pathPoints: Array<{ x: number; y: number }>) => void;
+  materializeWireWaypoints: (wireId: string, pathPoints: Array<{ x: number; y: number }>) => void;
   moveWireWaypoint: (wireId: string, waypointIndex: number, x: number, y: number) => void;
+  moveWireSegment: (wireId: string, segmentIndex: number, deltaX: number, deltaY: number) => void;
   removeWireWaypoint: (wireId: string, waypointIndex: number) => void;
   clearWireWaypoints: (wireId: string) => void;
 
@@ -113,6 +118,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   panelIOs: [],
   externalDevices: [],
   displayMode: 'icon' as DisplayMode,
+  wireSnapAlignment: true,
   wiringFrom: null,
   selectedWireId: null,
   selectedIOId: null,
@@ -195,6 +201,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     })),
 
   setDisplayMode: (mode) => set({ displayMode: mode }),
+  setWireSnapAlignment: (enabled) => set({ wireSnapAlignment: enabled }),
 
   startWiring: (instanceId, portId) => set({ wiringFrom: { instanceId, portId } }),
   cancelWiring: () => set({ wiringFrom: null }),
@@ -238,6 +245,29 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       }),
     })),
 
+  addWireWaypointFromPath: (wireId, segmentIndex, x, y, pathPoints) =>
+    set((s) => ({
+      wires: s.wires.map((w) => {
+        if (w.id !== wireId) return w;
+        let wps = [...(w.waypoints ?? [])];
+        if (wps.length === 0 && pathPoints.length >= 2) {
+          wps = pathPoints.slice(1, -1).map((p) => ({ x: p.x, y: p.y }));
+        }
+        wps.splice(segmentIndex, 0, { x, y });
+        return { ...w, waypoints: wps };
+      }),
+    })),
+
+  materializeWireWaypoints: (wireId, pathPoints) =>
+    set((s) => ({
+      wires: s.wires.map((w) => {
+        if (w.id !== wireId || (w.waypoints?.length ?? 0) > 0) return w;
+        if (pathPoints.length < 2) return w;
+        const wps = pathPoints.slice(1, -1).map((p) => ({ x: p.x, y: p.y }));
+        return { ...w, waypoints: wps };
+      }),
+    })),
+
   moveWireWaypoint: (wireId, waypointIndex, x, y) =>
     set((s) => ({
       wires: s.wires.map((w) => {
@@ -255,6 +285,27 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         const wps = [...(w.waypoints ?? [])];
         wps.splice(waypointIndex, 1);
         return { ...w, waypoints: wps.length > 0 ? wps : undefined };
+      }),
+    })),
+
+  moveWireSegment: (wireId, segmentIndex, deltaX, deltaY) =>
+    set((s) => ({
+      wires: s.wires.map((w) => {
+        if (w.id !== wireId || !w.waypoints?.length) return w;
+        const wps = [...w.waypoints];
+        if (segmentIndex > 0) {
+          wps[segmentIndex - 1] = {
+            x: wps[segmentIndex - 1].x + deltaX,
+            y: wps[segmentIndex - 1].y + deltaY,
+          };
+        }
+        if (segmentIndex < wps.length) {
+          wps[segmentIndex] = {
+            x: wps[segmentIndex].x + deltaX,
+            y: wps[segmentIndex].y + deltaY,
+          };
+        }
+        return { ...w, waypoints: wps };
       }),
     })),
 
