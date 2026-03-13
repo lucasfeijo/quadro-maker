@@ -5,6 +5,7 @@ const ROW_HEIGHT_CM = 10;
 const ROW_SPACING_CM = 3;
 const WALL_THICKNESS_CM = 3;
 const DEFAULT_FIXING_MARGIN = 3;
+const VERTICAL_PADDING_CM = 2;
 const RAIL_INSET_CM = 1.5;
 
 export function resolveLayout(state: PanelState): ResolvedLayout {
@@ -47,7 +48,7 @@ function resolveCustomLayout(
   const usableWidth = widthUnits * 3;
   const interiorWidth = usableWidth + DEFAULT_FIXING_MARGIN * 2;
   const interiorHeight =
-    rowCount * ROW_HEIGHT_CM + (rowCount - 1) * ROW_SPACING_CM;
+    VERTICAL_PADDING_CM * 2 + rowCount * ROW_HEIGHT_CM + (rowCount - 1) * ROW_SPACING_CM;
   const exteriorWidth = interiorWidth + WALL_THICKNESS_CM * 2;
   const exteriorHeight = interiorHeight + WALL_THICKNESS_CM * 2;
 
@@ -55,7 +56,7 @@ function resolveCustomLayout(
   const rails = Array.from({ length: rowCount }, (_, i) => ({
     id: `row-${i}`,
     xCm: 0,
-    yCm: i * (ROW_HEIGHT_CM + ROW_SPACING_CM) + ROW_HEIGHT_CM / 2 - 0.5,
+    yCm: VERTICAL_PADDING_CM + i * (ROW_HEIGHT_CM + ROW_SPACING_CM) + ROW_HEIGHT_CM / 2 - 0.5,
     widthCm: interiorWidth,
     usableWidthCm: interiorWidth - DEFAULT_FIXING_MARGIN * 2,
     fixingMarginCm: DEFAULT_FIXING_MARGIN,
