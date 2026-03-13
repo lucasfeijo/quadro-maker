@@ -21,6 +21,8 @@ interface Props {
 
 const RAIL_HEIGHT_CM = 1;
 const MODULE_HEIGHT_CM = 7;
+/** Barra física do trilho não vai até as bordas; recuo em cada extremidade (cm) */
+const RAIL_BAR_END_INSET_CM = 1.5;
 
 export const DinRail: React.FC<Props> = ({
   rail,
@@ -48,6 +50,11 @@ export const DinRail: React.FC<Props> = ({
   const fixingPx = cmToPx(rail.fixingMarginCm);
   const usablePx = cmToPx(rail.usableWidthCm);
   const usableOffsetXPx = railLeftPx + fixingPx;
+
+  // Barra física: recua das bordas (não vai até o final do interior)
+  const railBarInsetPx = cmToPx(RAIL_BAR_END_INSET_CM);
+  const railBarLeftPx = railLeftPx + railBarInsetPx;
+  const railBarWidthPx = railWidthPx - railBarInsetPx * 2;
 
   const ghostX = ghostPreview
     ? usableOffsetXPx + cmToPx(ghostPreview.positionCm)
@@ -90,11 +97,11 @@ export const DinRail: React.FC<Props> = ({
         />
       ))}
 
-      {/* DIN rail bar */}
+      {/* DIN rail bar (não vai até as bordas do interior) */}
       <rect
-        x={railLeftPx}
+        x={railBarLeftPx}
         y={railTopPx}
-        width={railWidthPx}
+        width={railBarWidthPx}
         height={railHeightPx}
         rx={0.3}
         fill="#b0bec5"
@@ -103,11 +110,11 @@ export const DinRail: React.FC<Props> = ({
       />
       {/* Rail perforations */}
       {Array.from(
-        { length: Math.floor(railWidthPx / cmToPx(2)) },
+        { length: Math.floor(railBarWidthPx / cmToPx(2)) },
         (_, i) => (
           <rect
             key={i}
-            x={railLeftPx + cmToPx(0.5) + i * cmToPx(2)}
+            x={railBarLeftPx + cmToPx(0.5) + i * cmToPx(2)}
             y={railTopPx + cmToPx(0.2)}
             width={cmToPx(1)}
             height={cmToPx(0.6)}

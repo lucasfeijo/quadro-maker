@@ -65,6 +65,7 @@ interface PanelStore extends PanelState {
 
   setName: (name: string) => void;
   loadState: (state: PanelState) => void;
+  resizePanel: (widthUnits: number, rowCount: number) => void;
 
   markAsSaved: () => void;
   getIsDirty: () => boolean;
@@ -451,6 +452,16 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       })),
     });
   },
+
+  resizePanel: (widthUnits, rowCount) =>
+    set((s) => {
+      const currentRows = s.rows;
+      const rows: PanelRow[] = Array.from({ length: rowCount }, (_, i) => {
+        if (i < currentRows.length) return currentRows[i];
+        return { id: `row-${i}`, modules: [] };
+      });
+      return { widthUnits, rowCount, rows, enclosureId: null };
+    }),
 
   markAsSaved: () => {
     lastSavedSnapshot = getSavableSnapshot(get());

@@ -708,6 +708,32 @@ html, body, #root {
   align-items: center;
 }
 
+/* ===== Panel Options Modal ===== */
+
+.options-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.options-field label {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.options-field select {
+  flex: 1;
+  max-width: 200px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background: var(--bg);
+  color: var(--sidebar-text);
+  font-size: 0.85rem;
+}
+
 /* ===== Toolbar View Toggle ===== */
 
 .toolbar-view-toggle {

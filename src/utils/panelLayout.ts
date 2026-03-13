@@ -31,9 +31,9 @@ function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
     interiorOffsetYCm: origWallY + extraY,
     rails: enc.rails.map((r) => ({
       ...r,
-      xCm: r.xCm + RAIL_INSET_CM,
-      widthCm: r.widthCm - RAIL_INSET_CM * 2,
-      usableWidthCm: r.usableWidthCm - RAIL_INSET_CM * 2,
+      xCm: 0,
+      widthCm: enc.interiorWidthCm,
+      usableWidthCm: enc.interiorWidthCm - r.fixingMarginCm * 2,
     })),
     mountingHoles: enc.mountingHoles,
     isEnclosure: true,
@@ -45,19 +45,19 @@ function resolveCustomLayout(
   rowCount: number,
 ): ResolvedLayout {
   const usableWidth = widthUnits * 3;
-  const railWidth = usableWidth + DEFAULT_FIXING_MARGIN * 2;
-  const interiorWidth = railWidth;
+  const interiorWidth = usableWidth + DEFAULT_FIXING_MARGIN * 2;
   const interiorHeight =
     rowCount * ROW_HEIGHT_CM + (rowCount - 1) * ROW_SPACING_CM;
   const exteriorWidth = interiorWidth + WALL_THICKNESS_CM * 2;
   const exteriorHeight = interiorHeight + WALL_THICKNESS_CM * 2;
 
+  // Rail ocupa toda a largura do interior; área útil = interior - zonas de fixação
   const rails = Array.from({ length: rowCount }, (_, i) => ({
     id: `row-${i}`,
-    xCm: RAIL_INSET_CM,
+    xCm: 0,
     yCm: i * (ROW_HEIGHT_CM + ROW_SPACING_CM) + ROW_HEIGHT_CM / 2 - 0.5,
-    widthCm: railWidth - RAIL_INSET_CM * 2,
-    usableWidthCm: usableWidth - RAIL_INSET_CM * 2,
+    widthCm: interiorWidth,
+    usableWidthCm: interiorWidth - DEFAULT_FIXING_MARGIN * 2,
     fixingMarginCm: DEFAULT_FIXING_MARGIN,
   }));
 

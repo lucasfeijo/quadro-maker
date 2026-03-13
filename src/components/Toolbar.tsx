@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
-import { saveProject, listProjects, loadProject, deleteProject } from '../utils/storage';
+import { saveProject, listProjects, loadProject, deleteProject, exportProject, exportCurrentState, importProject } from '../utils/storage';
 import { SavedProject } from '../types';
 
 interface ToolbarProps {
@@ -15,6 +15,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
   const [projectId, setProjectId] = useState<string | null>(null);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [optWidth, setOptWidth] = useState(store.widthUnits);
+  const [optRows, setOptRows] = useState(store.rowCount);
 
   const handleSave = () => {
     const id = saveProject(
@@ -51,6 +54,50 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
   const handleDelete = (id: string) => {
     deleteProject(id);
     setSavedProjects(listProjects());
+  };
+
+  const handleExportCurrent = () => {
+    exportCurrentState({
+      name: store.name,
+      enclosureId: store.enclosureId,
+      widthUnits: store.widthUnits,
+      rowCount: store.rowCount,
+      rows: store.rows,
+      wires: store.wires,
+      panelIOs: store.panelIOs,
+      externalDevices: store.externalDevices,
+    });
+  };
+
+  const handleImport = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,.quadro.json';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const entry = await importProject(file);
+      if (entry) {
+        store.loadState(entry.state);
+        setProjectId(entry.id);
+        store.markAsSaved();
+        setShowLoadModal(false);
+      } else {
+        alert('Arquivo inválido.');
+      }
+    };
+    input.click();
+  };
+
+  const handleOpenOptions = () => {
+    setOptWidth(store.widthUnits);
+    setOptRows(store.rowCount);
+    setShowOptionsModal(true);
+  };
+
+  const handleApplyOptions = () => {
+    store.resizePanel(optWidth, optRows);
+    setShowOptionsModal(false);
   };
 
   return (
@@ -94,13 +141,63 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
         >
           {simActive ? '⚡ Simulando' : '⚡ Simular'}
         </button>
+        <button className="toolbar-btn" onClick={handleOpenOptions} title="Opções do quadro">
+          Opções
+        </button>
         <button className="toolbar-btn" onClick={handleSave}>
           Salvar
         </button>
         <button className="toolbar-btn" onClick={handleOpenLoad}>
           Carregar
         </button>
+        <button className="toolbar-btn" onClick={handleExportCurrent} title="Exportar projeto atual como arquivo">
+          Exportar
+        </button>
+        <button className="toolbar-btn" onClick={handleImport} title="Importar projeto de arquivo">
+          Importar
+        </button>
       </div>
+
+      {showOptionsModal && (
+        <div className="modal-overlay" onClick={() => setShowOptionsModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Opções do Quadro</h3>
+            {store.enclosureId && (
+              <p style={{ color: '#aaa', fontSize: 12, marginBottom: 12 }}>
+                Quadro de caixa: redimensionar converte para personalizado.
+              </p>
+            )}
+            <div className="options-field">
+              <label>Largura (unipolares):</label>
+              <select value={optWidth} onChange={(e) => setOptWidth(Number(e.target.value))}>
+                {[6, 8, 10, 12, 16, 18, 20, 24, 30, 36, 44, 56].map((n) => (
+                  <option key={n} value={n}>
+                    {n} unidades ({n * 3}cm)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="options-field">
+              <label>Fileiras:</label>
+              <select value={optRows} onChange={(e) => setOptRows(Number(e.target.value))}>
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <option key={n} value={n}>
+                    {n} fileira{n > 1 ? 's' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button className="toolbar-btn" style={{ flex: 1 }} onClick={handleApplyOptions}>
+                Aplicar
+              </button>
+              <button className="toolbar-btn" style={{ flex: 1 }} onClick={() => setShowOptionsModal(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showLoadModal && (
         <div className="modal-overlay" onClick={() => setShowLoadModal(false)}>
@@ -120,6 +217,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
                     </div>
                     <div className="project-actions">
                       <button onClick={() => handleLoad(p.id)}>Abrir</button>
+                      <button onClick={() => exportProject(p.id)} title="Exportar">
+                        ↓
+                      </button>
                       <button
                         className="delete-btn"
                         onClick={() => handleDelete(p.id)}
