@@ -24,6 +24,7 @@ const VERTEX_RADIUS = 2;
 const HIT_WIDTH = 4;
 const PORT_OBSTACLE_R = 2;
 const SNAP_TOLERANCE = 3;
+const SEGMENT_SNAP_TOLERANCE = 1.5; // Menor que vértice: segmento tem muitos alvos, evita travar demais
 const SEGMENT_DRAG_THRESHOLD = 3;
 
 // --- Types ---
@@ -624,6 +625,14 @@ export const WireLayer: React.FC<Props> = ({
       const pt = getSvgPoint(e);
 
       if (draggingSegment) {
+        const wire = wires.find((w) => w.id === draggingSegment.wireId);
+        const waypoints = wire?.waypoints ?? [];
+        const refIdx = draggingSegment.segmentIndex > 0 ? draggingSegment.segmentIndex - 1 : 0;
+        const pCurr = waypoints[refIdx];
+        if (!pCurr) {
+          setDraggingSegment((s) => (s ? { ...s, lastMouse: pt } : null));
+          return;
+        }
         const dx = pt.x - draggingSegment.lastMouse.x;
         const dy = pt.y - draggingSegment.lastMouse.y;
         const segDx = draggingSegment.startP2.x - draggingSegment.startP1.x;
@@ -632,8 +641,47 @@ export const WireLayer: React.FC<Props> = ({
         if (len > 0.01) {
           const perpX = -segDy / len;
           const perpY = segDx / len;
-          const deltaPerpX = (dx * perpX + dy * perpY) * perpX;
-          const deltaPerpY = (dx * perpX + dy * perpY) * perpY;
+          let deltaPerpX = (dx * perpX + dy * perpY) * perpX;
+          let deltaPerpY = (dx * perpX + dy * perpY) * perpY;
+          if (wireSnapAlignment) {
+            const movingIndices = new Set<number>(
+              draggingSegment.segmentIndex === 0
+                ? [0]
+                : draggingSegment.segmentIndex === waypoints.length
+                  ? [waypoints.length - 1]
+                  : [draggingSegment.segmentIndex - 1, draggingSegment.segmentIndex],
+            );
+            const targets: Point[] = [];
+            for (const w of wires) {
+              const src = getPos(w.sourceInstanceId, w.sourcePortId);
+              const tgt = getPos(w.targetInstanceId, w.targetPortId);
+              if (src) targets.push(src);
+              if (tgt) targets.push(tgt);
+              (w.waypoints ?? []).forEach((wp, i) => {
+                if (w.id !== draggingSegment.wireId || !movingIndices.has(i)) targets.push(wp);
+              });
+            }
+            let x = pCurr.x + deltaPerpX;
+            let y = pCurr.y + deltaPerpY;
+            let bestX = x;
+            let bestY = y;
+            let bestDistX = SEGMENT_SNAP_TOLERANCE + 1;
+            let bestDistY = SEGMENT_SNAP_TOLERANCE + 1;
+            for (const t of targets) {
+              const dX = Math.abs(x - t.x);
+              const dY = Math.abs(y - t.y);
+              if (dX <= SEGMENT_SNAP_TOLERANCE && dX < bestDistX) {
+                bestDistX = dX;
+                bestX = t.x;
+              }
+              if (dY <= SEGMENT_SNAP_TOLERANCE && dY < bestDistY) {
+                bestDistY = dY;
+                bestY = t.y;
+              }
+            }
+            deltaPerpX = bestX - pCurr.x;
+            deltaPerpY = bestY - pCurr.y;
+          }
           moveWireSegment(draggingSegment.wireId, draggingSegment.segmentIndex, deltaPerpX, deltaPerpY);
         }
         setDraggingSegment((s) => (s ? { ...s, lastMouse: pt } : null));
