@@ -13,6 +13,8 @@ import type { GhostPreview, ComponentState } from '../types';
 
 const MARGIN = 15;
 const MODULE_HEIGHT_CM = 7;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 20;
 
 interface MarqueeRect {
   startX: number;
@@ -90,8 +92,11 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
   const clipboardRef = useRef<{ data: ClipboardData; pasteCount: number } | null>(null);
+  const clampZoom = useCallback((value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value)), []);
 
   const layout = useMemo(
     () =>
@@ -148,8 +153,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
     const availH = container.clientHeight - cssPad * 2;
     if (availW <= 0 || availH <= 0) return;
     const fitZoom = Math.min(availW / cb.w, availH / cb.h);
-    setZoom(Math.min(6, Math.max(0.1, fitZoom)));
-  }, []);
+    setZoom(clampZoom(fitZoom));
+  }, [clampZoom]);
 
   useEffect(() => {
     requestAnimationFrame(fitToContainer);
@@ -332,11 +337,11 @@ export const PanelView: React.FC<PanelViewProps> = ({
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
         e.preventDefault();
-        setZoom((z) => Math.min(6, z + 0.2));
+        setZoom((z) => clampZoom(z + 0.2));
       }
       if ((e.ctrlKey || e.metaKey) && e.key === '-') {
         e.preventDefault();
-        setZoom((z) => Math.max(0.1, z - 0.2));
+        setZoom((z) => clampZoom(z - 0.2));
       }
       if ((e.ctrlKey || e.metaKey) && e.key === '0') {
         e.preventDefault();
@@ -448,19 +453,47 @@ export const PanelView: React.FC<PanelViewProps> = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedModules, state, layout, fitToContainer, onSelectModule, onSetSelection]);
+  }, [selectedModules, state, layout, fitToContainer, onSelectModule, onSetSelection, clampZoom]);
 
-  // --- Wheel zoom (non-passive to prevent browser zoom) ---
+  // --- Ctrl+Wheel zoom toward cursor ---
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     const handler = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      setZoom((z) => Math.min(6, Math.max(0.1, z - e.deltaY * 0.002)));
+      e.stopPropagation();
+
+      const svg = svgRef.current;
+      if (!svg) return;
+
+      const oldZoom = zoomRef.current;
+      const newZoom = clampZoom(oldZoom - e.deltaY * 0.002);
+      if (newZoom === oldZoom) return;
+
+      const ratio = newZoom / oldZoom;
+      const containerRect = container.getBoundingClientRect();
+      const svgRect = svg.getBoundingClientRect();
+
+      const mouseToSvgX = e.clientX - svgRect.left;
+      const mouseToSvgY = e.clientY - svgRect.top;
+      const mouseInViewX = e.clientX - containerRect.left;
+      const mouseInViewY = e.clientY - containerRect.top;
+
+      setZoom(newZoom);
+
+      requestAnimationFrame(() => {
+        const newSvgRect = svg.getBoundingClientRect();
+        const newContainerRect = container.getBoundingClientRect();
+        const svgContentX = newSvgRect.left - newContainerRect.left + container.scrollLeft;
+        const svgContentY = newSvgRect.top - newContainerRect.top + container.scrollTop;
+        container.scrollLeft = svgContentX + mouseToSvgX * ratio - mouseInViewX;
+        container.scrollTop = svgContentY + mouseToSvgY * ratio - mouseInViewY;
+      });
     };
     container.addEventListener('wheel', handler, { passive: false });
     return () => container.removeEventListener('wheel', handler);
-  }, []);
+  }, [clampZoom]);
 
   const vb = contentBounds;
   const viewBox = `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
@@ -474,18 +507,19 @@ export const PanelView: React.FC<PanelViewProps> = ({
       onClick={handleClearSelection}
     >
       <div className="zoom-controls">
-        <button onClick={() => setZoom((z) => Math.min(6, z + 0.2))}>+</button>
+        <button onClick={() => setZoom((z) => clampZoom(z + 0.2))}>+</button>
         <span>{Math.round(zoom * 100)}%</span>
-        <button onClick={() => setZoom((z) => Math.max(0.1, z - 0.2))}>-</button>
+        <button onClick={() => setZoom((z) => clampZoom(z - 0.2))}>-</button>
         <button onClick={fitToContainer} title="Ajustar ao container">⊡</button>
       </div>
+      <div className="panel-view-inner">
       <svg
         ref={svgRef}
         width={vb.w * zoom}
         height={vb.h * zoom}
         viewBox={viewBox}
         xmlns="http://www.w3.org/2000/svg"
-        style={{ display: 'block', margin: 'auto' }}
+        style={{ display: 'block', flexShrink: 0 }}
         onMouseDown={handleSvgMouseDown}
         onMouseMove={handleSvgMouseMove}
         onMouseUp={handleSvgMouseUp}
@@ -628,6 +662,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
           />
         )}
       </svg>
+      </div>
     </div>
   );
 };
