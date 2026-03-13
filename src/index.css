@@ -425,14 +425,13 @@ html, body, #root {
   letter-spacing: 0.5px;
   opacity: 0.55;
   border-radius: 4px;
+  padding-left: 4px;
   transition: opacity 0.15s, background 0.15s;
 }
 
 .library-group-label:hover {
   opacity: 0.85;
   background: rgba(255,255,255,0.05);
-  margin-bottom: 6px;
-  padding-left: 4px;
 }
 
 .library-item {
