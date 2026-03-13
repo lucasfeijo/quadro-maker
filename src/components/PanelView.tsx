@@ -654,22 +654,6 @@ export const PanelView: React.FC<PanelViewProps> = ({
           );
         })}
 
-        {/* Wires */}
-        <WireLayer
-          rails={layout.rails}
-          interiorOffsetXPx={intX}
-          interiorOffsetYPx={intY}
-          panelWidth={svgWidth}
-          panelHeight={svgHeight}
-          svgWidth={vb.w}
-          svgHeight={vb.h}
-          padding={-vb.x}
-          selectedWireId={state.selectedWireId}
-          onSelectWire={(id) => state.selectWire(id)}
-          hoverTarget={hoverTarget}
-          energizedWires={simActive ? energizedWires : undefined}
-        />
-
         {/* Panel I/O */}
         <PanelIOLayer
           svgWidth={svgWidth}
@@ -694,6 +678,22 @@ export const PanelView: React.FC<PanelViewProps> = ({
           onPortLeave={onPortLeave}
           simStates={simActive ? simStates : undefined}
           onSimModeChange={simActive ? onSimModeChange : undefined}
+        />
+
+        {/* Wires — rendered on top so they stay clickable when passing through switches/buttons */}
+        <WireLayer
+          rails={layout.rails}
+          interiorOffsetXPx={intX}
+          interiorOffsetYPx={intY}
+          panelWidth={svgWidth}
+          panelHeight={svgHeight}
+          svgWidth={vb.w}
+          svgHeight={vb.h}
+          padding={-vb.x}
+          selectedWireId={state.selectedWireId}
+          onSelectWire={(id) => state.selectWire(id)}
+          hoverTarget={hoverTarget}
+          energizedWires={simActive ? energizedWires : undefined}
         />
 
         {/* Marquee selection rectangle */}
