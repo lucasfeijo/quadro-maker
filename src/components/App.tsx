@@ -50,6 +50,9 @@ export const App: React.FC = () => {
   const lastSnapshotRef = useRef<string | null>(null);
   const lastStateRef = useRef<PanelState | null>(null);
   const isRestoringHistoryRef = useRef(false);
+  const wiringDragRef = useRef(false);
+  const wiringDragSourceRef = useRef<{ instanceId: string; portId: string } | null>(null);
+  const hoverPortRef = useRef<{ instanceId: string; portId: string } | null>(null);
 
   const handleSimDataChange = useCallback((energizedWires: Set<string>, states: ComponentState[]) => {
     setSimData({ energizedWires, states });
@@ -61,6 +64,7 @@ export const App: React.FC = () => {
 
   const handlePortClick = useCallback(
     (instanceId: string, portId: string) => {
+      if (wiringDragRef.current) return;
       const wf = store.wiringFrom;
       if (!wf) {
         store.startWiring(instanceId, portId);
@@ -76,14 +80,71 @@ export const App: React.FC = () => {
     [store],
   );
 
+  const handlePortMouseDown = useCallback(
+    (instanceId: string, portId: string) => {
+      wiringDragRef.current = true;
+      wiringDragSourceRef.current = { instanceId, portId };
+      const wf = store.wiringFrom;
+      if (!wf || wf.instanceId !== instanceId || wf.portId !== portId) {
+        store.startWiring(instanceId, portId);
+      }
+
+      const resolvePortUnderCursor = (ev: MouseEvent): { instanceId: string; portId: string } | null => {
+        const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
+        const portEl = el?.closest('[data-wire-instance-id][data-wire-port-id]') as HTMLElement | null;
+        if (!portEl) return null;
+        const targetInstanceId = portEl.dataset.wireInstanceId;
+        const targetPortId = portEl.dataset.wirePortId;
+        if (!targetInstanceId || !targetPortId) return null;
+        return { instanceId: targetInstanceId, portId: targetPortId };
+      };
+
+      const onWindowMouseUp = (ev: MouseEvent) => {
+        const source = wiringDragSourceRef.current;
+        const target = resolvePortUnderCursor(ev) ?? hoverPortRef.current;
+        if (source && target && !(source.instanceId === target.instanceId && source.portId === target.portId)) {
+          store.addWire(source.instanceId, source.portId, target.instanceId, target.portId);
+          setHoverTarget(null);
+          hoverPortRef.current = null;
+        }
+        wiringDragSourceRef.current = null;
+        requestAnimationFrame(() => {
+          wiringDragRef.current = false;
+        });
+      };
+      window.addEventListener('mouseup', onWindowMouseUp, { once: true });
+    },
+    [store],
+  );
+
+  const handlePortMouseUp = useCallback(
+    (instanceId: string, portId: string) => {
+      if (!wiringDragRef.current) return;
+      const wf = store.wiringFrom;
+      if (wf && !(wf.instanceId === instanceId && wf.portId === portId)) {
+        store.addWire(wf.instanceId, wf.portId, instanceId, portId);
+        setHoverTarget(null);
+        hoverPortRef.current = null;
+      }
+      wiringDragSourceRef.current = null;
+      requestAnimationFrame(() => {
+        wiringDragRef.current = false;
+      });
+    },
+    [store],
+  );
+
   const handlePortHover = useCallback(
     (instanceId: string, portId: string) => {
-      setHoverTarget({ instanceId, portId });
+      const target = { instanceId, portId };
+      hoverPortRef.current = target;
+      setHoverTarget(target);
     },
     [],
   );
 
   const handlePortLeave = useCallback(() => {
+    hoverPortRef.current = null;
     setHoverTarget(null);
   }, []);
 
@@ -460,6 +521,8 @@ export const App: React.FC = () => {
               onSelectModule={handleSelectModule}
               onSetSelection={handleSetSelection}
               onPortClick={handlePortClick}
+              onPortMouseDown={handlePortMouseDown}
+              onPortMouseUp={handlePortMouseUp}
               onPortHover={handlePortHover}
               onPortLeave={handlePortLeave}
               hoverTarget={hoverTarget}

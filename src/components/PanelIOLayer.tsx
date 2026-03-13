@@ -33,6 +33,8 @@ interface Props {
   selectedIOId: string | null;
   onSelectIO: (id: string) => void;
   onPortClick?: (instanceId: string, portId: string) => void;
+  onPortMouseDown?: (instanceId: string, portId: string) => void;
+  onPortMouseUp?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
 }
@@ -52,6 +54,8 @@ export const PanelIOLayer: React.FC<Props> = ({
   selectedIOId,
   onSelectIO,
   onPortClick,
+  onPortMouseDown,
+  onPortMouseUp,
   onPortHover,
   onPortLeave,
 }) => {
@@ -189,10 +193,14 @@ export const PanelIOLayer: React.FC<Props> = ({
 
             {/* Port dot for wiring */}
             <g
+              data-wire-instance-id={instanceId}
+              data-wire-port-id={portId}
               style={{ cursor: 'pointer' }}
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onPortMouseDown?.(instanceId, portId); }}
+              onPointerUp={(e) => { e.stopPropagation(); onPortMouseUp?.(instanceId, portId); }}
               onClick={(e) => { e.stopPropagation(); onPortClick?.(instanceId, portId); }}
-              onMouseEnter={() => onPortHover?.(instanceId, portId)}
-              onMouseLeave={() => onPortLeave?.()}
+              onPointerEnter={() => onPortHover?.(instanceId, portId)}
+              onPointerLeave={() => onPortLeave?.()}
             >
               {isWiringSource && (
                 <circle cx={pos.portX} cy={pos.portY} r={DOT_R + 1.5} fill="none" stroke="#ffd600" strokeWidth={0.5} opacity={0.8}>

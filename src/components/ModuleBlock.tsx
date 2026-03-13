@@ -17,6 +17,8 @@ interface Props {
   onSelect: (instanceId: string, additive?: boolean) => void;
   isDragging?: boolean;
   onPortClick?: (instanceId: string, portId: string) => void;
+  onPortMouseDown?: (instanceId: string, portId: string) => void;
+  onPortMouseUp?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
   simState?: ComponentState;
@@ -34,6 +36,8 @@ export const ModuleBlock: React.FC<Props> = ({
   onSelect,
   isDragging: isDraggingProp = false,
   onPortClick,
+  onPortMouseDown,
+  onPortMouseUp,
   onPortHover,
   onPortLeave,
   simState,
@@ -258,6 +262,8 @@ export const ModuleBlock: React.FC<Props> = ({
             isWiringSource={isSource}
             isConnected={isConnected}
             onPortClick={onPortClick ?? (() => {})}
+            onPortMouseDown={onPortMouseDown}
+            onPortMouseUp={onPortMouseUp}
             onPortHover={onPortHover ?? (() => {})}
             onPortLeave={onPortLeave ?? (() => {})}
           />

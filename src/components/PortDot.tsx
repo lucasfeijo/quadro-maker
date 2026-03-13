@@ -18,6 +18,8 @@ interface Props {
   isWiringSource: boolean;
   isConnected: boolean;
   onPortClick: (instanceId: string, portId: string) => void;
+  onPortMouseDown?: (instanceId: string, portId: string) => void;
+  onPortMouseUp?: (instanceId: string, portId: string) => void;
   onPortHover: (instanceId: string, portId: string) => void;
   onPortLeave: () => void;
 }
@@ -33,6 +35,8 @@ export const PortDot: React.FC<Props> = ({
   isWiringSource,
   isConnected,
   onPortClick,
+  onPortMouseDown,
+  onPortMouseUp,
   onPortHover,
   onPortLeave,
 }) => {
@@ -42,13 +46,24 @@ export const PortDot: React.FC<Props> = ({
 
   return (
     <g
+      data-wire-instance-id={instanceId}
+      data-wire-port-id={port.id}
       style={{ cursor: 'pointer' }}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onPortMouseDown?.(instanceId, port.id);
+      }}
+      onPointerUp={(e) => {
+        e.stopPropagation();
+        onPortMouseUp?.(instanceId, port.id);
+      }}
       onClick={(e) => {
         e.stopPropagation();
         onPortClick(instanceId, port.id);
       }}
-      onMouseEnter={() => onPortHover(instanceId, port.id)}
-      onMouseLeave={onPortLeave}
+      onPointerEnter={() => onPortHover(instanceId, port.id)}
+      onPointerLeave={onPortLeave}
     >
       {isWiringSource && (
         <circle cx={cx} cy={cy} r={RADIUS + 2} fill="none" stroke="#ffd600" strokeWidth={0.6} opacity={0.8}>

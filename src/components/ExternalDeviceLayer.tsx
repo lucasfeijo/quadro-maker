@@ -9,6 +9,8 @@ interface Props {
   selectedDeviceIds: string[];
   onSelectDevice: (id: string | null, additive?: boolean) => void;
   onPortClick?: (instanceId: string, portId: string) => void;
+  onPortMouseDown?: (instanceId: string, portId: string) => void;
+  onPortMouseUp?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
   simStates?: ComponentState[];
@@ -56,6 +58,8 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
   selectedDeviceIds,
   onSelectDevice,
   onPortClick,
+  onPortMouseDown,
+  onPortMouseUp,
   onPortHover,
   onPortLeave,
   simStates,
@@ -295,6 +299,8 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
               return (
                 <g key={port.id}>
                   <circle
+                    data-wire-instance-id={dev.instanceId}
+                    data-wire-port-id={port.id}
                     cx={px}
                     cy={py}
                     r={2}
@@ -302,12 +308,11 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
                     stroke="white"
                     strokeWidth={0.6}
                     cursor="pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onPortClick?.(dev.instanceId, port.id);
-                    }}
-                    onMouseEnter={() => onPortHover?.(dev.instanceId, port.id)}
-                    onMouseLeave={() => onPortLeave?.()}
+                    onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onPortMouseDown?.(dev.instanceId, port.id); }}
+                    onPointerUp={(e) => { e.stopPropagation(); onPortMouseUp?.(dev.instanceId, port.id); }}
+                    onClick={(e) => { e.stopPropagation(); onPortClick?.(dev.instanceId, port.id); }}
+                    onPointerEnter={() => onPortHover?.(dev.instanceId, port.id)}
+                    onPointerLeave={() => onPortLeave?.()}
                   />
                   <text x={px} y={labelY} textAnchor="middle" fontSize={3.2} fontWeight={600} fill="#444" style={{ pointerEvents: 'none' }}>
                     {port.label}

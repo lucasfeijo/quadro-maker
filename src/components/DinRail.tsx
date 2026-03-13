@@ -13,6 +13,8 @@ interface Props {
   onSelectModule: (instanceId: string, additive?: boolean) => void;
   ghostPreview: GhostPreview | null;
   onPortClick?: (instanceId: string, portId: string) => void;
+  onPortMouseDown?: (instanceId: string, portId: string) => void;
+  onPortMouseUp?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
   simStates?: ComponentState[];
@@ -33,6 +35,8 @@ export const DinRail: React.FC<Props> = ({
   onSelectModule,
   ghostPreview,
   onPortClick,
+  onPortMouseDown,
+  onPortMouseUp,
   onPortHover,
   onPortLeave,
   simStates,
@@ -189,6 +193,8 @@ export const DinRail: React.FC<Props> = ({
           selected={selectedModules.includes(mod.instanceId)}
           onSelect={onSelectModule}
           onPortClick={onPortClick}
+          onPortMouseDown={onPortMouseDown}
+          onPortMouseUp={onPortMouseUp}
           onPortHover={onPortHover}
           onPortLeave={onPortLeave}
           simState={simStates?.find((s) => s.instanceId === mod.instanceId)}

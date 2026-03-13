@@ -65,6 +65,8 @@ interface PanelViewProps {
   onSelectModule: (id: string | null, additive?: boolean) => void;
   onSetSelection: (ids: string[]) => void;
   onPortClick?: (instanceId: string, portId: string) => void;
+  onPortMouseDown?: (instanceId: string, portId: string) => void;
+  onPortMouseUp?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
   hoverTarget?: { instanceId: string; portId: string } | null;
@@ -84,6 +86,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
   onSelectModule,
   onSetSelection,
   onPortClick,
+  onPortMouseDown,
+  onPortMouseUp,
   onPortHover,
   onPortLeave,
   hoverTarget,
@@ -640,6 +644,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
                 ghostPreview?.rowId === row.id ? ghostPreview : null
               }
               onPortClick={onPortClick}
+              onPortMouseDown={onPortMouseDown}
+              onPortMouseUp={onPortMouseUp}
               onPortHover={onPortHover}
               onPortLeave={onPortLeave}
               simStates={simActive ? simStates : undefined}
@@ -671,6 +677,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
           selectedIOId={state.selectedIOId}
           onSelectIO={(id) => state.selectIO(id)}
           onPortClick={onPortClick}
+          onPortMouseDown={onPortMouseDown}
+          onPortMouseUp={onPortMouseUp}
           onPortHover={onPortHover}
           onPortLeave={onPortLeave}
         />
@@ -680,6 +688,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
           selectedDeviceIds={selectedModules}
           onSelectDevice={onSelectModule}
           onPortClick={onPortClick}
+          onPortMouseDown={onPortMouseDown}
+          onPortMouseUp={onPortMouseUp}
           onPortHover={onPortHover}
           onPortLeave={onPortLeave}
           simStates={simActive ? simStates : undefined}
