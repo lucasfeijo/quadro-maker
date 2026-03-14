@@ -324,6 +324,8 @@ export const App: React.FC = () => {
       setActiveDragInfo({ type: 'panel-io', label: data.direction === 'input' ? 'Entrada' : 'Saída', color: '#546e7a' });
     } else if (data?.type === 'new-busbar') {
       setActiveDragInfo({ type: 'busbar', label: data.label as string, color: data.color as string });
+    } else if (data?.type === 'new-text-annotation') {
+      setActiveDragInfo({ type: 'annotation', label: 'Texto', color: '#546e7a' });
     }
   }, []);
 
@@ -448,6 +450,14 @@ export const App: React.FC = () => {
         return;
       }
 
+      if (data.type === 'new-text-annotation') {
+        const pos = computeExternalDevicePosition(event);
+        if (pos) {
+          store.addTextAnnotation(pos.x, pos.y);
+        }
+        return;
+      }
+
       if (!over) return;
 
       const overData = over.data.current as
@@ -529,6 +539,7 @@ export const App: React.FC = () => {
 
   const handleSelectModule = useCallback((id: string | null, additive?: boolean) => {
     store.selectBusbar(null);
+    store.selectAnnotation(null);
     if (id === null) {
       setSelectedModules([]);
       return;
@@ -547,6 +558,15 @@ export const App: React.FC = () => {
     store.selectWire(null);
     store.selectIO(null);
     store.selectBusbar(id);
+    store.selectAnnotation(null);
+  }, [store]);
+
+  const handleSelectAnnotation = useCallback((id: string) => {
+    setSelectedModules([]);
+    store.selectWire(null);
+    store.selectIO(null);
+    store.selectBusbar(null);
+    store.selectAnnotation(id);
   }, [store]);
 
   const handleSetSelection = useCallback((ids: string[]) => {
@@ -570,7 +590,7 @@ export const App: React.FC = () => {
   }
 
   const singleSelected = selectedModules.length === 1 ? selectedModules[0] : null;
-  const showProperties = singleSelected || store.selectedWireId || store.selectedIOId || store.selectedBusbarId;
+  const showProperties = singleSelected || store.selectedWireId || store.selectedIOId || store.selectedBusbarId || store.selectedAnnotationId;
   const showMultiInfo = selectedModules.length > 1;
 
   return (
@@ -612,6 +632,8 @@ export const App: React.FC = () => {
               canRedo={canRedo}
               onSelectBusbar={handleSelectBusbar}
               selectedBusbarId={store.selectedBusbarId}
+              onSelectAnnotation={handleSelectAnnotation}
+              selectedAnnotationId={store.selectedAnnotationId}
             />
           )}
           {viewMode === 'schematic' && <SchematicView />}

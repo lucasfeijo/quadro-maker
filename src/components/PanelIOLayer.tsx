@@ -155,12 +155,15 @@ export const PanelIOLayer: React.FC<Props> = ({
             {io.label && (
               <text
                 x={pos.boxX + pos.boxW / 2}
-                y={io.edge === 'bottom' ? pos.boxY + pos.boxH + 5 : pos.boxY - 3}
+                y={io.edge === 'bottom' ? pos.boxY + pos.boxH + 5.5 : pos.boxY - 3.5}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fontSize={3.5}
-                fill="#555"
+                fontSize={3.8}
+                fill="#333"
                 fontWeight={600}
+                stroke="#fff"
+                strokeWidth={2.5}
+                paintOrder="stroke"
                 style={{ pointerEvents: 'none', userSelect: 'none' }}
               >
                 {io.label}
@@ -173,17 +176,20 @@ export const PanelIOLayer: React.FC<Props> = ({
                 : (io.consumptionA ? `${io.consumptionA}A` : '');
               if (!specs) return null;
               const specY = io.edge === 'bottom'
-                ? pos.boxY + pos.boxH + (io.label ? 9 : 5)
-                : pos.boxY - (io.label ? 7 : 3);
+                ? pos.boxY + pos.boxH + (io.label ? 10 : 5.5)
+                : pos.boxY - (io.label ? 8 : 3.5);
               return (
                 <text
                   x={pos.boxX + pos.boxW / 2}
                   y={specY}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fontSize={3.2}
+                  fontSize={3}
                   fill="#666"
                   fontWeight={600}
+                  stroke="#fff"
+                  strokeWidth={2}
+                  paintOrder="stroke"
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
                   {specs}

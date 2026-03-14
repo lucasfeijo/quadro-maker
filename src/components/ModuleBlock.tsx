@@ -125,45 +125,76 @@ export const ModuleBlock: React.FC<Props> = ({
         x={x + (w - iconSize) / 2}
         y={y + h * 0.08}
       />
-      {def.widthCm >= 3 && (
+      {/* Module name + label inside the module */}
+      {def.widthCm >= 3 ? (
+        <>
+          <text
+            x={x + w / 2}
+            y={mod.label ? y + h * 0.62 : y + h * 0.7}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#fff"
+            fontSize={Math.min(3.2, w * 0.35)}
+            fontWeight={600}
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
+          >
+            {def.name}
+          </text>
+          {mod.label && (
+            <text
+              x={x + w / 2}
+              y={y + h * 0.8}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="rgba(255,255,255,0.85)"
+              fontSize={Math.min(2.8, w * 0.3)}
+              fontWeight={500}
+              style={{ pointerEvents: 'none', userSelect: 'none' }}
+            >
+              {mod.label}
+            </text>
+          )}
+        </>
+      ) : mod.label ? (
         <text
           x={x + w / 2}
           y={y + h * 0.7}
           textAnchor="middle"
           dominantBaseline="middle"
-          fill="#fff"
-          fontSize={Math.min(3.2, w * 0.35)}
+          fill="rgba(255,255,255,0.9)"
+          fontSize={Math.min(2.5, w * 0.6)}
           fontWeight={600}
           style={{ pointerEvents: 'none', userSelect: 'none' }}
+          transform={`rotate(-90, ${x + w / 2}, ${y + h * 0.7})`}
         >
-          {def.name}
+          {mod.label}
         </text>
-      )}
+      ) : null}
       <text
         x={x + w / 2}
-        y={y + h * 0.88}
+        y={y + h * 0.92}
         textAnchor="middle"
         dominantBaseline="middle"
-        fill="rgba(255,255,255,0.7)"
-        fontSize={2.5}
+        fill="rgba(255,255,255,0.55)"
+        fontSize={2}
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
         {def.widthCm}cm
       </text>
-      {editing ? (
-        <foreignObject x={x} y={y + h + 1} width={w} height={8}>
+      {editing && (
+        <foreignObject x={x - 10} y={y + h + 1} width={w + 20} height={10}>
           <input
             autoFocus
             defaultValue={mod.label ?? ''}
             style={{
               width: '100%',
-              fontSize: '8px',
+              fontSize: '9px',
               textAlign: 'center',
               border: '1px solid #ffd600',
               background: '#333',
               color: '#fff',
               borderRadius: 2,
-              padding: 0,
+              padding: '1px 2px',
               outline: 'none',
             }}
             onBlur={(e) => handleLabelSubmit(e.target.value)}
@@ -174,20 +205,7 @@ export const ModuleBlock: React.FC<Props> = ({
             }}
           />
         </foreignObject>
-      ) : mod.label ? (
-        <text
-          x={x + w / 2}
-          y={y + h + 4}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill="#555"
-          fontSize={2.8}
-          fontWeight={500}
-          style={{ pointerEvents: 'none', userSelect: 'none' }}
-        >
-          {mod.label}
-        </text>
-      ) : null}
+      )}
       {simState && (() => {
         const modes = SIM_MODES[def.category];
         if (!modes || modes.length <= 1) return null;

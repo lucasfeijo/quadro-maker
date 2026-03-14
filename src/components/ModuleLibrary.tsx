@@ -149,6 +149,34 @@ function BusbarItem({ type, label, color, abbr }: typeof BUSBAR_ITEMS[number]) {
   );
 }
 
+function TextAnnotationItem() {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: 'library-text-annotation',
+    data: { type: 'new-text-annotation' },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className="library-item io-item"
+      style={{ borderLeftColor: '#546e7a', opacity: isDragging ? 0.4 : 1 }}
+    >
+      <div
+        className="library-item-icon"
+        style={{ background: '#546e7a', borderRadius: 4, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700 }}
+      >
+        T
+      </div>
+      <div className="library-item-info">
+        <span className="library-item-name">Legenda / Texto</span>
+        <span className="library-item-size">Arraste para o painel</span>
+      </div>
+    </div>
+  );
+}
+
 function ExternalDeviceItem({ moduleId, name, color }: { moduleId: string; name: string; color: string }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `library-ext-${moduleId}`,
@@ -313,6 +341,18 @@ export const ModuleLibrary: React.FC = () => {
           <ExternalDeviceItem key={mod.id} moduleId={mod.id} name={mod.name} color={mod.color} />
         ))}
       </CollapsibleGroup>
+
+      {(() => {
+        const showAnnotations = !q || 'legenda texto anotação annotation label'.toLowerCase().includes(q.toLowerCase()) || 'legenda'.includes(q.toLowerCase()) || 'texto'.includes(q.toLowerCase()) || 'anotação'.includes(q.toLowerCase());
+        return showAnnotations ? (
+          <>
+            <h3 style={{ marginTop: 20 }}>Anotações</h3>
+            <CollapsibleGroup label="Anotações" visible defaultOpen>
+              <TextAnnotationItem />
+            </CollapsibleGroup>
+          </>
+        ) : null;
+      })()}
 
       {q && grouped.length === 0 && !hasIO && !hasExternal && !hasBusbars && (
         <div style={{ color: '#888', fontSize: 12, textAlign: 'center', marginTop: 24 }}>

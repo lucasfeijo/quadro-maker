@@ -9,6 +9,7 @@ import { WireLayer } from './WireLayer';
 import { PanelIOLayer } from './PanelIOLayer';
 import { ExternalDeviceLayer, getExternalDeviceBounds } from './ExternalDeviceLayer';
 import { BusbarLayer } from './BusbarLayer';
+import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { getIOPosition } from '../utils/panelIO';
 import type { GhostPreview, ComponentState } from '../types';
 
@@ -81,6 +82,8 @@ interface PanelViewProps {
   canRedo?: boolean;
   onSelectBusbar?: (id: string) => void;
   selectedBusbarId?: string | null;
+  onSelectAnnotation?: (id: string) => void;
+  selectedAnnotationId?: string | null;
 }
 
 export const PanelView: React.FC<PanelViewProps> = ({
@@ -104,6 +107,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
   canRedo,
   onSelectBusbar,
   selectedBusbarId,
+  onSelectAnnotation,
+  selectedAnnotationId,
 }) => {
   const state = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -189,6 +194,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
     state.selectWire(null);
     state.selectIO(null);
     state.selectBusbar(null);
+    state.selectAnnotation(null);
     if (state.wiringFrom) state.cancelWiring();
   }, [onSelectModule, state]);
 
@@ -688,6 +694,14 @@ export const PanelView: React.FC<PanelViewProps> = ({
           onSelectWire={(id) => state.selectWire(id)}
           hoverTarget={hoverTarget}
           energizedWires={simActive ? energizedWires : undefined}
+        />
+
+        {/* Text Annotations — on top of everything */}
+        <TextAnnotationLayer
+          annotations={state.textAnnotations}
+          selectedAnnotationId={selectedAnnotationId ?? null}
+          svgRef={svgRef}
+          onSelect={(id) => onSelectAnnotation?.(id)}
         />
 
         {/* Marquee selection rectangle */}

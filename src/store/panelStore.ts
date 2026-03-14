@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
-import { PanelState, PanelRow, DisplayMode, Wire, PanelIO, PanelIODirection, PanelIOType, PanelEdge, ExternalDevice, Busbar, BusbarType } from '../types';
+import { PanelState, PanelRow, DisplayMode, Wire, PanelIO, PanelIODirection, PanelIOType, PanelEdge, ExternalDevice, Busbar, BusbarType, TextAnnotation } from '../types';
 import { getEnclosureById } from '../data/enclosures';
 
 type EditorScreen = 'setup' | 'editor';
@@ -24,6 +24,7 @@ interface PanelStore extends PanelState {
   selectedWireId: string | null;
   selectedIOId: string | null;
   selectedBusbarId: string | null;
+  selectedAnnotationId: string | null;
 
   configureCustom: (widthUnits: number, rowCount: number) => void;
   configureFromEnclosure: (enclosureId: string) => void;
@@ -82,6 +83,13 @@ interface PanelStore extends PanelState {
   removeBusbarConnectionPoint: (busbarId: string, pointId: string) => void;
   moveBusbarConnectionPoint: (busbarId: string, pointId: string, offsetPercent: number) => void;
 
+  // Text Annotations
+  addTextAnnotation: (x: number, y: number) => void;
+  moveTextAnnotation: (id: string, x: number, y: number) => void;
+  updateTextAnnotation: (id: string, props: Partial<Omit<TextAnnotation, 'id'>>) => void;
+  removeTextAnnotation: (id: string) => void;
+  selectAnnotation: (id: string | null) => void;
+
   setName: (name: string) => void;
   loadState: (state: PanelState) => void;
   resizePanel: (widthUnits: number, rowCount: number) => void;
@@ -101,6 +109,7 @@ function getSavableSnapshot(s: PanelStore): string {
     panelIOs: s.panelIOs,
     externalDevices: s.externalDevices,
     busbars: s.busbars,
+    textAnnotations: s.textAnnotations,
   };
   return JSON.stringify(snap);
 }
@@ -134,12 +143,14 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   panelIOs: [],
   externalDevices: [],
   busbars: [],
+  textAnnotations: [],
   displayMode: 'icon' as DisplayMode,
   wireSnapAlignment: true,
   wiringFrom: null,
   selectedWireId: null,
   selectedIOId: null,
   selectedBusbarId: null,
+  selectedAnnotationId: null,
 
   configureCustom: (widthUnits, rowCount) =>
     set({
@@ -152,6 +163,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       panelIOs: [],
       externalDevices: [],
       busbars: [],
+      textAnnotations: [],
     }),
 
   configureFromEnclosure: (enclosureId) => {
@@ -167,6 +179,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       panelIOs: [],
       externalDevices: [],
       busbars: [],
+      textAnnotations: [],
     });
   },
 
@@ -574,6 +587,40 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       ),
     })),
 
+  // Text Annotations
+  addTextAnnotation: (x, y) =>
+    set((s) => ({
+      textAnnotations: [...s.textAnnotations, {
+        id: nanoid(),
+        x,
+        y,
+        text: 'Texto',
+        fontSize: 14,
+        fontFamily: 'sans-serif',
+        color: '#333333',
+        bold: false,
+        italic: false,
+      }],
+    })),
+
+  moveTextAnnotation: (id, x, y) =>
+    set((s) => ({
+      textAnnotations: s.textAnnotations.map((a) => (a.id === id ? { ...a, x, y } : a)),
+    })),
+
+  updateTextAnnotation: (id, props) =>
+    set((s) => ({
+      textAnnotations: s.textAnnotations.map((a) => (a.id === id ? { ...a, ...props } : a)),
+    })),
+
+  removeTextAnnotation: (id) =>
+    set((s) => ({
+      textAnnotations: s.textAnnotations.filter((a) => a.id !== id),
+      selectedAnnotationId: s.selectedAnnotationId === id ? null : s.selectedAnnotationId,
+    })),
+
+  selectAnnotation: (id) => set({ selectedAnnotationId: id }),
+
   setName: (name) => set({ name }),
 
   loadState: (state) => {
@@ -588,6 +635,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       panelIOs: state.panelIOs ?? [],
       busbars: state.busbars ?? [],
       externalDevices: normalizedExtDevices,
+      textAnnotations: state.textAnnotations ?? [],
     };
     set({
       screen: 'editor',

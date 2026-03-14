@@ -523,9 +523,12 @@ function WireLabel({ points, label, color }: { points: Point[]; label: string; c
       y={bestMid.y + offsetY}
       textAnchor="middle"
       dominantBaseline="central"
-      fontSize={2.8}
+      fontSize={3.2}
       fontWeight={600}
       fill={color}
+      stroke="#fff"
+      strokeWidth={2.5}
+      paintOrder="stroke"
       transform={`rotate(${bestAngle}, ${bestMid.x + offsetX}, ${bestMid.y + offsetY})`}
       style={{ pointerEvents: 'none', userSelect: 'none' }}
     >

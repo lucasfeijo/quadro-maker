@@ -86,6 +86,9 @@ export const PortDot: React.FC<Props> = ({
         fontSize={3.2}
         fill="#444"
         fontWeight={600}
+        stroke="#fff"
+        strokeWidth={2}
+        paintOrder="stroke"
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
         {port.label}

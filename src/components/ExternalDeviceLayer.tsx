@@ -268,11 +268,14 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
 
             <text
               x={bx + boxW / 2}
-              y={by + BOX_H + 5}
+              y={by + BOX_H + 5.5}
               textAnchor="middle"
-              fontSize={3.2}
+              fontSize={3.5}
               fontWeight={600}
               fill="#333"
+              stroke="#fff"
+              strokeWidth={2.5}
+              paintOrder="stroke"
               style={{ pointerEvents: 'none' }}
             >
               {dev.label || def.name}
@@ -329,7 +332,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
                     onPointerEnter={() => onPortHover?.(dev.instanceId, port.id)}
                     onPointerLeave={() => onPortLeave?.()}
                   />
-                  <text x={px} y={labelY} textAnchor="middle" fontSize={3.2} fontWeight={600} fill="#444" style={{ pointerEvents: 'none' }}>
+                  <text x={px} y={labelY} textAnchor="middle" fontSize={3.2} fontWeight={600} fill="#444" stroke="#fff" strokeWidth={2} paintOrder="stroke" style={{ pointerEvents: 'none' }}>
                     {port.label}
                   </text>
                 </g>

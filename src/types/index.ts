@@ -148,6 +148,20 @@ export type Busbar = {
   connectionPoints: BusbarConnectionPoint[];
 };
 
+// --- Text Annotations ---
+
+export type TextAnnotation = {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  fontSize: number;
+  fontFamily: string;
+  color: string;
+  bold: boolean;
+  italic: boolean;
+};
+
 // --- Panel State ---
 
 export type PlacedModule = {
@@ -173,6 +187,7 @@ export type PanelState = {
   panelIOs: PanelIO[];
   externalDevices: ExternalDevice[];
   busbars: Busbar[];
+  textAnnotations: TextAnnotation[];
 };
 
 // --- Resolved layout for rendering ---

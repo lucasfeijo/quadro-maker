@@ -3,7 +3,8 @@ import { usePanelStore } from '../store/panelStore';
 import { getModuleById } from '../data/modules';
 import { getComponentById } from '../data/components';
 import type { ComponentSpec, PropertySpec } from '../data/components';
-import type { PlacedModule, PanelIOType, BusbarType } from '../types';
+import type { PlacedModule, PanelIOType, BusbarType, TextAnnotation } from '../types';
+import { FONT_OPTIONS } from './TextAnnotationLayer';
 
 const CATEGORY_LABELS: Record<string, string> = {
   breaker: 'Disjuntor',
@@ -247,6 +248,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
   const removeExternalDevice = usePanelStore((s) => s.removeExternalDevice);
   const updateExternalDeviceLabel = usePanelStore((s) => s.updateExternalDeviceLabel);
   const updateInstanceProperty = usePanelStore((s) => s.updateInstanceProperty);
+  const updateLabel = usePanelStore((s) => s.updateLabel);
   const updateBusbarLabel = usePanelStore((s) => s.updateBusbarLabel);
   const updateBusbarType = usePanelStore((s) => s.updateBusbarType);
   const updateBusbarColor = usePanelStore((s) => s.updateBusbarColor);
@@ -254,10 +256,15 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
   const removeBusbar = usePanelStore((s) => s.removeBusbar);
   const addBusbarConnectionPoint = usePanelStore((s) => s.addBusbarConnectionPoint);
   const removeBusbarConnectionPoint = usePanelStore((s) => s.removeBusbarConnectionPoint);
+  const textAnnotations = usePanelStore((s) => s.textAnnotations);
+  const selectedAnnotationId = usePanelStore((s) => s.selectedAnnotationId);
+  const updateTextAnnotation = usePanelStore((s) => s.updateTextAnnotation);
+  const removeTextAnnotation = usePanelStore((s) => s.removeTextAnnotation);
 
   const selectedWire = selectedWireId ? wires.find((w) => w.id === selectedWireId) : null;
   const selectedIO = selectedIOId ? panelIOs.find((io) => io.id === selectedIOId) : null;
   const selectedBusbar = selectedBusbarId ? busbars.find((b) => b.id === selectedBusbarId) : null;
+  const selectedAnnotation = selectedAnnotationId ? textAnnotations.find((a) => a.id === selectedAnnotationId) : null;
 
   const getModuleName = (instanceId: string) => {
     if (instanceId.startsWith('panel-io:')) {
@@ -284,6 +291,108 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
     }
     return instanceId.slice(0, 8);
   };
+
+  if (selectedAnnotation) {
+    return (
+      <div className="properties-panel">
+        <h3>Legenda / Texto</h3>
+        <div className="prop-module-header">
+          <span className="prop-color-dot" style={{ background: selectedAnnotation.color }} />
+          <span className="prop-module-name">{selectedAnnotation.text.slice(0, 30) || 'Texto'}</span>
+        </div>
+        <div className="prop-section">
+          <div className="prop-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
+            <span className="prop-label">Texto</span>
+            <textarea
+              className="prop-input"
+              rows={3}
+              value={selectedAnnotation.text}
+              onChange={(e) => updateTextAnnotation(selectedAnnotation.id, { text: e.target.value })}
+              style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: 12, lineHeight: 1.4 }}
+            />
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Tamanho</span>
+            <input
+              className="prop-input"
+              type="number"
+              min={6}
+              max={72}
+              step={1}
+              value={selectedAnnotation.fontSize}
+              onChange={(e) => updateTextAnnotation(selectedAnnotation.id, { fontSize: Number(e.target.value) || 14 })}
+            />
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Fonte</span>
+            <select
+              className="prop-select"
+              value={FONT_OPTIONS.some(f => f.value === selectedAnnotation.fontFamily) ? selectedAnnotation.fontFamily : selectedAnnotation.fontFamily}
+              onChange={(e) => updateTextAnnotation(selectedAnnotation.id, { fontFamily: e.target.value })}
+            >
+              {FONT_OPTIONS.map((f) => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Cor</span>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <select
+                className="prop-select"
+                style={{ flex: 1 }}
+                value={COLOR_OPTIONS.some(c => c.value === selectedAnnotation.color) ? selectedAnnotation.color : '__custom__'}
+                onChange={(e) => {
+                  if (e.target.value === '__custom__') return;
+                  updateTextAnnotation(selectedAnnotation.id, { color: e.target.value });
+                }}
+              >
+                {COLOR_OPTIONS.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+                {!COLOR_OPTIONS.some(c => c.value === selectedAnnotation.color) && (
+                  <option value="__custom__">Personalizada</option>
+                )}
+              </select>
+              <input
+                type="color"
+                value={selectedAnnotation.color}
+                onChange={(e) => updateTextAnnotation(selectedAnnotation.id, { color: e.target.value })}
+                style={{ width: 28, height: 28, padding: 0, border: '1px solid #555', borderRadius: 4, cursor: 'pointer', background: 'none' }}
+                title="Cor personalizada"
+              />
+            </div>
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Estilo</span>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                className={`toolbar-btn${selectedAnnotation.bold ? ' active' : ''}`}
+                style={{ fontWeight: 700, minWidth: 32, background: selectedAnnotation.bold ? '#e3f2fd' : undefined }}
+                onClick={() => updateTextAnnotation(selectedAnnotation.id, { bold: !selectedAnnotation.bold })}
+              >
+                B
+              </button>
+              <button
+                className={`toolbar-btn${selectedAnnotation.italic ? ' active' : ''}`}
+                style={{ fontStyle: 'italic', minWidth: 32, background: selectedAnnotation.italic ? '#e3f2fd' : undefined }}
+                onClick={() => updateTextAnnotation(selectedAnnotation.id, { italic: !selectedAnnotation.italic })}
+              >
+                I
+              </button>
+            </div>
+          </div>
+        </div>
+        <button
+          className="toolbar-btn danger-action"
+          style={{ marginTop: 8 }}
+          onClick={() => { if (confirm('Remover legenda?')) removeTextAnnotation(selectedAnnotation.id); }}
+        >
+          Remover Legenda
+        </button>
+      </div>
+    );
+  }
 
   if (selectedWire) {
     return (
@@ -732,12 +841,18 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
           <span className="prop-label">Posição</span>
           <span className="prop-value">{placed.positionCm.toFixed(1)} cm</span>
         </div>
-        {placed.label && (
-          <div className="prop-row">
-            <span className="prop-label">Rótulo</span>
-            <span className="prop-value">{placed.label}</span>
-          </div>
-        )}
+        <div className="prop-row">
+          <span className="prop-label">Rótulo</span>
+          <input
+            className="prop-input"
+            value={placed.label ?? ''}
+            placeholder={def.name}
+            onChange={(e) => {
+              const row = rows.find((r) => r.modules.some((m) => m.instanceId === selectedModuleId));
+              if (row) updateLabel(row.id, selectedModuleId, e.target.value);
+            }}
+          />
+        </div>
         <div className="prop-row">
           <span className="prop-label">Fios</span>
           <span className="prop-value">{moduleWires.length}</span>
@@ -753,7 +868,6 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
       )}
       {spec && <ComponentInfoSection spec={spec} />}
       <div className="prop-hint" style={{ marginTop: 8 }}>
-        Dica: Clique duplo no módulo para editar o rótulo.
         Use o modo Fiação para conectar portas.
       </div>
     </div>
