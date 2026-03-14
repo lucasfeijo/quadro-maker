@@ -102,7 +102,7 @@ function BusbarItem({
   onSelect,
 }: BusbarItemProps) {
   const instanceId = `busbar:${bar.id}`;
-  const color = TYPE_COLORS[bar.type];
+  const color = bar.customColor ?? TYPE_COLORS[bar.type];
   const dragRef = useRef<{ startX: number; startY: number; barX: number; barY: number } | null>(null);
   const resizeRef = useRef<{ startX: number; origWidth: number } | null>(null);
   const [hovered, setHovered] = useState(false);

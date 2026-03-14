@@ -55,7 +55,7 @@ interface PanelStore extends PanelState {
   // Panel I/O
   addPanelIO: (direction: PanelIODirection, type: PanelIOType, edge: PanelEdge, positionPercent: number, label?: string) => void;
   removePanelIO: (ioId: string) => void;
-  updatePanelIO: (ioId: string, props: Partial<Pick<PanelIO, 'label' | 'type' | 'voltageV' | 'maxCurrentA' | 'consumptionA'>>) => void;
+  updatePanelIO: (ioId: string, props: Partial<Pick<PanelIO, 'label' | 'type' | 'voltageV' | 'maxCurrentA' | 'consumptionA' | 'customColor'>>) => void;
   movePanelIO: (ioId: string, edge: PanelEdge, positionPercent: number) => void;
   selectIO: (ioId: string | null) => void;
   selectBusbar: (id: string | null) => void;
@@ -77,6 +77,7 @@ interface PanelStore extends PanelState {
   removeBusbar: (id: string) => void;
   updateBusbarLabel: (id: string, label: string) => void;
   updateBusbarType: (id: string, type: BusbarType) => void;
+  updateBusbarColor: (id: string, customColor: string | undefined) => void;
   addBusbarConnectionPoint: (busbarId: string) => void;
   removeBusbarConnectionPoint: (busbarId: string, pointId: string) => void;
   moveBusbarConnectionPoint: (busbarId: string, pointId: string, offsetPercent: number) => void;
@@ -533,6 +534,9 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
 
   updateBusbarType: (id, type) =>
     set((s) => ({ busbars: s.busbars.map((b) => (b.id === id ? { ...b, type } : b)) })),
+
+  updateBusbarColor: (id, customColor) =>
+    set((s) => ({ busbars: s.busbars.map((b) => (b.id === id ? { ...b, customColor } : b)) })),
 
   addBusbarConnectionPoint: (busbarId) =>
     set((s) => ({

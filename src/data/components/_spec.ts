@@ -15,7 +15,7 @@ export interface ModeSpec {
 export interface PropertySpec {
   key: string;
   label: string;
-  type: 'number' | 'select';
+  type: 'number' | 'select' | 'color';
   options?: Array<{ value: number | string; label: string }>;
   defaultValue: number | string;
 }

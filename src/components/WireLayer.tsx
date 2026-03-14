@@ -15,6 +15,11 @@ const WIRE_COLORS: Record<string, string> = {
   any: '#ff9800',
 };
 
+function gaugeToStrokeWidth(gaugeMm2: number | undefined): number {
+  if (!gaugeMm2) return 0.5;
+  return Math.min(0.4 + Math.sqrt(gaugeMm2) * 0.15, 1.8);
+}
+
 const OBSTACLE_MARGIN = 3;
 const CHANNEL_SPACING = 1.5;
 const BRIDGE_RADIUS = 2;
@@ -47,6 +52,7 @@ interface ObstacleRect {
 
 type Point = { x: number; y: number };
 type VerticalSegment = { x: number; yMin: number; yMax: number };
+type HorizontalSegment = { y: number; xMin: number; xMax: number };
 
 interface Segment {
   x1: number;
@@ -229,50 +235,60 @@ function verticalSegmentClear(
 
 // --- Channel finding ---
 
+function overlapsHorizontally(
+  y1: number, xMin1: number, xMax1: number,
+  y2: number, xMin2: number, xMax2: number,
+  yTol: number,
+): boolean {
+  if (Math.abs(y1 - y2) >= yTol) return false;
+  return xMax1 > xMin2 && xMin1 < xMax2;
+}
+
 function findClearChannel(
   srcX: number, tgtX: number, idealMidY: number,
-  obstacles: ObstacleRect[], usedChannels: Map<number, number>,
+  obstacles: ObstacleRect[],
+  placedHorizontalSegments: HorizontalSegment[],
 ): number {
-  const applyOffset = (y: number): number => {
-    const key = Math.round(y);
-    const count = usedChannels.get(key) ?? 0;
-    usedChannels.set(key, count + 1);
-    return y + count * CHANNEL_SPACING;
-  };
-
-  if (horizontalSegmentClear(idealMidY, srcX, tgtX, obstacles, OBSTACLE_MARGIN)) {
-    return applyOffset(idealMidY);
-  }
-
   const xMin = Math.min(srcX, tgtX);
   const xMax = Math.max(srcX, tgtX);
+  const yTol = CHANNEL_SPACING + 0.5;
+
+  const tryY = (y: number): boolean => {
+    if (!horizontalSegmentClear(y, srcX, tgtX, obstacles, OBSTACLE_MARGIN)) return false;
+    return !placedHorizontalSegments.some(s =>
+      overlapsHorizontally(y, xMin, xMax, s.y, s.xMin, s.xMax, yTol),
+    );
+  };
+
+  const useAndRecord = (y: number): number => {
+    placedHorizontalSegments.push({ y, xMin, xMax });
+    return y;
+  };
+
+  if (tryY(idealMidY)) return useAndRecord(idealMidY);
+
   const blocking = obstacles.filter(r =>
     xMax > r.x - OBSTACLE_MARGIN && xMin < r.x + r.w + OBSTACLE_MARGIN,
   );
 
-  if (blocking.length === 0) return applyOffset(idealMidY);
-
-  const topY = Math.min(...blocking.map(r => r.y)) - OBSTACLE_MARGIN;
-  const botY = Math.max(...blocking.map(r => r.y + r.h)) + OBSTACLE_MARGIN;
-  const candidates = [topY, botY].sort((a, b) =>
-    Math.abs(a - idealMidY) - Math.abs(b - idealMidY),
-  );
-
-  for (const y of candidates) {
-    if (horizontalSegmentClear(y, srcX, tgtX, obstacles, OBSTACLE_MARGIN)) {
-      return applyOffset(y);
+  if (blocking.length > 0) {
+    const topY = Math.min(...blocking.map(r => r.y)) - OBSTACLE_MARGIN;
+    const botY = Math.max(...blocking.map(r => r.y + r.h)) + OBSTACLE_MARGIN;
+    const candidates = [topY, botY].sort((a, b) =>
+      Math.abs(a - idealMidY) - Math.abs(b - idealMidY),
+    );
+    for (const y of candidates) {
+      if (tryY(y)) return useAndRecord(y);
     }
   }
 
   for (let delta = 1; delta <= 50; delta++) {
-    for (const y of [idealMidY - delta * 2, idealMidY + delta * 2]) {
-      if (horizontalSegmentClear(y, srcX, tgtX, obstacles, OBSTACLE_MARGIN)) {
-        return applyOffset(y);
-      }
+    for (const y of [idealMidY - delta * CHANNEL_SPACING, idealMidY + delta * CHANNEL_SPACING]) {
+      if (tryY(y)) return useAndRecord(y);
     }
   }
 
-  return applyOffset(idealMidY);
+  return useAndRecord(idealMidY);
 }
 
 function overlapsVertically(
@@ -372,7 +388,7 @@ function resolveHorizontalPort(port: PortPosition, other: PortPosition): { resol
 function buildSmartRoute(
   src: PortPosition, tgt: PortPosition,
   obstacles: ObstacleRect[],
-  usedChannels: Map<number, number>,
+  horizontalSegments: HorizontalSegment[],
   verticalSegments: VerticalSegment[],
 ): Point[] {
   let srcStub: Point[] = [];
@@ -398,7 +414,7 @@ function buildSmartRoute(
   const tgtExtY = eTgt.y + tgtExtend;
 
   const idealMidY = (srcExtY + tgtExtY) / 2;
-  let midY = findClearChannel(eSrc.x, eTgt.x, idealMidY, obstacles, usedChannels);
+  let midY = findClearChannel(eSrc.x, eTgt.x, idealMidY, obstacles, horizontalSegments);
 
   // Clamp so the wire never backtracks past the source extension
   if (srcExtend > 0 && midY < srcExtY) midY = srcExtY;
@@ -480,6 +496,42 @@ function pointsToSegments(points: Point[]): Segment[] {
 
 function pointsToPathString(points: Point[]): string {
   return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+}
+
+function WireLabel({ points, label, color }: { points: Point[]; label: string; color: string }) {
+  let bestLen = 0;
+  let bestMid = points[0];
+  let bestAngle = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const dx = points[i + 1].x - points[i].x;
+    const dy = points[i + 1].y - points[i].y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > bestLen) {
+      bestLen = len;
+      bestMid = { x: (points[i].x + points[i + 1].x) / 2, y: (points[i].y + points[i + 1].y) / 2 };
+      bestAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+    }
+  }
+  if (bestAngle > 90) bestAngle -= 180;
+  if (bestAngle < -90) bestAngle += 180;
+  const isVertical = Math.abs(bestAngle) > 45;
+  const offsetX = isVertical ? 2.5 : 0;
+  const offsetY = isVertical ? 0 : -1.5;
+  return (
+    <text
+      x={bestMid.x + offsetX}
+      y={bestMid.y + offsetY}
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={2.8}
+      fontWeight={600}
+      fill={color}
+      transform={`rotate(${bestAngle}, ${bestMid.x + offsetX}, ${bestMid.y + offsetY})`}
+      style={{ pointerEvents: 'none', userSelect: 'none' }}
+    >
+      {label}
+    </text>
+  );
 }
 
 // --- Crossing detection ---
@@ -891,7 +943,7 @@ export const WireLayer: React.FC<Props> = ({
 
   // ---- Smart route computation ----
 
-  const usedChannels = new Map<number, number>();
+  const horizontalSegments: HorizontalSegment[] = [];
   const verticalSegments: VerticalSegment[] = [];
 
   const computedWires: Array<{
@@ -924,7 +976,7 @@ export const WireLayer: React.FC<Props> = ({
         ),
         ...allPortObstacles.filter(r => !wireEndpoints.has(r.instanceId)),
       ];
-      points = buildSmartRoute(src, tgt, obstacles, usedChannels, verticalSegments);
+      points = buildSmartRoute(src, tgt, obstacles, horizontalSegments, verticalSegments);
     }
 
     computedWires.push({ wire, src, tgt, points, hasWaypoints });
@@ -973,6 +1025,7 @@ export const WireLayer: React.FC<Props> = ({
         const baseColor = wire.wireColor ?? WIRE_COLORS[src.type] ?? '#333';
         const color = isEnergized ? '#ffab00' : baseColor;
         const isGround = src.type === 'ground' || tgt.type === 'ground';
+        const baseWidth = gaugeToStrokeWidth(wire.wireGaugeMm2);
         const waypoints = wire.waypoints ?? [];
 
         return (
@@ -1025,7 +1078,7 @@ export const WireLayer: React.FC<Props> = ({
                 d={displayPath}
                 fill="none"
                 stroke="#ffab00"
-                strokeWidth={2}
+                strokeWidth={baseWidth + 1.5}
                 opacity={0.25}
                 style={{ pointerEvents: 'none' }}
               />
@@ -1035,11 +1088,15 @@ export const WireLayer: React.FC<Props> = ({
               d={displayPath}
               fill="none"
               stroke={isSelected ? '#ffd600' : color}
-              strokeWidth={isSelected ? 0.8 : isEnergized ? 0.7 : 0.5}
+              strokeWidth={isSelected ? Math.max(baseWidth, 0.8) : isEnergized ? Math.max(baseWidth, 0.7) : baseWidth}
               strokeDasharray={isGround ? '1.5 0.8' : 'none'}
               opacity={0.9}
               style={{ pointerEvents: 'none' }}
             />
+
+            {wire.label && (
+              <WireLabel points={points} label={wire.label} color={baseColor} />
+            )}
 
             {isSelected && waypoints.map((wp, i) => (
               <circle

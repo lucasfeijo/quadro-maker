@@ -27,6 +27,11 @@ const COLOR_OPTIONS = [
   { value: '#4caf50', label: 'Verde/Amarelo (Terra)' },
   { value: '#ff9800', label: 'Laranja' },
   { value: '#9c27b0', label: 'Roxo' },
+  { value: '#ffffff', label: 'Branco' },
+  { value: '#607d8b', label: 'Cinza' },
+  { value: '#e91e63', label: 'Rosa' },
+  { value: '#00bcd4', label: 'Ciano' },
+  { value: '#ffeb3b', label: 'Amarelo' },
 ];
 
 const IO_TYPE_OPTIONS: { value: PanelIOType; label: string }[] = [
@@ -37,6 +42,15 @@ const IO_TYPE_OPTIONS: { value: PanelIOType; label: string }[] = [
   { value: 'dc_neg', label: 'DC-' },
   { value: 'signal', label: 'Sinal' },
 ];
+
+const IO_TYPE_COLORS: Record<PanelIOType, string> = {
+  phase: '#d32f2f',
+  neutral: '#1565c0',
+  ground: '#2e7d32',
+  dc_pos: '#c62828',
+  dc_neg: '#1a237e',
+  signal: '#f57c00',
+};
 
 const BUSBAR_TYPE_OPTIONS: { value: BusbarType; label: string }[] = [
   { value: 'phase', label: 'Fase' },
@@ -153,7 +167,33 @@ function PropertyEditorSection({
           return (
             <div key={prop.key} className="prop-row">
               <span className="prop-label">{prop.label}</span>
-              {prop.type === 'select' && prop.options ? (
+              {prop.type === 'color' && prop.options ? (
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <select
+                    className="prop-input"
+                    style={{ flex: 1 }}
+                    value={prop.options.some(o => String(o.value) === String(currentValue)) ? String(currentValue) : '__custom__'}
+                    onChange={(e) => {
+                      if (e.target.value === '__custom__') return;
+                      onUpdate(instanceId, prop.key, e.target.value);
+                    }}
+                  >
+                    {prop.options.map((opt) => (
+                      <option key={String(opt.value)} value={String(opt.value)}>{opt.label}</option>
+                    ))}
+                    {!prop.options.some(o => String(o.value) === String(currentValue)) && (
+                      <option value="__custom__">Personalizada</option>
+                    )}
+                  </select>
+                  <input
+                    type="color"
+                    value={String(currentValue)}
+                    onChange={(e) => onUpdate(instanceId, prop.key, e.target.value)}
+                    style={{ width: 28, height: 28, padding: 0, border: '1px solid #555', borderRadius: 4, cursor: 'pointer', background: 'none' }}
+                    title="Cor personalizada"
+                  />
+                </div>
+              ) : prop.type === 'select' && prop.options ? (
                 <select
                   className="prop-input"
                   value={String(currentValue)}
@@ -209,6 +249,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
   const updateInstanceProperty = usePanelStore((s) => s.updateInstanceProperty);
   const updateBusbarLabel = usePanelStore((s) => s.updateBusbarLabel);
   const updateBusbarType = usePanelStore((s) => s.updateBusbarType);
+  const updateBusbarColor = usePanelStore((s) => s.updateBusbarColor);
   const resizeBusbar = usePanelStore((s) => s.resizeBusbar);
   const removeBusbar = usePanelStore((s) => s.removeBusbar);
   const addBusbarConnectionPoint = usePanelStore((s) => s.addBusbarConnectionPoint);
@@ -272,16 +313,33 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
           </div>
           <div className="prop-row">
             <span className="prop-label">Cor</span>
-            <select
-              className="prop-select"
-              value={selectedWire.wireColor ?? ''}
-              onChange={(e) => updateWireProps(selectedWire.id, { wireColor: e.target.value || undefined })}
-            >
-              <option value="">Auto</option>
-              {COLOR_OPTIONS.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <select
+                className="prop-select"
+                style={{ flex: 1 }}
+                value={COLOR_OPTIONS.some(c => c.value === selectedWire.wireColor) ? (selectedWire.wireColor ?? '') : (selectedWire.wireColor ? '__custom__' : '')}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '__custom__') return;
+                  updateWireProps(selectedWire.id, { wireColor: v || undefined });
+                }}
+              >
+                <option value="">Auto</option>
+                {COLOR_OPTIONS.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+                {selectedWire.wireColor && !COLOR_OPTIONS.some(c => c.value === selectedWire.wireColor) && (
+                  <option value="__custom__">Personalizada</option>
+                )}
+              </select>
+              <input
+                type="color"
+                value={selectedWire.wireColor || '#333333'}
+                onChange={(e) => updateWireProps(selectedWire.id, { wireColor: e.target.value })}
+                style={{ width: 28, height: 28, padding: 0, border: '1px solid #555', borderRadius: 4, cursor: 'pointer', background: 'none' }}
+                title="Cor personalizada"
+              />
+            </div>
           </div>
           <div className="prop-row">
             <span className="prop-label">Rótulo</span>
@@ -339,12 +397,41 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
             <select
               className="prop-select"
               value={selectedIO.type}
-              onChange={(e) => updatePanelIO(selectedIO.id, { type: e.target.value as PanelIOType })}
+              onChange={(e) => updatePanelIO(selectedIO.id, { type: e.target.value as PanelIOType, customColor: undefined })}
             >
               {IO_TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Cor</span>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <select
+                className="prop-select"
+                style={{ flex: 1 }}
+                value={selectedIO.customColor ? '__custom__' : selectedIO.type}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '__custom__') return;
+                  updatePanelIO(selectedIO.id, { customColor: undefined });
+                }}
+              >
+                {IO_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label} (padrão)</option>
+                ))}
+                {selectedIO.customColor && (
+                  <option value="__custom__">Personalizada</option>
+                )}
+              </select>
+              <input
+                type="color"
+                value={selectedIO.customColor ?? IO_TYPE_COLORS[selectedIO.type]}
+                onChange={(e) => updatePanelIO(selectedIO.id, { customColor: e.target.value })}
+                style={{ width: 28, height: 28, padding: 0, border: '1px solid #555', borderRadius: 4, cursor: 'pointer', background: 'none' }}
+                title="Cor personalizada"
+              />
+            </div>
           </div>
           <div className="prop-row">
             <span className="prop-label">Direção</span>
@@ -413,7 +500,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
       <div className="properties-panel">
         <h3>Barramento</h3>
         <div className="prop-module-header">
-          <span className="prop-color-dot" style={{ background: BUSBAR_TYPE_COLORS[selectedBusbar.type] }} />
+          <span className="prop-color-dot" style={{ background: selectedBusbar.customColor ?? BUSBAR_TYPE_COLORS[selectedBusbar.type] }} />
           <span className="prop-module-name">{selectedBusbar.label || BUSBAR_TYPE_OPTIONS.find((o) => o.value === selectedBusbar.type)?.label}</span>
         </div>
         <div className="prop-section">
@@ -437,6 +524,36 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Cor</span>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <select
+                className="prop-select"
+                style={{ flex: 1 }}
+                value={selectedBusbar.customColor ? '__custom__' : selectedBusbar.type}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '__custom__') return;
+                  updateBusbarColor(selectedBusbar.id, undefined);
+                  updateBusbarType(selectedBusbar.id, v as BusbarType);
+                }}
+              >
+                {BUSBAR_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label} ({BUSBAR_TYPE_COLORS[o.value]})</option>
+                ))}
+                {selectedBusbar.customColor && (
+                  <option value="__custom__">Personalizada</option>
+                )}
+              </select>
+              <input
+                type="color"
+                value={selectedBusbar.customColor ?? BUSBAR_TYPE_COLORS[selectedBusbar.type]}
+                onChange={(e) => updateBusbarColor(selectedBusbar.id, e.target.value)}
+                style={{ width: 28, height: 28, padding: 0, border: '1px solid #555', borderRadius: 4, cursor: 'pointer', background: 'none' }}
+                title="Cor personalizada"
+              />
+            </div>
           </div>
           <div className="prop-row">
             <span className="prop-label">Largura (px)</span>

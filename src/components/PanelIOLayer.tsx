@@ -98,7 +98,7 @@ export const PanelIOLayer: React.FC<Props> = ({
     <g className="panel-io-layer">
       {panelIOs.map((io) => {
         const pos = getIOPosition(io, svgWidth, svgHeight);
-        const color = IO_COLORS[io.type] ?? '#999';
+        const color = io.customColor ?? IO_COLORS[io.type] ?? '#999';
         const isSelected = io.id === selectedIOId;
         const instanceId = `panel-io:${io.id}`;
         const portId = 'port';

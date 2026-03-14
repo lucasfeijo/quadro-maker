@@ -103,6 +103,7 @@ export type PanelIO = {
   voltageV?: number;
   maxCurrentA?: number;
   consumptionA?: number;
+  customColor?: string;
 };
 
 // --- Simulation ---
@@ -143,6 +144,7 @@ export type Busbar = {
   widthPx: number;
   type: BusbarType;
   label?: string;
+  customColor?: string;
   connectionPoints: BusbarConnectionPoint[];
 };
 

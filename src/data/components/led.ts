@@ -31,7 +31,7 @@ const component: ComponentSpec = {
   ],
   defaultMode: 'off',
   properties: [
-    { key: 'ledColor', label: 'Cor do LED', type: 'select', options: LED_COLOR_OPTIONS, defaultValue: '#f44336' },
+    { key: 'ledColor', label: 'Cor do LED', type: 'color', options: LED_COLOR_OPTIONS, defaultValue: '#f44336' },
   ],
   behavior: (ctx) => {
     if (ctx.isManualOverride) return;
