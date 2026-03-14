@@ -8,6 +8,7 @@ import { DinRail } from './DinRail';
 import { WireLayer } from './WireLayer';
 import { PanelIOLayer } from './PanelIOLayer';
 import { ExternalDeviceLayer, getExternalDeviceBounds } from './ExternalDeviceLayer';
+import { BusbarLayer } from './BusbarLayer';
 import { getIOPosition } from '../utils/panelIO';
 import type { GhostPreview, ComponentState } from '../types';
 
@@ -678,6 +679,15 @@ export const PanelView: React.FC<PanelViewProps> = ({
           onPortLeave={onPortLeave}
           simStates={simActive ? simStates : undefined}
           onSimModeChange={simActive ? onSimModeChange : undefined}
+        />
+
+        {/* Busbars */}
+        <BusbarLayer
+          onPortClick={onPortClick}
+          onPortMouseDown={onPortMouseDown}
+          onPortMouseUp={onPortMouseUp}
+          onPortHover={onPortHover}
+          onPortLeave={onPortLeave}
         />
 
         {/* Wires — rendered on top so they stay clickable when passing through switches/buttons */}

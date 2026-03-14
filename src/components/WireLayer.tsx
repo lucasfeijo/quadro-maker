@@ -5,6 +5,7 @@ import { cmToPx } from '../utils/geometry';
 import { usePanelStore } from '../store/panelStore';
 import { getIOPortPosition } from '../utils/panelIO';
 import { getExternalDevicePortPosition } from './ExternalDeviceLayer';
+import { getBusbarPortPosition } from './BusbarLayer';
 
 const MODULE_HEIGHT_CM = 7;
 const WIRE_COLORS: Record<string, string> = {
@@ -551,6 +552,7 @@ export const WireLayer: React.FC<Props> = ({
   const wires = usePanelStore((s) => s.wires);
   const panelIOs = usePanelStore((s) => s.panelIOs);
   const externalDevices = usePanelStore((s) => s.externalDevices);
+  const busbars = usePanelStore((s) => s.busbars);
   const wiringFrom = usePanelStore((s) => s.wiringFrom);
   const addWireWaypoint = usePanelStore((s) => s.addWireWaypoint);
   const addWireWaypointFromPath = usePanelStore((s) => s.addWireWaypointFromPath);
@@ -586,6 +588,15 @@ export const WireLayer: React.FC<Props> = ({
       const edgeSide: 'top' | 'bottom' | undefined =
         io.edge === 'top' ? 'top' : io.edge === 'bottom' ? 'bottom' : undefined;
       return { ...pos, side: edgeSide };
+    }
+    if (instanceId.startsWith('busbar:')) {
+      const busbarId = instanceId.replace('busbar:', '');
+      const bar = busbars.find((b) => b.id === busbarId);
+      if (!bar) return null;
+      const pos = getBusbarPortPosition(bar, portId);
+      if (!pos) return null;
+      const typeMap: Record<string, string> = { phase: 'phase', neutral: 'neutral', ground: 'ground' };
+      return { x: pos.x, y: pos.y, type: typeMap[bar.type] ?? 'any', side: 'top' };
     }
     const extDev = externalDevices.find((d) => d.instanceId === instanceId);
     if (extDev) {

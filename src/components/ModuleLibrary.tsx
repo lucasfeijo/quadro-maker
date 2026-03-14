@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { MODULE_DEFINITIONS, isExternalModule } from '../data/modules';
-import { ModuleCategory, PanelIODirection, PanelIOType, PanelEdge } from '../types';
+import { ModuleCategory, PanelIODirection, PanelIOType, PanelEdge, BusbarType } from '../types';
 import { useDraggable } from '@dnd-kit/core';
 import { usePanelStore } from '../store/panelStore';
 import { ModuleIcon } from './ModuleIcon';
@@ -114,6 +114,35 @@ function IOItem({ direction, type, defaultEdge, label, color, abbr }: typeof IO_
 
 const EXTERNAL_MODULES = MODULE_DEFINITIONS.filter((m) => isExternalModule(m.id));
 
+const BUSBAR_ITEMS: { type: BusbarType; label: string; color: string; abbr: string }[] = [
+  { type: 'phase', label: 'Barramento Fase', color: '#d32f2f', abbr: 'F' },
+  { type: 'neutral', label: 'Barramento Neutro', color: '#1565c0', abbr: 'N' },
+  { type: 'ground', label: 'Barramento Terra', color: '#2e7d32', abbr: 'PE' },
+];
+
+function BusbarItem({ type, label, color, abbr }: typeof BUSBAR_ITEMS[number]) {
+  const addBusbar = usePanelStore((s) => s.addBusbar);
+
+  const handleClick = () => {
+    addBusbar(type, -50, -20);
+  };
+
+  return (
+    <div className="library-item io-item" style={{ borderLeftColor: color }} onClick={handleClick}>
+      <div
+        className="library-item-icon"
+        style={{ background: color, borderRadius: 4, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700 }}
+      >
+        {abbr}
+      </div>
+      <div className="library-item-info">
+        <span className="library-item-name">{label}</span>
+        <span className="library-item-size">Clique para adicionar</span>
+      </div>
+    </div>
+  );
+}
+
 function ExternalDeviceItem({ moduleId, name, color }: { moduleId: string; name: string; color: string }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `library-ext-${moduleId}`,
@@ -215,8 +244,14 @@ export const ModuleLibrary: React.FC = () => {
     [matchesFilter],
   );
 
+  const filteredBusbars = useMemo(
+    () => BUSBAR_ITEMS.filter((b) => matchesFilter(b.label)),
+    [matchesFilter],
+  );
+
   const hasIO = filteredInputIO.length > 0 || filteredOutputIO.length > 0;
   const hasExternal = filteredExternal.length > 0;
+  const hasBusbars = filteredBusbars.length > 0;
 
   return (
     <div className="module-library">
@@ -259,6 +294,13 @@ export const ModuleLibrary: React.FC = () => {
         ))}
       </CollapsibleGroup>
 
+      {hasBusbars && <h3 style={{ marginTop: 20 }}>Barramentos</h3>}
+      <CollapsibleGroup label="Barramentos" visible={hasBusbars} defaultOpen>
+        {filteredBusbars.map((item) => (
+          <BusbarItem key={item.type} {...item} />
+        ))}
+      </CollapsibleGroup>
+
       {hasExternal && <h3 style={{ marginTop: 20 }}>Dispositivos Externos</h3>}
       <CollapsibleGroup label="Dispositivos" visible={hasExternal} defaultOpen>
         {filteredExternal.map((mod) => (
@@ -266,7 +308,7 @@ export const ModuleLibrary: React.FC = () => {
         ))}
       </CollapsibleGroup>
 
-      {q && grouped.length === 0 && !hasIO && !hasExternal && (
+      {q && grouped.length === 0 && !hasIO && !hasExternal && !hasBusbars && (
         <div style={{ color: '#888', fontSize: 12, textAlign: 'center', marginTop: 24 }}>
           Nenhum componente encontrado.
         </div>
