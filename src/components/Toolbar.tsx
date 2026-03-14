@@ -30,6 +30,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
         rows: store.rows,
         wires: store.wires,
         panelIOs: store.panelIOs,
+        externalDevices: store.externalDevices,
+        busbars: store.busbars,
       },
       projectId ?? undefined,
     );
@@ -67,6 +69,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
       wires: store.wires,
       panelIOs: store.panelIOs,
       externalDevices: store.externalDevices,
+      busbars: store.busbars,
     });
   };
 

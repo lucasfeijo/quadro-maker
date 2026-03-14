@@ -98,6 +98,7 @@ function getSavableSnapshot(s: PanelStore): string {
     rows: s.rows,
     wires: s.wires,
     panelIOs: s.panelIOs,
+    externalDevices: s.externalDevices,
     busbars: s.busbars,
   };
   return JSON.stringify(snap);
@@ -572,27 +573,23 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   setName: (name) => set({ name }),
 
   loadState: (state) => {
-    lastSavedSnapshot = JSON.stringify({
-      name: state.name,
-      enclosureId: state.enclosureId,
-      widthUnits: state.widthUnits,
-      rowCount: state.rowCount,
-      rows: state.rows,
-      wires: state.wires ?? [],
-      panelIOs: state.panelIOs ?? [],
-    });
-    set({
-      screen: 'editor',
+    const normalizedExtDevices = (state.externalDevices ?? []).map((d: any) => ({
+      ...d,
+      x: d.x ?? 0,
+      y: d.y ?? -40,
+    }));
+    const normalized = {
       ...state,
       wires: state.wires ?? [],
       panelIOs: state.panelIOs ?? [],
       busbars: state.busbars ?? [],
-      externalDevices: (state.externalDevices ?? []).map((d: any) => ({
-        ...d,
-        x: d.x ?? 0,
-        y: d.y ?? -(d.yPercent != null ? 40 : 40),
-      })),
+      externalDevices: normalizedExtDevices,
+    };
+    set({
+      screen: 'editor',
+      ...normalized,
     });
+    lastSavedSnapshot = getSavableSnapshot(get());
   },
 
   resizePanel: (widthUnits, rowCount) =>

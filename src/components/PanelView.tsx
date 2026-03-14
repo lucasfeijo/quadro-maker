@@ -532,36 +532,13 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const marqueeDisplay = marquee ? marqueeToRect(marquee) : null;
 
   return (
-    <div
-      ref={containerRef}
-      className="panel-view-container"
-      onClick={handleClearSelection}
-    >
-      <div className="history-controls">
-        <button
-          onClick={onUndo}
-          title="Desfazer (Ctrl+Z)"
-          disabled={!canUndo}
-          aria-label="Desfazer"
-        >
-          ↶
-        </button>
-        <button
-          onClick={onRedo}
-          title="Refazer (Ctrl+Y)"
-          disabled={!canRedo}
-          aria-label="Refazer"
-        >
-          ↷
-        </button>
-      </div>
-      <div className="zoom-controls">
-        <button onClick={() => setZoom((z) => clampZoom(z - 0.2))}>-</button>
-        <span>{Math.round(zoom * 100)}%</span>
-        <button onClick={() => setZoom((z) => clampZoom(z + 0.2))}>+</button>
-        <button onClick={fitToContainer} title="Ajustar ao container">⊡</button>
-      </div>
-      <div className="panel-view-inner">
+    <div className="panel-view-wrapper">
+      <div
+        ref={containerRef}
+        className="panel-view-container"
+        onClick={handleClearSelection}
+      >
+        <div className="panel-view-inner">
       <svg
         ref={svgRef}
         width={vb.w * zoom}
@@ -728,6 +705,33 @@ export const PanelView: React.FC<PanelViewProps> = ({
           />
         )}
       </svg>
+      </div>
+      </div>
+      <div className="panel-view-hud">
+        <div className="history-controls">
+          <button
+            onClick={onUndo}
+            title="Desfazer (Ctrl+Z)"
+            disabled={!canUndo}
+            aria-label="Desfazer"
+          >
+            ↶
+          </button>
+          <button
+            onClick={onRedo}
+            title="Refazer (Ctrl+Y)"
+            disabled={!canRedo}
+            aria-label="Refazer"
+          >
+            ↷
+          </button>
+        </div>
+        <div className="zoom-controls">
+          <button onClick={() => setZoom((z) => clampZoom(z - 0.2))}>-</button>
+          <span>{Math.round(zoom * 100)}%</span>
+          <button onClick={() => setZoom((z) => clampZoom(z + 0.2))}>+</button>
+          <button onClick={fitToContainer} title="Ajustar ao container">⊡</button>
+        </div>
       </div>
     </div>
   );
