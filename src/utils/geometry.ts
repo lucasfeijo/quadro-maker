@@ -3,8 +3,10 @@ import { getModuleById } from '../data/modules';
 
 export const PX_PER_CM = 10;
 
+const SNAP_STEP_CM = 0.1;
+
 export function snapToCm(valueCm: number): number {
-  return Math.round(valueCm);
+  return Math.round(valueCm / SNAP_STEP_CM) * SNAP_STEP_CM;
 }
 
 export function pxToCm(px: number): number {
@@ -59,4 +61,46 @@ export function canPlace(
     positionCm + widthCm,
     excludeInstanceId,
   );
+}
+
+/**
+ * If the desired position overlaps a neighbor, clamp to the nearest
+ * edge so the module "sticks" next to it instead of being rejected.
+ */
+export function clampToNeighbors(
+  modules: PlacedModule[],
+  desiredCm: number,
+  widthCm: number,
+  usableWidthCm: number,
+  excludeInstanceId?: string,
+): number {
+  let pos = desiredCm;
+  const newEnd = pos + widthCm;
+
+  const neighbors = modules
+    .filter((m) => !excludeInstanceId || m.instanceId !== excludeInstanceId)
+    .map((m) => getModuleRange(m))
+    .filter((r): r is { start: number; end: number } => r !== null);
+
+  for (const nb of neighbors) {
+    const oStart = pos;
+    const oEnd = pos + widthCm;
+    if (oStart < nb.end && oEnd > nb.start) {
+      const snapLeft = nb.start - widthCm;
+      const snapRight = nb.end;
+      if (Math.abs(snapLeft - desiredCm) <= Math.abs(snapRight - desiredCm)) {
+        pos = snapLeft;
+      } else {
+        pos = snapRight;
+      }
+    }
+  }
+
+  pos = Math.max(0, Math.min(pos, usableWidthCm - widthCm));
+  pos = snapToCm(pos);
+
+  if (canPlace(modules, pos, widthCm, usableWidthCm, excludeInstanceId)) {
+    return pos;
+  }
+  return desiredCm;
 }

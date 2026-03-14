@@ -135,3 +135,26 @@ export function sourcePriorityBehavior(
     if (ctx.currentMode !== fallbackMode) return { mode: fallbackMode };
   };
 }
+
+/** Comportamento para relés de proteção que monitoram fases (ex: falta de fase).
+ * Quando todas as fases indicadas estão energizadas → modo "on".
+ * Quando alguma falta → modo "off". */
+export function phaseMonitorBehavior(
+  phasePorts: string[],
+  okMode: string,
+  faultMode: string,
+): ComponentBehavior {
+  return (ctx) => {
+    if (ctx.isManualOverride) return;
+    const allPhasesOk = phasePorts.every((p) => ctx.isPortEnergized(p));
+    const target = allPhasesOk ? okMode : faultMode;
+    if (target !== ctx.currentMode) {
+      return {
+        mode: target,
+        alerts: !allPhasesOk
+          ? [{ type: 'tripped' as const, message: 'Relé disparou: falta de fase detectada' }]
+          : undefined,
+      };
+    }
+  };
+}

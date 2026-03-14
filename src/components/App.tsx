@@ -21,7 +21,7 @@ import { SchematicView } from './SchematicView';
 import { SimulationOverlay } from './SimulationView';
 import { getModuleById } from '../data/modules';
 import type { ComponentState, PanelState } from '../types';
-import { snapToCm, pxToCm, canPlace } from '../utils/geometry';
+import { snapToCm, pxToCm, canPlace, clampToNeighbors } from '../utils/geometry';
 import { resolveLayout } from '../utils/panelLayout';
 import type { ResolvedRail, GhostPreview } from '../types';
 
@@ -343,8 +343,13 @@ export const App: React.FC = () => {
       const row = store.rows.find((r) => r.id === overData.rowId);
       if (!row) return;
 
-      const positionCm = computeSnapPosition(event, rail, def.widthCm);
+      let positionCm = computeSnapPosition(event, rail, def.widthCm);
       const excludeId = isPlaced ? (data.instanceId as string) : undefined;
+
+      if (!canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, excludeId)) {
+        positionCm = clampToNeighbors(row.modules, positionCm, def.widthCm, rail.usableWidthCm, excludeId);
+      }
+
       const valid = canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, excludeId);
 
       setGhostPreview({
@@ -426,6 +431,10 @@ export const App: React.FC = () => {
         positionCm = Math.max(0, Math.min(positionCm, rail.usableWidthCm - def.widthCm));
         positionCm = snapToCm(positionCm);
 
+        if (!canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, placedInfo.instanceId)) {
+          positionCm = clampToNeighbors(row.modules, positionCm, def.widthCm, rail.usableWidthCm, placedInfo.instanceId);
+        }
+
         if (canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, placedInfo.instanceId)) {
           store.moveModule(
             placedInfo.rowId,
@@ -455,6 +464,10 @@ export const App: React.FC = () => {
 
       positionCm = Math.max(0, Math.min(positionCm, rail.usableWidthCm - def.widthCm));
       positionCm = snapToCm(positionCm);
+
+      if (!canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm)) {
+        positionCm = clampToNeighbors(row.modules, positionCm, def.widthCm, rail.usableWidthCm);
+      }
 
       if (canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm)) {
         store.addModule(overData.rowId, moduleId, positionCm);
