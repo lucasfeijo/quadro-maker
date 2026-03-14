@@ -244,7 +244,22 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
                 <circle cx={bx + boxW / 2} cy={by + BOX_H - 4} r={1} fill="white" />
               </g>
             )}
-            {def.category === 'button' && (
+            {def.id === 'led' && (() => {
+              const ledColor = (dev.properties?.ledColor as string) || '#f44336';
+              const simState = simStates?.find((s) => s.instanceId === dev.instanceId);
+              const isOn = simState?.mode === 'on';
+              const cx = bx + boxW / 2;
+              const cy = by + BOX_H / 2;
+              const r = Math.min(boxW, BOX_H) * 0.3;
+              return (
+                <g style={{ pointerEvents: 'none' }}>
+                  {isOn && <circle cx={cx} cy={cy} r={r + 3} fill={ledColor} opacity={0.25} />}
+                  <circle cx={cx} cy={cy} r={r} fill={isOn ? ledColor : '#555'} stroke="#fff" strokeWidth={0.5} opacity={isOn ? 1 : 0.5} />
+                  {isOn && <circle cx={cx - r * 0.25} cy={cy - r * 0.25} r={r * 0.2} fill="#fff" opacity={0.6} />}
+                </g>
+              );
+            })()}
+            {def.category === 'button' && def.id !== 'led' && (
               <g opacity={0.9} style={{ pointerEvents: 'none' }}>
                 <line x1={bx + boxW / 2 - 4} y1={by + BOX_H / 2} x2={bx + boxW / 2 + 4} y2={by + BOX_H / 2} stroke="white" strokeWidth={1} strokeLinecap="round" />
                 <line x1={bx + boxW / 2} y1={by + BOX_H / 2 - 2} x2={bx + boxW / 2} y2={by + BOX_H / 2} stroke="white" strokeWidth={1} strokeLinecap="round" />

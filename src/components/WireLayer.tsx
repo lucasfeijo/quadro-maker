@@ -34,7 +34,7 @@ interface PortPosition {
   x: number;
   y: number;
   type: string;
-  side?: 'top' | 'bottom';
+  side?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 interface ObstacleRect {
@@ -332,6 +332,41 @@ function findClearVerticalChannel(
   return useAndRecord(idealX);
 }
 
+// --- Extension helpers ---
+
+function isHorizontalSide(side?: PortPosition['side']): boolean {
+  return side === 'left' || side === 'right';
+}
+
+function getVerticalExtend(port: PortPosition, other: PortPosition): number {
+  if (port.side === 'top') return -PORT_EXTEND;
+  if (port.side === 'bottom') return PORT_EXTEND;
+  return port.y < other.y ? PORT_EXTEND : -PORT_EXTEND;
+}
+
+function getHorizontalExtend(port: PortPosition, other: PortPosition): number {
+  if (port.side === 'left') return -PORT_EXTEND;
+  if (port.side === 'right') return PORT_EXTEND;
+  return port.x < other.x ? PORT_EXTEND : -PORT_EXTEND;
+}
+
+// Resolve a horizontal-exit port to a virtual vertical-exit port after the horizontal stub
+function resolveHorizontalPort(port: PortPosition, other: PortPosition): { resolved: PortPosition; stub: Point[] } {
+  const hExt = getHorizontalExtend(port, other);
+  const extX = port.x + hExt;
+  const stub: Point[] = [
+    { x: port.x, y: port.y },
+    { x: extX, y: port.y },
+  ];
+  const resolved: PortPosition = {
+    x: extX,
+    y: port.y,
+    type: port.type,
+    side: undefined, // let routing pick vertical direction freely
+  };
+  return { resolved, stub };
+}
+
 // --- Smart Manhattan routing ---
 
 function buildSmartRoute(
@@ -340,31 +375,53 @@ function buildSmartRoute(
   usedChannels: Map<number, number>,
   verticalSegments: VerticalSegment[],
 ): Point[] {
-  const srcExtend = src.side === 'top' ? -PORT_EXTEND
-    : src.side === 'bottom' ? PORT_EXTEND
-    : (src.y < tgt.y ? PORT_EXTEND : -PORT_EXTEND);
-  const tgtExtend = tgt.side === 'top' ? -PORT_EXTEND
-    : tgt.side === 'bottom' ? PORT_EXTEND
-    : (tgt.y > src.y ? -PORT_EXTEND : PORT_EXTEND);
+  let srcStub: Point[] = [];
+  let tgtStub: Point[] = [];
+  let eSrc = src;
+  let eTgt = tgt;
 
-  const srcExtY = src.y + srcExtend;
-  const tgtExtY = tgt.y + tgtExtend;
+  if (isHorizontalSide(src.side)) {
+    const r = resolveHorizontalPort(src, tgt);
+    srcStub = r.stub;
+    eSrc = r.resolved;
+  }
+  if (isHorizontalSide(tgt.side)) {
+    const r = resolveHorizontalPort(tgt, src);
+    tgtStub = r.stub;
+    eTgt = r.resolved;
+  }
+
+  const srcExtend = getVerticalExtend(eSrc, eTgt);
+  const tgtExtend = getVerticalExtend(eTgt, eSrc);
+
+  const srcExtY = eSrc.y + srcExtend;
+  const tgtExtY = eTgt.y + tgtExtend;
 
   const idealMidY = (srcExtY + tgtExtY) / 2;
-  const midY = findClearChannel(src.x, tgt.x, idealMidY, obstacles, usedChannels);
+  let midY = findClearChannel(eSrc.x, eTgt.x, idealMidY, obstacles, usedChannels);
 
-  const srcVertX = findClearVerticalChannel(src.x, srcExtY, midY, obstacles, verticalSegments);
-  const tgtVertX = findClearVerticalChannel(tgt.x, midY, tgtExtY, obstacles, verticalSegments);
+  // Clamp so the wire never backtracks past the source extension
+  if (srcExtend > 0 && midY < srcExtY) midY = srcExtY;
+  if (srcExtend < 0 && midY > srcExtY) midY = srcExtY;
 
-  const raw: Point[] = [
-    { x: src.x, y: src.y },
-    { x: src.x, y: srcExtY },
+  const srcVertX = findClearVerticalChannel(eSrc.x, srcExtY, midY, obstacles, verticalSegments);
+  const tgtVertX = findClearVerticalChannel(eTgt.x, midY, tgtExtY, obstacles, verticalSegments);
+
+  const core: Point[] = [
+    { x: eSrc.x, y: eSrc.y },
+    { x: eSrc.x, y: srcExtY },
     { x: srcVertX, y: srcExtY },
     { x: srcVertX, y: midY },
     { x: tgtVertX, y: midY },
     { x: tgtVertX, y: tgtExtY },
-    { x: tgt.x, y: tgtExtY },
-    { x: tgt.x, y: tgt.y },
+    { x: eTgt.x, y: tgtExtY },
+    { x: eTgt.x, y: eTgt.y },
+  ];
+
+  const raw: Point[] = [
+    ...srcStub,
+    ...core,
+    ...tgtStub.slice().reverse(),
   ];
 
   return raw.filter((p, i) =>
@@ -375,21 +432,37 @@ function buildSmartRoute(
 // --- Simple Manhattan (for wiring preview) ---
 
 function buildPreviewPath(src: PortPosition, tgt: PortPosition): string {
-  const extSrc = src.side === 'top' ? -PORT_EXTEND
-    : src.side === 'bottom' ? PORT_EXTEND
-    : (src.y < tgt.y ? PORT_EXTEND : -PORT_EXTEND);
-  const extTgt = tgt.side === 'top' ? -PORT_EXTEND
-    : tgt.side === 'bottom' ? PORT_EXTEND
-    : (tgt.y > src.y ? -PORT_EXTEND : PORT_EXTEND);
-  const midY = (src.y + extSrc + tgt.y + extTgt) / 2;
-  return [
-    `M ${src.x} ${src.y}`,
-    `L ${src.x} ${src.y + extSrc}`,
-    `L ${src.x} ${midY}`,
-    `L ${tgt.x} ${midY}`,
-    `L ${tgt.x} ${tgt.y + extTgt}`,
-    `L ${tgt.x} ${tgt.y}`,
-  ].join(' ');
+  const srcH = isHorizontalSide(src.side);
+  const tgtH = isHorizontalSide(tgt.side);
+
+  const srcHExt = srcH ? getHorizontalExtend(src, tgt) : 0;
+  const tgtHExt = tgtH ? getHorizontalExtend(tgt, src) : 0;
+
+  const eSrcX = src.x + srcHExt;
+  const eTgtX = tgt.x + tgtHExt;
+
+  const eSrc: PortPosition = srcH ? { x: eSrcX, y: src.y, type: src.type } : src;
+  const eTgt: PortPosition = tgtH ? { x: eTgtX, y: tgt.y, type: tgt.type } : tgt;
+
+  const extSrc = getVerticalExtend(eSrc, eTgt);
+  const extTgt = getVerticalExtend(eTgt, eSrc);
+
+  let midY = (eSrc.y + extSrc + eTgt.y + extTgt) / 2;
+  const srcExtY = eSrc.y + extSrc;
+  if (extSrc > 0 && midY < srcExtY) midY = srcExtY;
+  if (extSrc < 0 && midY > srcExtY) midY = srcExtY;
+
+  const parts: string[] = [];
+  parts.push(`M ${src.x} ${src.y}`);
+  if (srcH) parts.push(`L ${eSrcX} ${src.y}`);
+  parts.push(`L ${eSrcX} ${eSrc.y + extSrc}`);
+  parts.push(`L ${eSrcX} ${midY}`);
+  parts.push(`L ${eTgtX} ${midY}`);
+  parts.push(`L ${eTgtX} ${eTgt.y + extTgt}`);
+  if (tgtH) parts.push(`L ${tgt.x} ${tgt.y}`);
+  else parts.push(`L ${tgt.x} ${tgt.y}`);
+
+  return parts.join(' ');
 }
 
 // --- Path conversion helpers ---
@@ -585,8 +658,12 @@ export const WireLayer: React.FC<Props> = ({
       const io = panelIOs.find((i) => i.id === ioId);
       if (!io) return null;
       const pos = getIOPortPosition(io, panelWidth, panelHeight);
-      const edgeSide: 'top' | 'bottom' | undefined =
-        io.edge === 'top' ? 'top' : io.edge === 'bottom' ? 'bottom' : undefined;
+      const edgeSide: PortPosition['side'] =
+        io.edge === 'top' ? 'bottom'
+        : io.edge === 'bottom' ? 'top'
+        : io.edge === 'left' ? 'right'
+        : io.edge === 'right' ? 'left'
+        : undefined;
       return { ...pos, side: edgeSide };
     }
     if (instanceId.startsWith('busbar:')) {
@@ -654,7 +731,7 @@ export const WireLayer: React.FC<Props> = ({
           const perpY = segDx / len;
           let deltaPerpX = (dx * perpX + dy * perpY) * perpX;
           let deltaPerpY = (dx * perpX + dy * perpY) * perpY;
-          if (wireSnapAlignment) {
+          if (wireSnapAlignment && !e.shiftKey) {
             const movingIndices = new Set<number>(
               draggingSegment.segmentIndex === 0
                 ? [0]
@@ -728,7 +805,7 @@ export const WireLayer: React.FC<Props> = ({
           draggingWp.wpIndex < waypoints.length - 1 ? waypoints[draggingWp.wpIndex + 1] : tgt;
         let ptX = pt.x;
         let ptY = pt.y;
-        if (wireSnapAlignment && prev && next) {
+        if (wireSnapAlignment && !e.shiftKey && prev && next) {
           if (Math.abs(pt.x - prev.x) <= SNAP_TOLERANCE) ptX = prev.x;
           else if (Math.abs(pt.x - next.x) <= SNAP_TOLERANCE) ptX = next.x;
           if (Math.abs(pt.y - prev.y) <= SNAP_TOLERANCE) ptY = prev.y;

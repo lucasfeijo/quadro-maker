@@ -79,6 +79,8 @@ interface PanelViewProps {
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  onSelectBusbar?: (id: string) => void;
+  selectedBusbarId?: string | null;
 }
 
 export const PanelView: React.FC<PanelViewProps> = ({
@@ -100,6 +102,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
   onRedo,
   canUndo,
   canRedo,
+  onSelectBusbar,
+  selectedBusbarId,
 }) => {
   const state = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -184,6 +188,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
     onSelectModule(null);
     state.selectWire(null);
     state.selectIO(null);
+    state.selectBusbar(null);
     if (state.wiringFrom) state.cancelWiring();
   }, [onSelectModule, state]);
 
@@ -688,6 +693,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
           onPortMouseUp={onPortMouseUp}
           onPortHover={onPortHover}
           onPortLeave={onPortLeave}
+          onSelectBusbar={onSelectBusbar}
+          selectedBusbarId={selectedBusbarId}
         />
 
         {/* Wires — rendered on top so they stay clickable when passing through switches/buttons */}

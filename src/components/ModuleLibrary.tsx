@@ -4,7 +4,6 @@ import { ModuleCategory, PanelIODirection, PanelIOType, PanelEdge, BusbarType } 
 import { useDraggable } from '@dnd-kit/core';
 import { usePanelStore } from '../store/panelStore';
 import { ModuleIcon } from './ModuleIcon';
-import { findDefaultPositionPercent } from '../utils/panelIO';
 
 const CATEGORY_LABELS: Partial<Record<ModuleCategory, string>> = {
   breaker: 'Disjuntores',
@@ -87,17 +86,19 @@ function DraggableModule({ moduleId, name, color, widthCm, icon, imageUrl }: {
 }
 
 function IOItem({ direction, type, defaultEdge, label, color, abbr }: typeof IO_ITEMS[number]) {
-  const panelIOs = usePanelStore((s) => s.panelIOs);
-  const addPanelIO = usePanelStore((s) => s.addPanelIO);
-
-  const handleClick = () => {
-    const sameEdge = panelIOs.filter((io) => io.edge === defaultEdge);
-    const pos = findDefaultPositionPercent(sameEdge.map((io) => io.positionPercent));
-    addPanelIO(direction, type, defaultEdge, pos);
-  };
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `library-io-${direction}-${type}`,
+    data: { type: 'new-panel-io', direction, ioType: type, defaultEdge },
+  });
 
   return (
-    <div className="library-item io-item" style={{ borderLeftColor: color }} onClick={handleClick}>
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className="library-item io-item"
+      style={{ borderLeftColor: color, opacity: isDragging ? 0.4 : 1 }}
+    >
       <div
         className="library-item-icon"
         style={{ background: color, borderRadius: 4, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700 }}
@@ -106,7 +107,7 @@ function IOItem({ direction, type, defaultEdge, label, color, abbr }: typeof IO_
       </div>
       <div className="library-item-info">
         <span className="library-item-name">{label}</span>
-        <span className="library-item-size">{direction === 'input' ? 'Borda superior' : 'Borda inferior'}</span>
+        <span className="library-item-size">Arraste para o painel</span>
       </div>
     </div>
   );
@@ -121,14 +122,19 @@ const BUSBAR_ITEMS: { type: BusbarType; label: string; color: string; abbr: stri
 ];
 
 function BusbarItem({ type, label, color, abbr }: typeof BUSBAR_ITEMS[number]) {
-  const addBusbar = usePanelStore((s) => s.addBusbar);
-
-  const handleClick = () => {
-    addBusbar(type, -50, -20);
-  };
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `library-busbar-${type}`,
+    data: { type: 'new-busbar', busbarType: type, color, label },
+  });
 
   return (
-    <div className="library-item io-item" style={{ borderLeftColor: color }} onClick={handleClick}>
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className="library-item io-item"
+      style={{ borderLeftColor: color, opacity: isDragging ? 0.4 : 1 }}
+    >
       <div
         className="library-item-icon"
         style={{ background: color, borderRadius: 4, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700 }}
@@ -137,7 +143,7 @@ function BusbarItem({ type, label, color, abbr }: typeof BUSBAR_ITEMS[number]) {
       </div>
       <div className="library-item-info">
         <span className="library-item-name">{label}</span>
-        <span className="library-item-size">Clique para adicionar</span>
+        <span className="library-item-size">Arraste para o painel</span>
       </div>
     </div>
   );
@@ -161,7 +167,7 @@ function ExternalDeviceItem({ moduleId, name, color }: { moduleId: string; name:
         className="library-item-icon"
         style={{ background: color, borderRadius: 4, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700 }}
       >
-        {moduleId.startsWith('switch') ? 'SW' : 'BTN'}
+        {moduleId.startsWith('switch') ? 'SW' : moduleId === 'led' ? 'LED' : 'BTN'}
       </div>
       <div className="library-item-info">
         <span className="library-item-name">{name}</span>

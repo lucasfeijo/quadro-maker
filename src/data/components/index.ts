@@ -39,6 +39,7 @@ export const EXTERNAL_COMPONENT_IDS = new Set([
   'button-no',
   'button-nc',
   'button-1p',
+  'led',
 ]);
 
 export function isExternalComponent(id: string): boolean {

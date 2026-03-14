@@ -22,6 +22,8 @@ interface Props {
   onPortMouseUp?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
+  onSelectBusbar?: (id: string) => void;
+  selectedBusbarId?: string | null;
 }
 
 export const BusbarLayer: React.FC<Props> = ({
@@ -30,6 +32,8 @@ export const BusbarLayer: React.FC<Props> = ({
   onPortMouseUp,
   onPortHover,
   onPortLeave,
+  onSelectBusbar,
+  selectedBusbarId,
 }) => {
   const busbars = usePanelStore((s) => s.busbars);
   const wires = usePanelStore((s) => s.wires);
@@ -45,6 +49,7 @@ export const BusbarLayer: React.FC<Props> = ({
         <BusbarItem
           key={bar.id}
           bar={bar}
+          selected={bar.id === selectedBusbarId}
           wires={wires}
           wiringFrom={wiringFrom}
           onMove={moveBusbar}
@@ -56,6 +61,7 @@ export const BusbarLayer: React.FC<Props> = ({
           onPortMouseUp={onPortMouseUp}
           onPortHover={onPortHover}
           onPortLeave={onPortLeave}
+          onSelect={onSelectBusbar}
         />
       ))}
     </g>
@@ -64,6 +70,7 @@ export const BusbarLayer: React.FC<Props> = ({
 
 interface BusbarItemProps {
   bar: Busbar;
+  selected?: boolean;
   wires: { sourceInstanceId: string; sourcePortId: string; targetInstanceId: string; targetPortId: string }[];
   wiringFrom: { instanceId: string; portId: string } | null;
   onMove: (id: string, x: number, y: number) => void;
@@ -75,10 +82,12 @@ interface BusbarItemProps {
   onPortMouseUp?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
+  onSelect?: (id: string) => void;
 }
 
 function BusbarItem({
   bar,
+  selected,
   wires,
   wiringFrom,
   onMove,
@@ -90,6 +99,7 @@ function BusbarItem({
   onPortMouseUp,
   onPortHover,
   onPortLeave,
+  onSelect,
 }: BusbarItemProps) {
   const instanceId = `busbar:${bar.id}`;
   const color = TYPE_COLORS[bar.type];
@@ -114,6 +124,7 @@ function BusbarItem({
     if ((e.target as SVGElement).closest('[data-busbar-resize]')) return;
     e.stopPropagation();
     e.preventDefault();
+    onSelect?.(bar.id);
     const pt = getSvgPoint(e);
     dragRef.current = { startX: pt.x, startY: pt.y, barX: bar.x, barY: bar.y };
 
@@ -129,7 +140,7 @@ function BusbarItem({
     };
     window.addEventListener('pointermove', onMove_);
     window.addEventListener('pointerup', onUp);
-  }, [bar.id, bar.x, bar.y, getSvgPoint, onMove]);
+  }, [bar.id, bar.x, bar.y, getSvgPoint, onMove, onSelect]);
 
   const handleResizePointerDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
@@ -177,6 +188,7 @@ function BusbarItem({
       onPointerLeave={() => setHovered(false)}
       onContextMenu={handleContextMenu}
       onDoubleClick={handleDoubleClick}
+      onClick={(e) => e.stopPropagation()}
     >
       {/* Bar body */}
       <rect
@@ -186,8 +198,8 @@ function BusbarItem({
         height={BAR_HEIGHT}
         rx={1}
         fill={color}
-        stroke={hovered ? '#ffd600' : '#333'}
-        strokeWidth={hovered ? 1 : 0.4}
+        stroke={selected ? '#ffd600' : hovered ? '#ffd600' : '#333'}
+        strokeWidth={selected ? 1.2 : hovered ? 1 : 0.4}
         style={{ cursor: 'grab' }}
         onPointerDown={handleBarPointerDown}
       />

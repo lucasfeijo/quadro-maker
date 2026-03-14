@@ -23,6 +23,7 @@ interface PanelStore extends PanelState {
   wiringFrom: WiringFrom | null;
   selectedWireId: string | null;
   selectedIOId: string | null;
+  selectedBusbarId: string | null;
 
   configureCustom: (widthUnits: number, rowCount: number) => void;
   configureFromEnclosure: (enclosureId: string) => void;
@@ -57,6 +58,7 @@ interface PanelStore extends PanelState {
   updatePanelIO: (ioId: string, props: Partial<Pick<PanelIO, 'label' | 'type' | 'voltageV' | 'maxCurrentA' | 'consumptionA'>>) => void;
   movePanelIO: (ioId: string, edge: PanelEdge, positionPercent: number) => void;
   selectIO: (ioId: string | null) => void;
+  selectBusbar: (id: string | null) => void;
 
   // External Devices
   addExternalDevice: (moduleId: string, x: number, y: number) => void;
@@ -135,6 +137,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   wiringFrom: null,
   selectedWireId: null,
   selectedIOId: null,
+  selectedBusbarId: null,
 
   configureCustom: (widthUnits, rowCount) =>
     set({
@@ -372,6 +375,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     })),
 
   selectIO: (ioId) => set({ selectedIOId: ioId }),
+  selectBusbar: (id) => set({ selectedBusbarId: id }),
 
   addExternalDevice: (moduleId, x, y) =>
     set((s) => ({

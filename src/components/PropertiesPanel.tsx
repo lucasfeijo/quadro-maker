@@ -3,7 +3,7 @@ import { usePanelStore } from '../store/panelStore';
 import { getModuleById } from '../data/modules';
 import { getComponentById } from '../data/components';
 import type { ComponentSpec, PropertySpec } from '../data/components';
-import type { PlacedModule, PanelIOType } from '../types';
+import type { PlacedModule, PanelIOType, BusbarType } from '../types';
 
 const CATEGORY_LABELS: Record<string, string> = {
   breaker: 'Disjuntor',
@@ -37,6 +37,18 @@ const IO_TYPE_OPTIONS: { value: PanelIOType; label: string }[] = [
   { value: 'dc_neg', label: 'DC-' },
   { value: 'signal', label: 'Sinal' },
 ];
+
+const BUSBAR_TYPE_OPTIONS: { value: BusbarType; label: string }[] = [
+  { value: 'phase', label: 'Fase' },
+  { value: 'neutral', label: 'Neutro' },
+  { value: 'ground', label: 'Terra' },
+];
+
+const BUSBAR_TYPE_COLORS: Record<BusbarType, string> = {
+  phase: '#d32f2f',
+  neutral: '#1565c0',
+  ground: '#2e7d32',
+};
 
 const PORT_TYPE_LABELS: Record<string, string> = {
   phase: 'Fase',
@@ -183,8 +195,10 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
   const wires = usePanelStore((s) => s.wires);
   const panelIOs = usePanelStore((s) => s.panelIOs);
   const externalDevices = usePanelStore((s) => s.externalDevices);
+  const busbars = usePanelStore((s) => s.busbars);
   const selectedWireId = usePanelStore((s) => s.selectedWireId);
   const selectedIOId = usePanelStore((s) => s.selectedIOId);
+  const selectedBusbarId = usePanelStore((s) => s.selectedBusbarId);
   const updateWireProps = usePanelStore((s) => s.updateWireProps);
   const removeWire = usePanelStore((s) => s.removeWire);
   const clearWireWaypoints = usePanelStore((s) => s.clearWireWaypoints);
@@ -193,15 +207,27 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
   const removeExternalDevice = usePanelStore((s) => s.removeExternalDevice);
   const updateExternalDeviceLabel = usePanelStore((s) => s.updateExternalDeviceLabel);
   const updateInstanceProperty = usePanelStore((s) => s.updateInstanceProperty);
+  const updateBusbarLabel = usePanelStore((s) => s.updateBusbarLabel);
+  const updateBusbarType = usePanelStore((s) => s.updateBusbarType);
+  const resizeBusbar = usePanelStore((s) => s.resizeBusbar);
+  const removeBusbar = usePanelStore((s) => s.removeBusbar);
+  const addBusbarConnectionPoint = usePanelStore((s) => s.addBusbarConnectionPoint);
+  const removeBusbarConnectionPoint = usePanelStore((s) => s.removeBusbarConnectionPoint);
 
   const selectedWire = selectedWireId ? wires.find((w) => w.id === selectedWireId) : null;
   const selectedIO = selectedIOId ? panelIOs.find((io) => io.id === selectedIOId) : null;
+  const selectedBusbar = selectedBusbarId ? busbars.find((b) => b.id === selectedBusbarId) : null;
 
   const getModuleName = (instanceId: string) => {
     if (instanceId.startsWith('panel-io:')) {
       const ioId = instanceId.replace('panel-io:', '');
       const io = panelIOs.find((i) => i.id === ioId);
       return io?.label ?? 'E/S';
+    }
+    if (instanceId.startsWith('busbar:')) {
+      const bId = instanceId.replace('busbar:', '');
+      const bar = busbars.find((b) => b.id === bId);
+      return bar?.label || 'Barramento';
     }
     const extDev = externalDevices.find((d) => d.instanceId === instanceId);
     if (extDev) {
@@ -374,6 +400,118 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
         <button className="toolbar-btn danger-action" onClick={() => { if (confirm(`Remover ${isInput ? 'entrada' : 'saída'}?`)) removePanelIO(selectedIO.id); }}>
           Remover {isInput ? 'Entrada' : 'Saída'}
         </button>
+      </div>
+    );
+  }
+
+  if (selectedBusbar) {
+    const busbarInstanceId = `busbar:${selectedBusbar.id}`;
+    const busbarWires = wires.filter(
+      (w) => w.sourceInstanceId === busbarInstanceId || w.targetInstanceId === busbarInstanceId,
+    );
+    return (
+      <div className="properties-panel">
+        <h3>Barramento</h3>
+        <div className="prop-module-header">
+          <span className="prop-color-dot" style={{ background: BUSBAR_TYPE_COLORS[selectedBusbar.type] }} />
+          <span className="prop-module-name">{selectedBusbar.label || BUSBAR_TYPE_OPTIONS.find((o) => o.value === selectedBusbar.type)?.label}</span>
+        </div>
+        <div className="prop-section">
+          <div className="prop-row">
+            <span className="prop-label">Rótulo</span>
+            <input
+              className="prop-input"
+              value={selectedBusbar.label}
+              placeholder={BUSBAR_TYPE_OPTIONS.find((o) => o.value === selectedBusbar.type)?.label}
+              onChange={(e) => updateBusbarLabel(selectedBusbar.id, e.target.value)}
+            />
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Tipo</span>
+            <select
+              className="prop-select"
+              value={selectedBusbar.type}
+              onChange={(e) => updateBusbarType(selectedBusbar.id, e.target.value as BusbarType)}
+            >
+              {BUSBAR_TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Largura (px)</span>
+            <input
+              className="prop-input"
+              type="number"
+              min={20}
+              step={5}
+              value={Math.round(selectedBusbar.widthPx)}
+              onChange={(e) => resizeBusbar(selectedBusbar.id, Number(e.target.value) || 20)}
+            />
+          </div>
+          <div className="prop-row">
+            <span className="prop-label">Fios</span>
+            <span className="prop-value">{busbarWires.length}</span>
+          </div>
+        </div>
+        <div className="prop-section" style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Pontos de conexão ({selectedBusbar.connectionPoints.length})</span>
+            <button
+              className="toolbar-btn"
+              style={{ fontSize: 11, padding: '2px 8px' }}
+              onClick={() => addBusbarConnectionPoint(selectedBusbar.id)}
+            >
+              + Adicionar
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {selectedBusbar.connectionPoints.map((pt) => {
+              const ptConnected = wires.some(
+                (w) =>
+                  (w.sourceInstanceId === busbarInstanceId && w.sourcePortId === pt.id) ||
+                  (w.targetInstanceId === busbarInstanceId && w.targetPortId === pt.id),
+              );
+              return (
+                <div key={pt.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                  <span style={{
+                    display: 'inline-block',
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: ptConnected ? BUSBAR_TYPE_COLORS[selectedBusbar.type] : '#ccc',
+                    flexShrink: 0,
+                  }} />
+                  <span style={{ flex: 1, color: '#555' }}>
+                    {pt.id.slice(0, 6)} — {Math.round(pt.offsetPercent)}%
+                  </span>
+                  <button
+                    className="toolbar-btn danger-action"
+                    style={{ fontSize: 10, padding: '1px 5px' }}
+                    onClick={() => {
+                      if (ptConnected) {
+                        if (!confirm('Este ponto tem fios conectados. Remover mesmo assim?')) return;
+                      }
+                      removeBusbarConnectionPoint(selectedBusbar.id, pt.id);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <button
+          className="toolbar-btn danger-action"
+          style={{ marginTop: 8 }}
+          onClick={() => { if (confirm('Remover barramento?')) removeBusbar(selectedBusbar.id); }}
+        >
+          Remover Barramento
+        </button>
+        <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
+          Dica: Dê duplo-clique no barramento para adicionar pontos de conexão.
+        </div>
       </div>
     );
   }

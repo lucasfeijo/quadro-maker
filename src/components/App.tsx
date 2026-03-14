@@ -21,8 +21,9 @@ import { SchematicView } from './SchematicView';
 import { SimulationOverlay } from './SimulationView';
 import { getModuleById } from '../data/modules';
 import type { ComponentState, PanelState } from '../types';
-import { snapToCm, pxToCm, canPlace, clampToNeighbors } from '../utils/geometry';
+import { snapToCm, pxToCm, cmToPx, canPlace, clampToNeighbors } from '../utils/geometry';
 import { resolveLayout } from '../utils/panelLayout';
+import { closestEdge } from '../utils/panelIO';
 import type { ResolvedRail, GhostPreview } from '../types';
 
 type ViewMode = 'panel' | 'schematic';
@@ -31,6 +32,7 @@ export const App: React.FC = () => {
   const screen = usePanelStore((s) => s.screen);
   const store = usePanelStore();
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
+  const [activeDragInfo, setActiveDragInfo] = useState<{ type: string; label: string; color: string } | null>(null);
   const [activePlaced, setActivePlaced] = useState<{
     instanceId: string;
     moduleId: string;
@@ -50,9 +52,18 @@ export const App: React.FC = () => {
   const lastSnapshotRef = useRef<string | null>(null);
   const lastStateRef = useRef<PanelState | null>(null);
   const isRestoringHistoryRef = useRef(false);
+  const shiftHeldRef = useRef(false);
   const wiringDragRef = useRef(false);
   const wiringDragSourceRef = useRef<{ instanceId: string; portId: string } | null>(null);
   const hoverPortRef = useRef<{ instanceId: string; portId: string } | null>(null);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftHeldRef.current = true; };
+    const up = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftHeldRef.current = false; };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+  }, []);
 
   const handleSimDataChange = useCallback((energizedWires: Set<string>, states: ComponentState[]) => {
     setSimData({ energizedWires, states });
@@ -309,6 +320,10 @@ export const App: React.FC = () => {
         rowId: data.rowId as string,
       });
       setActiveModuleId(data.moduleId as string);
+    } else if (data?.type === 'new-panel-io') {
+      setActiveDragInfo({ type: 'panel-io', label: data.direction === 'input' ? 'Entrada' : 'Saída', color: '#546e7a' });
+    } else if (data?.type === 'new-busbar') {
+      setActiveDragInfo({ type: 'busbar', label: data.label as string, color: data.color as string });
     }
   }, []);
 
@@ -345,12 +360,13 @@ export const App: React.FC = () => {
 
       let positionCm = computeSnapPosition(event, rail, def.widthCm);
       const excludeId = isPlaced ? (data.instanceId as string) : undefined;
+      const freeMove = shiftHeldRef.current;
 
-      if (!canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, excludeId)) {
+      if (!freeMove && !canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, excludeId)) {
         positionCm = clampToNeighbors(row.modules, positionCm, def.widthCm, rail.usableWidthCm, excludeId);
       }
 
-      const valid = canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, excludeId);
+      const valid = freeMove || canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, excludeId);
 
       setGhostPreview({
         rowId: overData.rowId,
@@ -367,6 +383,7 @@ export const App: React.FC = () => {
     setActiveModuleId(null);
     setActivePlaced(null);
     setGhostPreview(null);
+    setActiveDragInfo(null);
   }, []);
 
   const handleDragCancel = useCallback(
@@ -411,6 +428,26 @@ export const App: React.FC = () => {
         return;
       }
 
+      if (data.type === 'new-panel-io') {
+        const pos = computeExternalDevicePosition(event);
+        if (pos) {
+          const layout = resolveLayout(store);
+          const panelW = cmToPx(layout.exteriorWidthCm);
+          const panelH = cmToPx(layout.exteriorHeightCm);
+          const { edge, positionPercent } = closestEdge(pos.x, pos.y, panelW, panelH);
+          store.addPanelIO(data.direction, data.ioType, edge, positionPercent);
+        }
+        return;
+      }
+
+      if (data.type === 'new-busbar') {
+        const pos = computeExternalDevicePosition(event);
+        if (pos) {
+          store.addBusbar(data.busbarType as any, pos.x, pos.y);
+        }
+        return;
+      }
+
       if (!over) return;
 
       const overData = over.data.current as
@@ -426,16 +463,18 @@ export const App: React.FC = () => {
       const row = store.rows.find((r) => r.id === overData.rowId);
       if (!row) return;
 
+      const freeMove = shiftHeldRef.current;
+
       if (data.type === 'placed-module' && placedInfo) {
         let positionCm = computeSnapPosition(event, rail, def.widthCm);
         positionCm = Math.max(0, Math.min(positionCm, rail.usableWidthCm - def.widthCm));
         positionCm = snapToCm(positionCm);
 
-        if (!canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, placedInfo.instanceId)) {
+        if (!freeMove && !canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, placedInfo.instanceId)) {
           positionCm = clampToNeighbors(row.modules, positionCm, def.widthCm, rail.usableWidthCm, placedInfo.instanceId);
         }
 
-        if (canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, placedInfo.instanceId)) {
+        if (freeMove || canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, placedInfo.instanceId)) {
           store.moveModule(
             placedInfo.rowId,
             placedInfo.instanceId,
@@ -465,11 +504,11 @@ export const App: React.FC = () => {
       positionCm = Math.max(0, Math.min(positionCm, rail.usableWidthCm - def.widthCm));
       positionCm = snapToCm(positionCm);
 
-      if (!canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm)) {
+      if (!freeMove && !canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm)) {
         positionCm = clampToNeighbors(row.modules, positionCm, def.widthCm, rail.usableWidthCm);
       }
 
-      if (canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm)) {
+      if (freeMove || canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm)) {
         store.addModule(overData.rowId, moduleId, positionCm);
       } else {
         const fallback = findFirstFit(
@@ -489,6 +528,7 @@ export const App: React.FC = () => {
   );
 
   const handleSelectModule = useCallback((id: string | null, additive?: boolean) => {
+    store.selectBusbar(null);
     if (id === null) {
       setSelectedModules([]);
       return;
@@ -500,7 +540,14 @@ export const App: React.FC = () => {
     } else {
       setSelectedModules([id]);
     }
-  }, []);
+  }, [store]);
+
+  const handleSelectBusbar = useCallback((id: string) => {
+    setSelectedModules([]);
+    store.selectWire(null);
+    store.selectIO(null);
+    store.selectBusbar(id);
+  }, [store]);
 
   const handleSetSelection = useCallback((ids: string[]) => {
     setSelectedModules(ids);
@@ -523,7 +570,7 @@ export const App: React.FC = () => {
   }
 
   const singleSelected = selectedModules.length === 1 ? selectedModules[0] : null;
-  const showProperties = singleSelected || store.selectedWireId || store.selectedIOId;
+  const showProperties = singleSelected || store.selectedWireId || store.selectedIOId || store.selectedBusbarId;
   const showMultiInfo = selectedModules.length > 1;
 
   return (
@@ -563,6 +610,8 @@ export const App: React.FC = () => {
               onRedo={handleRedo}
               canUndo={canUndo}
               canRedo={canRedo}
+              onSelectBusbar={handleSelectBusbar}
+              selectedBusbarId={store.selectedBusbarId}
             />
           )}
           {viewMode === 'schematic' && <SchematicView />}
@@ -585,6 +634,21 @@ export const App: React.FC = () => {
       <DragOverlay dropAnimation={null}>
         {activeModuleId ? (
           <DragOverlayContent moduleId={activeModuleId} />
+        ) : activeDragInfo ? (
+          <div style={{
+            background: activeDragInfo.color,
+            color: '#fff',
+            padding: '6px 14px',
+            borderRadius: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            opacity: 0.85,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+          }}>
+            {activeDragInfo.label}
+          </div>
         ) : null}
       </DragOverlay>
     </DndContext>

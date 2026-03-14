@@ -104,6 +104,21 @@ const ICON_PATHS: Record<string, (s: number) => React.ReactNode> = {
     );
   },
 
+  led: (s) => {
+    const cx = s / 2, cy = s / 2, r = s * 0.22;
+    return (
+      <>
+        <circle cx={cx} cy={cy - s * 0.05} r={r} fill="currentColor" opacity={0.9} />
+        <line x1={cx - s * 0.1} y1={cy + r - s * 0.02} x2={cx - s * 0.1} y2={s * 0.85} stroke="currentColor" strokeWidth={s * 0.05} strokeLinecap="round" />
+        <line x1={cx + s * 0.1} y1={cy + r - s * 0.02} x2={cx + s * 0.1} y2={s * 0.85} stroke="currentColor" strokeWidth={s * 0.05} strokeLinecap="round" />
+        <line x1={cx - s * 0.18} y1={s * 0.85} x2={cx + s * 0.18} y2={s * 0.85} stroke="currentColor" strokeWidth={s * 0.04} strokeLinecap="round" />
+        {/* Light rays */}
+        <line x1={cx + r + s * 0.04} y1={cy - s * 0.15} x2={cx + r + s * 0.12} y2={cy - s * 0.2} stroke="currentColor" strokeWidth={s * 0.03} strokeLinecap="round" />
+        <line x1={cx + r + s * 0.05} y1={cy} x2={cx + r + s * 0.14} y2={cy} stroke="currentColor" strokeWidth={s * 0.03} strokeLinecap="round" />
+      </>
+    );
+  },
+
   ats: (s) => {
     const cx = s / 2;
     return (
