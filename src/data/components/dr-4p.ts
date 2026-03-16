@@ -16,7 +16,7 @@ const component: ComponentSpec = {
   poles: 4,
   color: '#1b5e20',
   icon: 'dr',
-  ports: makePorts(4, 120, ['L1', 'L2', 'L3', 'N'], ['phase', 'phase', 'phase', 'neutral']),
+  ports: makePorts(4, 72, ['L1', 'L2', 'L3', 'N'], ['phase', 'phase', 'phase', 'neutral']),
   portDescriptions: {
     'in-L1': 'Entrada de fase 1 (alimentação)',
     'out-L1': 'Saída de fase 1 (carga)',
