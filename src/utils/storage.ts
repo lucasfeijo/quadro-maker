@@ -50,3 +50,55 @@ export function deleteProject(id: string) {
   const projects = readAll().filter((p) => p.id !== id);
   writeAll(projects);
 }
+
+export function exportProject(id: string) {
+  const proj = readAll().find((p) => p.id === id);
+  if (!proj) return;
+  const json = JSON.stringify(proj, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${proj.name.replace(/[^a-zA-Z0-9À-ú _-]/g, '')}.quadro.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function exportCurrentState(state: PanelState) {
+  const entry: SavedProject = {
+    id: nanoid(),
+    name: state.name,
+    state,
+    updatedAt: Date.now(),
+  };
+  const json = JSON.stringify(entry, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${state.name.replace(/[^a-zA-Z0-9À-ú _-]/g, '')}.quadro.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function importProject(file: File): Promise<SavedProject | null> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result as string) as SavedProject;
+        if (!data.state || !data.name) { resolve(null); return; }
+        const id = nanoid();
+        const entry: SavedProject = { ...data, id, updatedAt: Date.now() };
+        const projects = readAll();
+        projects.push(entry);
+        writeAll(projects);
+        resolve(entry);
+      } catch {
+        resolve(null);
+      }
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsText(file);
+  });
+}

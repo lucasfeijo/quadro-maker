@@ -1,31 +1,60 @@
 import { PanelState, ResolvedLayout } from '../types';
 import { getEnclosureById } from '../data/enclosures';
+import { getModuleById } from '../data/modules';
 
-const ROW_HEIGHT_CM = 10;
-const ROW_SPACING_CM = 3;
-const WALL_THICKNESS_CM = 2;
-const DEFAULT_FIXING_MARGIN = 3;
+const ROW_HEIGHT_MM = 100;
+const ROW_SPACING_MM = 30;
+const WALL_THICKNESS_MM = 30;
+const DEFAULT_FIXING_MARGIN_MM = 30;
+const VERTICAL_PADDING_MM = 40;
 
 export function resolveLayout(state: PanelState): ResolvedLayout {
-  if (state.enclosureId) {
-    return resolveEnclosureLayout(state.enclosureId);
+  const result = state.enclosureId
+    ? resolveEnclosureLayout(state.enclosureId)
+    : resolveCustomLayout(state.widthUnits, state.rowCount);
+  // #region agent log
+  const rail0 = result.rails[0];
+  if (rail0) {
+    let occupiedMm = 0;
+    const moduleIds: string[] = [];
+    for (const row of state.rows) {
+      for (const mod of row.modules) {
+        moduleIds.push(mod.moduleId);
+        const def = getModuleById(mod.moduleId);
+        if (def) occupiedMm += def.widthMm;
+      }
+    }
+    fetch('http://127.0.0.1:7933/ingest/9df62cad-4dbe-44e5-9845-8a9dc613936c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9770de'},body:JSON.stringify({sessionId:'9770de',location:'panelLayout.ts:resolveLayout',message:'Layout resolved',data:{enclosureId:state.enclosureId,widthUnits:state.widthUnits,railUsableWidthMm:rail0.usableWidthMm,occupiedMm,totalModules:moduleIds.length,moduleIds,leftoverMm:rail0.usableWidthMm-occupiedMm},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
   }
-  return resolveCustomLayout(state.widthUnits, state.rowCount);
+  // #endregion
+  return result;
 }
 
 function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
   const enc = getEnclosureById(enclosureId)!;
-  const wallX = (enc.exteriorWidthCm - enc.interiorWidthCm) / 2;
-  const wallY = (enc.exteriorHeightCm - enc.interiorHeightCm) / 2;
+  const origWallX = (enc.exteriorWidthMm - enc.interiorWidthMm) / 2;
+  const origWallY = (enc.exteriorHeightMm - enc.interiorHeightMm) / 2;
+  const minWall = WALL_THICKNESS_MM;
+  const extraX = Math.max(0, minWall - origWallX);
+  const extraY = Math.max(0, minWall - origWallY);
 
   return {
-    exteriorWidthCm: enc.exteriorWidthCm,
-    exteriorHeightCm: enc.exteriorHeightCm,
-    interiorWidthCm: enc.interiorWidthCm,
-    interiorHeightCm: enc.interiorHeightCm,
-    interiorOffsetXCm: wallX,
-    interiorOffsetYCm: wallY,
-    rails: enc.rails.map((r) => ({ ...r })),
+    exteriorWidthMm: enc.exteriorWidthMm + extraX * 2,
+    exteriorHeightMm: enc.exteriorHeightMm + extraY * 2,
+    interiorWidthMm: enc.interiorWidthMm,
+    interiorHeightMm: enc.interiorHeightMm,
+    interiorOffsetXMm: origWallX + extraX,
+    interiorOffsetYMm: origWallY + extraY,
+    rails: enc.rails.map((r) => {
+      const fixingMarginMm = (enc.interiorWidthMm - r.usableWidthMm) / 2;
+      return {
+        ...r,
+        xMm: 0,
+        widthMm: enc.interiorWidthMm,
+        usableWidthMm: r.usableWidthMm,
+        fixingMarginMm,
+      };
+    }),
     mountingHoles: enc.mountingHoles,
     isEnclosure: true,
   };
@@ -35,30 +64,29 @@ function resolveCustomLayout(
   widthUnits: number,
   rowCount: number,
 ): ResolvedLayout {
-  const usableWidth = widthUnits * 3;
-  const railWidth = usableWidth + DEFAULT_FIXING_MARGIN * 2;
-  const interiorWidth = railWidth;
+  const usableWidth = widthUnits * 30;
+  const interiorWidth = usableWidth + DEFAULT_FIXING_MARGIN_MM * 2;
   const interiorHeight =
-    rowCount * ROW_HEIGHT_CM + (rowCount - 1) * ROW_SPACING_CM;
-  const exteriorWidth = interiorWidth + WALL_THICKNESS_CM * 2;
-  const exteriorHeight = interiorHeight + WALL_THICKNESS_CM * 2;
+    VERTICAL_PADDING_MM * 2 + rowCount * ROW_HEIGHT_MM + (rowCount - 1) * ROW_SPACING_MM;
+  const exteriorWidth = interiorWidth + WALL_THICKNESS_MM * 2;
+  const exteriorHeight = interiorHeight + WALL_THICKNESS_MM * 2;
 
   const rails = Array.from({ length: rowCount }, (_, i) => ({
     id: `row-${i}`,
-    xCm: 0,
-    yCm: i * (ROW_HEIGHT_CM + ROW_SPACING_CM) + ROW_HEIGHT_CM / 2 - 0.5,
-    widthCm: railWidth,
-    usableWidthCm: usableWidth,
-    fixingMarginCm: DEFAULT_FIXING_MARGIN,
+    xMm: 0,
+    yMm: VERTICAL_PADDING_MM + i * (ROW_HEIGHT_MM + ROW_SPACING_MM) + ROW_HEIGHT_MM / 2 - 5,
+    widthMm: interiorWidth,
+    usableWidthMm: interiorWidth - DEFAULT_FIXING_MARGIN_MM * 2,
+    fixingMarginMm: DEFAULT_FIXING_MARGIN_MM,
   }));
 
   return {
-    exteriorWidthCm: exteriorWidth,
-    exteriorHeightCm: exteriorHeight,
-    interiorWidthCm: interiorWidth,
-    interiorHeightCm: interiorHeight,
-    interiorOffsetXCm: WALL_THICKNESS_CM,
-    interiorOffsetYCm: WALL_THICKNESS_CM,
+    exteriorWidthMm: exteriorWidth,
+    exteriorHeightMm: exteriorHeight,
+    interiorWidthMm: interiorWidth,
+    interiorHeightMm: interiorHeight,
+    interiorOffsetXMm: WALL_THICKNESS_MM,
+    interiorOffsetYMm: WALL_THICKNESS_MM,
     rails,
     mountingHoles: [],
     isEnclosure: false,

@@ -1,13 +1,24 @@
 import React, { useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
-import { saveProject, listProjects, loadProject, deleteProject } from '../utils/storage';
+import { saveProject, listProjects, loadProject, deleteProject, exportProject, exportCurrentState, importProject } from '../utils/storage';
 import { SavedProject } from '../types';
 
-export const Toolbar: React.FC = () => {
+interface ToolbarProps {
+  viewMode: 'panel' | 'schematic';
+  onViewModeChange: (mode: 'panel' | 'schematic') => void;
+  simActive: boolean;
+  onSimToggle: () => void;
+}
+
+export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, simActive, onSimToggle }) => {
   const store = usePanelStore();
   const [projectId, setProjectId] = useState<string | null>(null);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [optWidth, setOptWidth] = useState(store.widthUnits);
+  const [optRows, setOptRows] = useState(store.rowCount);
+  const [optWireSnap, setOptWireSnap] = useState(store.wireSnapAlignment);
 
   const handleSave = () => {
     const id = saveProject(
@@ -17,10 +28,16 @@ export const Toolbar: React.FC = () => {
         widthUnits: store.widthUnits,
         rowCount: store.rowCount,
         rows: store.rows,
+        wires: store.wires,
+        panelIOs: store.panelIOs,
+        externalDevices: store.externalDevices,
+        busbars: store.busbars,
+        textAnnotations: store.textAnnotations,
       },
       projectId ?? undefined,
     );
     setProjectId(id);
+    store.markAsSaved();
   };
 
   const handleOpenLoad = () => {
@@ -33,13 +50,70 @@ export const Toolbar: React.FC = () => {
     if (state) {
       store.loadState(state);
       setProjectId(id);
+      store.markAsSaved();
     }
     setShowLoadModal(false);
   };
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   const handleDelete = (id: string) => {
-    deleteProject(id);
-    setSavedProjects(listProjects());
+    if (confirmDeleteId === id) {
+      deleteProject(id);
+      setConfirmDeleteId(null);
+      if (projectId === id) setProjectId(null);
+      setSavedProjects(listProjects());
+    } else {
+      setConfirmDeleteId(id);
+    }
+  };
+
+  const handleExportCurrent = () => {
+    exportCurrentState({
+      name: store.name,
+      enclosureId: store.enclosureId,
+      widthUnits: store.widthUnits,
+      rowCount: store.rowCount,
+      rows: store.rows,
+      wires: store.wires,
+      panelIOs: store.panelIOs,
+      externalDevices: store.externalDevices,
+      busbars: store.busbars,
+      textAnnotations: store.textAnnotations,
+    });
+  };
+
+  const handleImport = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,.quadro.json';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const entry = await importProject(file);
+      if (entry) {
+        store.loadState(entry.state);
+        setProjectId(entry.id);
+        store.markAsSaved();
+        setShowLoadModal(false);
+      } else {
+        alert('Arquivo inválido.');
+      }
+    };
+    input.click();
+  };
+
+  const handleOpenOptions = () => {
+    setOptWidth(store.widthUnits);
+    setOptRows(store.rowCount);
+    setOptWireSnap(store.wireSnapAlignment);
+    setShowOptionsModal(true);
+  };
+
+  const handleApplyOptions = () => {
+    store.resizePanel(optWidth, optRows);
+    store.setWireSnapAlignment(optWireSnap);
+    setShowOptionsModal(false);
   };
 
   return (
@@ -62,13 +136,95 @@ export const Toolbar: React.FC = () => {
         >
           {store.displayMode === 'icon' ? '🔧 Ícones' : '📷 Fotos'}
         </button>
+        <div className="toolbar-view-toggle">
+          <button
+            className={`toolbar-btn ${viewMode === 'panel' ? 'toolbar-btn-active' : ''}`}
+            onClick={() => onViewModeChange('panel')}
+          >
+            Painel
+          </button>
+          <button
+            className={`toolbar-btn ${viewMode === 'schematic' ? 'toolbar-btn-active' : ''}`}
+            onClick={() => onViewModeChange('schematic')}
+          >
+            Unifilar
+          </button>
+        </div>
+        <button
+          className={`toolbar-btn ${simActive ? 'toolbar-btn-sim-active' : ''}`}
+          onClick={onSimToggle}
+          title="Ligar/desligar simulação"
+        >
+          {simActive ? '⚡ Simulando' : '⚡ Simular'}
+        </button>
+        <button className="toolbar-btn" onClick={handleOpenOptions} title="Opções do quadro">
+          Opções
+        </button>
         <button className="toolbar-btn" onClick={handleSave}>
           Salvar
         </button>
         <button className="toolbar-btn" onClick={handleOpenLoad}>
           Carregar
         </button>
+        <button className="toolbar-btn" onClick={handleExportCurrent} title="Exportar projeto atual como arquivo">
+          Exportar
+        </button>
+        <button className="toolbar-btn" onClick={handleImport} title="Importar projeto de arquivo">
+          Importar
+        </button>
       </div>
+
+      {showOptionsModal && (
+        <div className="modal-overlay" onClick={() => setShowOptionsModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Opções do Quadro</h3>
+            {store.enclosureId && (
+              <p style={{ color: '#aaa', fontSize: 12, marginBottom: 12 }}>
+                Quadro de caixa: redimensionar converte para personalizado.
+              </p>
+            )}
+            <div className="options-field">
+              <label>Largura (unipolares):</label>
+              <select value={optWidth} onChange={(e) => setOptWidth(Number(e.target.value))}>
+                {[6, 8, 10, 12, 16, 18, 20, 24, 30, 36, 44, 56].map((n) => (
+                  <option key={n} value={n}>
+                    {n} unidades ({n * 3}cm)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="options-field">
+              <label>Fileiras:</label>
+              <select value={optRows} onChange={(e) => setOptRows(Number(e.target.value))}>
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <option key={n} value={n}>
+                    {n} fileira{n > 1 ? 's' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="options-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                id="opt-wire-snap"
+                checked={optWireSnap}
+                onChange={(e) => setOptWireSnap(e.target.checked)}
+              />
+              <label htmlFor="opt-wire-snap" style={{ marginBottom: 0 }}>
+                Alinhamento Manhattan nos fios (trava H/V ao arrastar vértices)
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button className="toolbar-btn" style={{ flex: 1 }} onClick={handleApplyOptions}>
+                Aplicar
+              </button>
+              <button className="toolbar-btn" style={{ flex: 1 }} onClick={() => setShowOptionsModal(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showLoadModal && (
         <div className="modal-overlay" onClick={() => setShowLoadModal(false)}>
@@ -83,17 +239,35 @@ export const Toolbar: React.FC = () => {
                     <div className="project-info">
                       <strong>{p.name}</strong>
                       <span className="project-date">
-                        {new Date(p.updatedAt).toLocaleDateString('pt-BR')}
+                        {new Date(p.updatedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
                       </span>
                     </div>
                     <div className="project-actions">
-                      <button onClick={() => handleLoad(p.id)}>Abrir</button>
-                      <button
-                        className="delete-btn"
-                        onClick={() => handleDelete(p.id)}
-                      >
-                        ×
-                      </button>
+                      {confirmDeleteId === p.id ? (
+                        <>
+                          <span className="confirm-delete-label">Excluir?</span>
+                          <button className="confirm-yes-btn" onClick={() => handleDelete(p.id)}>
+                            Sim
+                          </button>
+                          <button className="confirm-no-btn" onClick={() => setConfirmDeleteId(null)}>
+                            Não
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => handleLoad(p.id)}>Abrir</button>
+                          <button onClick={() => exportProject(p.id)} title="Exportar">
+                            ↓
+                          </button>
+                          <button
+                            className="delete-btn"
+                            onClick={() => handleDelete(p.id)}
+                            title="Excluir"
+                          >
+                            ×
+                          </button>
+                        </>
+                      )}
                     </div>
                   </li>
                 ))}
@@ -101,7 +275,7 @@ export const Toolbar: React.FC = () => {
             )}
             <button
               className="toolbar-btn"
-              onClick={() => setShowLoadModal(false)}
+              onClick={() => { setShowLoadModal(false); setConfirmDeleteId(null); }}
             >
               Fechar
             </button>
