@@ -66,6 +66,12 @@ interface CrossingOnSegment {
   t: number;
 }
 
+interface DimensionLine {
+  x1: number; y1: number;
+  x2: number; y2: number;
+  label: string;
+}
+
 interface Props {
   rails: ResolvedRail[];
   interiorOffsetXPx: number;
@@ -709,6 +715,7 @@ export const WireLayer: React.FC<Props> = ({
   } | null>(null);
   const dragRef = useRef<boolean>(false);
   const [snapGuides, setSnapGuides] = useState<{from: Point; to: Point}[]>([]);
+  const [equidistantGuides, setEquidistantGuides] = useState<DimensionLine[]>([]);
 
   useEffect(() => {
     onSegmentDragChange?.(draggingSegment != null);
@@ -846,8 +853,80 @@ export const WireLayer: React.FC<Props> = ({
               if (d > 0.5) newGuides.push({ from: snappedPos, to: bestTargetY });
             }
             setSnapGuides(newGuides);
+
+            // --- Equidistant snap ---
+            const isHSeg = Math.abs(segDx) > Math.abs(segDy);
+            const alignFiredOnMovAxis = isHSeg ? (bestTargetY != null) : (bestTargetX != null);
+            const newEqGuides: DimensionLine[] = [];
+
+            if (!alignFiredOnMovAxis) {
+              const movCoord = isHSeg ? bestY : bestX;
+              const fixedCoord = isHSeg ? pCurr.x : pCurr.y;
+
+              const coordSet = new Set<number>();
+              for (const t of targets) {
+                coordSet.add(isHSeg ? t.y : t.x);
+              }
+              const coords = [...coordSet].sort((a, b) => a - b);
+
+              let bestEqDist = SEGMENT_SNAP_TOLERANCE + 1;
+              let bestEqPos = movCoord;
+              let bestEqSegs: [number, number, number] | null = null;
+
+              for (let i = 0; i < coords.length; i++) {
+                for (let j = i + 1; j < coords.length; j++) {
+                  const gap = coords[j] - coords[i];
+                  if (gap < 3) continue;
+                  const candidates: Array<{ pos: number; segs: [number, number, number] }> = [
+                    { pos: coords[i] - gap, segs: [coords[i] - gap, coords[i], coords[j]] },
+                    { pos: (coords[i] + coords[j]) / 2, segs: [coords[i], (coords[i] + coords[j]) / 2, coords[j]] },
+                    { pos: coords[j] + gap, segs: [coords[i], coords[j], coords[j] + gap] },
+                  ];
+                  for (const cand of candidates) {
+                    const d = Math.abs(movCoord - cand.pos);
+                    if (d < bestEqDist) {
+                      bestEqDist = d;
+                      bestEqPos = cand.pos;
+                      bestEqSegs = cand.segs;
+                    }
+                  }
+                }
+              }
+
+              if (bestEqSegs && bestEqDist <= SEGMENT_SNAP_TOLERANCE) {
+                if (isHSeg) {
+                  bestY = bestEqPos;
+                  deltaPerpY = bestY - pCurr.y;
+                } else {
+                  bestX = bestEqPos;
+                  deltaPerpX = bestX - pCurr.x;
+                }
+
+                const [s1, s2, s3] = bestEqSegs;
+                const gapMm = Math.abs(s2 - s1);
+                const label = gapMm % 1 < 0.05 ? `${Math.round(gapMm)} mm` : `${gapMm.toFixed(1)} mm`;
+                const offset = 6;
+
+                if (isHSeg) {
+                  const lx = fixedCoord - offset;
+                  newEqGuides.push(
+                    { x1: lx, y1: s1, x2: lx, y2: s2, label },
+                    { x1: lx, y1: s2, x2: lx, y2: s3, label },
+                  );
+                } else {
+                  const ly = fixedCoord - offset;
+                  newEqGuides.push(
+                    { x1: s1, y1: ly, x2: s2, y2: ly, label },
+                    { x1: s2, y1: ly, x2: s3, y2: ly, label },
+                  );
+                }
+              }
+            }
+
+            setEquidistantGuides(newEqGuides);
           } else {
             setSnapGuides([]);
+            setEquidistantGuides([]);
           }
           moveWireSegment(draggingSegment.wireId, draggingSegment.segmentIndex, deltaPerpX, deltaPerpY);
         }
@@ -913,6 +992,7 @@ export const WireLayer: React.FC<Props> = ({
     setDraggingSegment(null);
     setPendingSegmentDrag(null);
     setSnapGuides([]);
+    setEquidistantGuides([]);
   }, []);
 
   const handleSegmentMouseDown = useCallback(
@@ -1167,6 +1247,52 @@ export const WireLayer: React.FC<Props> = ({
           />
         </g>
       ))}
+
+      {equidistantGuides.map((line, i) => {
+        const ldx = line.x2 - line.x1;
+        const ldy = line.y2 - line.y1;
+        const lLen = Math.sqrt(ldx * ldx + ldy * ldy);
+        if (lLen < 2) return null;
+        const ux = ldx / lLen;
+        const uy = ldy / lLen;
+        const px = -uy;
+        const py = ux;
+        const a = 1.5;
+        const midX = (line.x1 + line.x2) / 2;
+        const midY = (line.y1 + line.y2) / 2;
+
+        const arrowStart = [
+          `M ${line.x1 + ux * a + px * a * 0.5} ${line.y1 + uy * a + py * a * 0.5}`,
+          `L ${line.x1} ${line.y1}`,
+          `L ${line.x1 + ux * a - px * a * 0.5} ${line.y1 + uy * a - py * a * 0.5}`,
+        ].join(' ');
+        const arrowEnd = [
+          `M ${line.x2 - ux * a + px * a * 0.5} ${line.y2 - uy * a + py * a * 0.5}`,
+          `L ${line.x2} ${line.y2}`,
+          `L ${line.x2 - ux * a - px * a * 0.5} ${line.y2 - uy * a - py * a * 0.5}`,
+        ].join(' ');
+
+        return (
+          <g key={`eq-guide-${i}`} style={{ pointerEvents: 'none' }}>
+            <line
+              x1={line.x1} y1={line.y1}
+              x2={line.x2} y2={line.y2}
+              stroke="#ff9800" strokeWidth={0.3} opacity={0.9}
+            />
+            <path d={arrowStart} stroke="#ff9800" strokeWidth={0.3} fill="none" opacity={0.9} />
+            <path d={arrowEnd} stroke="#ff9800" strokeWidth={0.3} fill="none" opacity={0.9} />
+            <text
+              x={midX + px * 3} y={midY + py * 3}
+              textAnchor="middle" dominantBaseline="central"
+              fontSize={2.5} fontWeight={600}
+              fill="#ff9800" stroke="#fff" strokeWidth={2} paintOrder="stroke"
+              style={{ pointerEvents: 'none', userSelect: 'none' }}
+            >
+              {line.label}
+            </text>
+          </g>
+        );
+      })}
 
       {wiringFrom && hoverTarget && (
         (() => {
