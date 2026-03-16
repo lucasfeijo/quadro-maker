@@ -37,6 +37,7 @@ export const App: React.FC = () => {
     instanceId: string;
     moduleId: string;
     rowId: string;
+    positionMm: number;
   } | null>(null);
   const [ghostPreview, setGhostPreview] = useState<GhostPreview | null>(null);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
@@ -309,17 +310,44 @@ export const App: React.FC = () => {
     [layout],
   );
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const data = event.active.data.current;
-    if (data?.type === 'new-module' || data?.type === 'new-external-device') {
-      setActiveModuleId(data.moduleId as string);
-    } else if (data?.type === 'placed-module') {
-      setActivePlaced({
-        instanceId: data.instanceId as string,
-        moduleId: data.moduleId as string,
-        rowId: data.rowId as string,
-      });
-      setActiveModuleId(data.moduleId as string);
+  const computeSnapPositionFromDelta = useCallback(
+    (
+      event: { delta: { x: number; y: number } },
+      rail: ResolvedRail,
+      initialPositionMm: number,
+      moduleWidthMm: number,
+    ): number => {
+      const svgEl = document.querySelector('.panel-view-container svg');
+      if (!svgEl) return initialPositionMm;
+
+      const svgRect = svgEl.getBoundingClientRect();
+      const svgViewBox = svgEl.getAttribute('viewBox')?.split(' ').map(Number);
+      if (!svgViewBox) return initialPositionMm;
+
+      const scaleX = svgViewBox[2] / svgRect.width;
+      const deltaMm = event.delta.x * scaleX;
+      let pos = initialPositionMm + deltaMm;
+      pos = Math.max(0, Math.min(pos, rail.usableWidthMm - moduleWidthMm));
+      return snapToMm(pos);
+    },
+    [],
+  );
+
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const data = event.active.data.current;
+      if (data?.type === 'new-module' || data?.type === 'new-external-device') {
+        setActiveModuleId(data.moduleId as string);
+      } else if (data?.type === 'placed-module') {
+        const row = store.rows.find((r) => r.id === (data.rowId as string));
+        const mod = row?.modules.find((m) => m.instanceId === data.instanceId);
+        setActivePlaced({
+          instanceId: data.instanceId as string,
+          moduleId: data.moduleId as string,
+          rowId: data.rowId as string,
+          positionMm: mod?.positionMm ?? 0,
+        });
+        setActiveModuleId(data.moduleId as string);
     } else if (data?.type === 'new-panel-io') {
       setActiveDragInfo({ type: 'panel-io', label: data.direction === 'input' ? 'Entrada' : 'Saída', color: '#546e7a' });
     } else if (data?.type === 'new-busbar') {
@@ -327,7 +355,9 @@ export const App: React.FC = () => {
     } else if (data?.type === 'new-text-annotation') {
       setActiveDragInfo({ type: 'annotation', label: 'Texto', color: '#546e7a' });
     }
-  }, []);
+  },
+    [store.rows],
+  );
 
   const handleDragMove = useCallback(
     (event: DragMoveEvent) => {
@@ -338,31 +368,52 @@ export const App: React.FC = () => {
       const isPlaced = data.type === 'placed-module';
       if (!isNew && !isPlaced) return;
 
-      const { over } = event;
-      if (!over) {
-        setGhostPreview(null);
-        return;
-      }
-
-      const overData = over.data.current as
-        | { rowId: string; rail: ResolvedRail }
-        | undefined;
-      if (!overData?.rowId) {
-        setGhostPreview(null);
-        return;
-      }
-
       const moduleId = data.moduleId as string;
       const def = getModuleById(moduleId);
       if (!def) return;
 
-      const rail = overData.rail;
-      const row = store.rows.find((r) => r.id === overData.rowId);
-      if (!row) return;
+      const { over } = event;
+      let rowId: string;
+      let rail: ResolvedRail;
+      let row: (typeof store.rows)[0] | undefined;
+      let useDeltaPosition: boolean;
 
-      let positionMm = computeSnapPosition(event, rail, def.widthMm);
+      if (isPlaced && activePlaced) {
+        rowId = over?.data.current?.rowId ? (over.data.current as { rowId: string; rail: ResolvedRail }).rowId : activePlaced.rowId;
+        const rowIdx = store.rows.findIndex((r) => r.id === rowId);
+        rail = rowIdx >= 0 ? layout.rails[rowIdx] : layout.rails[0];
+        row = store.rows.find((r) => r.id === rowId);
+        useDeltaPosition = true;
+      } else {
+        if (!over) {
+          setGhostPreview(null);
+          return;
+        }
+        const overData = over.data.current as { rowId: string; rail: ResolvedRail } | undefined;
+        if (!overData?.rowId) {
+          setGhostPreview(null);
+          return;
+        }
+        rowId = overData.rowId;
+        rail = overData.rail;
+        row = store.rows.find((r) => r.id === overData.rowId);
+        useDeltaPosition = false;
+      }
+
+      if (!row) {
+        setGhostPreview(null);
+        return;
+      }
+
       const excludeId = isPlaced ? (data.instanceId as string) : undefined;
       const freeMove = shiftHeldRef.current;
+
+      let positionMm: number;
+      if (useDeltaPosition && activePlaced) {
+        positionMm = computeSnapPositionFromDelta(event, rail, activePlaced.positionMm, def.widthMm);
+      } else {
+        positionMm = computeSnapPosition(event, rail, def.widthMm);
+      }
 
       if (!freeMove && !canPlace(row.modules, positionMm, def.widthMm, rail.usableWidthMm, excludeId)) {
         positionMm = clampToNeighbors(row.modules, positionMm, def.widthMm, rail.usableWidthMm, excludeId);
@@ -371,7 +422,7 @@ export const App: React.FC = () => {
       const valid = freeMove || canPlace(row.modules, positionMm, def.widthMm, rail.usableWidthMm, excludeId);
 
       setGhostPreview({
-        rowId: overData.rowId,
+        rowId,
         positionMm,
         widthMm: def.widthMm,
         color: def.color,
@@ -379,7 +430,7 @@ export const App: React.FC = () => {
         instanceId: isPlaced ? (data.instanceId as string) : undefined,
       });
     },
-    [store.rows, computeSnapPosition],
+    [store.rows, layout.rails, activePlaced, computeSnapPosition, computeSnapPositionFromDelta],
   );
 
   const clearDragState = useCallback(() => {
@@ -459,25 +510,21 @@ export const App: React.FC = () => {
         return;
       }
 
-      if (!over) return;
-
-      const overData = over.data.current as
-        | { rowId: string; rail: ResolvedRail }
-        | undefined;
-      if (!overData?.rowId) return;
-
       const moduleId = data.moduleId as string;
       const def = getModuleById(moduleId);
       if (!def) return;
 
-      const rail = overData.rail;
-      const row = store.rows.find((r) => r.id === overData.rowId);
-      if (!row) return;
-
       const freeMove = shiftHeldRef.current;
 
       if (data.type === 'placed-module' && placedInfo) {
-        let positionMm = computeSnapPosition(event, rail, def.widthMm);
+        const overData = over?.data.current as { rowId: string; rail: ResolvedRail } | undefined;
+        const rowId = overData?.rowId ?? placedInfo.rowId;
+        const rowIdx = store.rows.findIndex((r) => r.id === rowId);
+        const rail = rowIdx >= 0 ? layout.rails[rowIdx] : layout.rails[0];
+        const row = store.rows.find((r) => r.id === rowId);
+        if (!row) return;
+
+        let positionMm = computeSnapPositionFromDelta(event, rail, placedInfo.positionMm, def.widthMm);
         positionMm = Math.max(0, Math.min(positionMm, rail.usableWidthMm - def.widthMm));
         positionMm = snapToMm(positionMm);
 
@@ -490,13 +537,20 @@ export const App: React.FC = () => {
             placedInfo.rowId,
             placedInfo.instanceId,
             positionMm,
-            overData.rowId !== placedInfo.rowId ? overData.rowId : undefined,
+            rowId !== placedInfo.rowId ? rowId : undefined,
           );
         }
         return;
       }
 
       if (data.type !== 'new-module') return;
+
+      if (!over) return;
+      const overData = over.data.current as { rowId: string; rail: ResolvedRail } | undefined;
+      if (!overData?.rowId) return;
+      const rail = overData.rail;
+      const row = store.rows.find((r) => r.id === overData.rowId);
+      if (!row) return;
 
       let positionMm: number;
       if (event.delta) {
@@ -535,7 +589,7 @@ export const App: React.FC = () => {
         }
       }
     },
-    [store, computeSnapPosition, computeExternalDevicePosition, clearDragState, activePlaced],
+    [store, layout.rails, computeSnapPosition, computeSnapPositionFromDelta, computeExternalDevicePosition, clearDragState, activePlaced],
   );
 
   const handleSelectModule = useCallback((id: string | null, additive?: boolean) => {
