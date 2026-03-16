@@ -117,6 +117,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
+  const [isDraggingSegment, setIsDraggingSegment] = useState(false);
   const clipboardRef = useRef<{ data: ClipboardData; pasteCount: number } | null>(null);
   const clampZoom = useCallback((value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value)), []);
 
@@ -694,6 +695,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
           onSelectWire={(id) => state.selectWire(id)}
           hoverTarget={hoverTarget}
           energizedWires={simActive ? energizedWires : undefined}
+          onSegmentDragChange={setIsDraggingSegment}
         />
 
         {/* Text Annotations — on top of everything */}
@@ -740,6 +742,11 @@ export const PanelView: React.FC<PanelViewProps> = ({
             ↷
           </button>
         </div>
+        {isDraggingSegment && (
+          <div className="drag-hint">
+            Segure <kbd>Shift</kbd> para desativar snap
+          </div>
+        )}
         <div className="zoom-controls">
           <button onClick={() => setZoom((z) => clampZoom(z - 0.2))}>-</button>
           <span>{Math.round(zoom * 100)}%</span>

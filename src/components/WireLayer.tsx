@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { PlacedModule, ResolvedRail } from '../types';
 import { getModuleById } from '../data/modules';
 import { cmToPx } from '../utils/geometry';
@@ -79,6 +79,7 @@ interface Props {
   onSelectWire: (wireId: string) => void;
   hoverTarget?: { instanceId: string; portId: string } | null;
   energizedWires?: Set<string>;
+  onSegmentDragChange?: (dragging: boolean) => void;
 }
 
 // --- Module/port helpers ---
@@ -675,6 +676,7 @@ export const WireLayer: React.FC<Props> = ({
   onSelectWire,
   hoverTarget,
   energizedWires,
+  onSegmentDragChange,
 }) => {
   const rows = usePanelStore((s) => s.rows);
   const wires = usePanelStore((s) => s.wires);
@@ -706,6 +708,11 @@ export const WireLayer: React.FC<Props> = ({
     startP2: Point;
   } | null>(null);
   const dragRef = useRef<boolean>(false);
+  const [snapGuides, setSnapGuides] = useState<{from: Point; to: Point}[]>([]);
+
+  useEffect(() => {
+    onSegmentDragChange?.(draggingSegment != null);
+  }, [draggingSegment, onSegmentDragChange]);
 
   const getPos = (instanceId: string, portId: string): PortPosition | null => {
     if (instanceId.startsWith('panel-io:')) {
@@ -810,20 +817,37 @@ export const WireLayer: React.FC<Props> = ({
             let bestY = y;
             let bestDistX = SEGMENT_SNAP_TOLERANCE + 1;
             let bestDistY = SEGMENT_SNAP_TOLERANCE + 1;
+            let bestTargetX: Point | null = null;
+            let bestTargetY: Point | null = null;
             for (const t of targets) {
               const dX = Math.abs(x - t.x);
               const dY = Math.abs(y - t.y);
               if (dX <= SEGMENT_SNAP_TOLERANCE && dX < bestDistX) {
                 bestDistX = dX;
                 bestX = t.x;
+                bestTargetX = t;
               }
               if (dY <= SEGMENT_SNAP_TOLERANCE && dY < bestDistY) {
                 bestDistY = dY;
                 bestY = t.y;
+                bestTargetY = t;
               }
             }
             deltaPerpX = bestX - pCurr.x;
             deltaPerpY = bestY - pCurr.y;
+            const newGuides: {from: Point; to: Point}[] = [];
+            const snappedPos = { x: bestX, y: bestY };
+            if (bestTargetX) {
+              const d = Math.abs(snappedPos.x - bestTargetX.x) + Math.abs(snappedPos.y - bestTargetX.y);
+              if (d > 0.5) newGuides.push({ from: snappedPos, to: bestTargetX });
+            }
+            if (bestTargetY) {
+              const d = Math.abs(snappedPos.x - bestTargetY.x) + Math.abs(snappedPos.y - bestTargetY.y);
+              if (d > 0.5) newGuides.push({ from: snappedPos, to: bestTargetY });
+            }
+            setSnapGuides(newGuides);
+          } else {
+            setSnapGuides([]);
           }
           moveWireSegment(draggingSegment.wireId, draggingSegment.segmentIndex, deltaPerpX, deltaPerpY);
         }
@@ -888,6 +912,7 @@ export const WireLayer: React.FC<Props> = ({
     setDraggingWp(null);
     setDraggingSegment(null);
     setPendingSegmentDrag(null);
+    setSnapGuides([]);
   }, []);
 
   const handleSegmentMouseDown = useCallback(
@@ -1118,6 +1143,30 @@ export const WireLayer: React.FC<Props> = ({
           </g>
         );
       })}
+
+      {snapGuides.map((guide, i) => (
+        <g key={`snap-guide-${i}`} style={{ pointerEvents: 'none' }}>
+          <line
+            x1={guide.from.x}
+            y1={guide.from.y}
+            x2={guide.to.x}
+            y2={guide.to.y}
+            stroke="#42a5f5"
+            strokeWidth={0.3}
+            strokeDasharray="1.5 1"
+            opacity={0.8}
+          />
+          <circle
+            cx={guide.to.x}
+            cy={guide.to.y}
+            r={1.2}
+            fill="none"
+            stroke="#42a5f5"
+            strokeWidth={0.3}
+            opacity={0.8}
+          />
+        </g>
+      ))}
 
       {wiringFrom && hoverTarget && (
         (() => {
