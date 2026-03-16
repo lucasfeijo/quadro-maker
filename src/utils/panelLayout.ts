@@ -1,4 +1,6 @@
-import { PanelState, ResolvedLayout } from '../types';
+import type { ResolvedLayout } from '../types';
+
+type LayoutInput = Pick<import('../types').PanelState, 'enclosureId' | 'widthUnits' | 'rowCount' | 'rows'>;
 import { getEnclosureById } from '../data/enclosures';
 import { getModuleById } from '../data/modules';
 
@@ -8,7 +10,7 @@ const WALL_THICKNESS_MM = 30;
 const DEFAULT_FIXING_MARGIN_MM = 30;
 const VERTICAL_PADDING_MM = 40;
 
-export function resolveLayout(state: PanelState): ResolvedLayout {
+export function resolveLayout(state: LayoutInput): ResolvedLayout {
   const result = state.enclosureId
     ? resolveEnclosureLayout(state.enclosureId)
     : resolveCustomLayout(state.widthUnits, state.rowCount);

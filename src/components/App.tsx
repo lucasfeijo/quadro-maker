@@ -185,13 +185,12 @@ export const App: React.FC = () => {
   const layout = useMemo(
     () =>
       resolveLayout({
-        name: store.name,
         enclosureId: store.enclosureId,
         widthUnits: store.widthUnits,
         rowCount: store.rowCount,
         rows: store.rows,
       }),
-    [store.enclosureId, store.widthUnits, store.rowCount, store.rows, store.name],
+    [store.enclosureId, store.widthUnits, store.rowCount, store.rows],
   );
 
   const panelStateSnapshot = useMemo<PanelState>(
@@ -204,6 +203,8 @@ export const App: React.FC = () => {
       wires: store.wires,
       panelIOs: store.panelIOs,
       externalDevices: store.externalDevices,
+      busbars: store.busbars,
+      textAnnotations: store.textAnnotations,
     }),
     [
       store.name,
@@ -214,6 +215,8 @@ export const App: React.FC = () => {
       store.wires,
       store.panelIOs,
       store.externalDevices,
+      store.busbars,
+      store.textAnnotations,
     ],
   );
 

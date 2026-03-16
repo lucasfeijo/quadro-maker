@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
-import { PanelState, PanelRow, DisplayMode, Wire, PanelIO, PanelIODirection, PanelIOType, PanelEdge, ExternalDevice, Busbar, BusbarType, TextAnnotation } from '../types';
+import { PanelState, PanelRow, DisplayMode, Wire, PanelIO, PanelIODirection, PanelIOType, PanelEdge, Busbar, BusbarType, TextAnnotation } from '../types';
 import { getEnclosureById } from '../data/enclosures';
 
 type EditorScreen = 'setup' | 'editor';

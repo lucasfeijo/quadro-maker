@@ -160,13 +160,12 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const layout = useMemo(
     () =>
       resolveLayout({
-        name: state.name,
         enclosureId: state.enclosureId,
         widthUnits: state.widthUnits,
         rowCount: state.rowCount,
         rows: state.rows,
       }),
-    [state.enclosureId, state.widthUnits, state.rowCount, state.rows, state.name],
+    [state.enclosureId, state.widthUnits, state.rowCount, state.rows],
   );
 
   const svgWidth = mmToPx(layout.exteriorWidthMm);

@@ -5,19 +5,6 @@ import { simulate, getNextMode, getModeInfo, SIM_MODES, getDefaultMode } from '.
 import type { ManualOverride, ModeTimestamps } from '../engine/circuit';
 import type { ComponentState } from '../types';
 
-const CATEGORY_LABELS: Record<string, string> = {
-  breaker: 'Disjuntor',
-  dr: 'DR',
-  dps: 'DPS',
-  contactor: 'Contator',
-  relay: 'Relé',
-  timer: 'Temporizador',
-  terminal: 'Borne',
-  ats: 'ATS',
-  switch: 'Interruptor',
-  button: 'Botão',
-};
-
 const IO_TYPE_LABELS: Record<string, string> = {
   phase: 'Fase',
   neutral: 'Neutro',

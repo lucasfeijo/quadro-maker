@@ -98,7 +98,7 @@ export const PanelIOLayer: React.FC<Props> = ({
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       if (!draggingId) return;
-      const svgEl = svgElRef.current ?? (e.target as Element).ownerSVGElement as SVGSVGElement | null;
+      const svgEl = svgElRef.current ?? (e.target as SVGGraphicsElement).ownerSVGElement as SVGSVGElement | null;
       if (!svgEl) return;
       const svgPt = screenToSvg(svgEl, e.clientX, e.clientY);
       const { edge, positionPercent } = closestEdge(svgPt.x, svgPt.y, svgWidth, svgHeight);

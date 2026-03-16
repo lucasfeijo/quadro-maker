@@ -2,8 +2,8 @@ import React from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { getModuleById } from '../data/modules';
 import { getComponentById } from '../data/components';
-import type { ComponentSpec, PropertySpec } from '../data/components';
-import type { PlacedModule, PanelIOType, BusbarType, TextAnnotation } from '../types';
+import type { ComponentSpec } from '../data/components';
+import type { PlacedModule, PanelIOType, BusbarType } from '../types';
 import { FONT_OPTIONS } from './TextAnnotationLayer';
 
 const CATEGORY_LABELS: Record<string, string> = {
