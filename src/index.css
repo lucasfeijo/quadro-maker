@@ -702,6 +702,10 @@ html, body, #root {
   text-align: center;
 }
 
+.editor-body:has(> .properties-panel) .panel-view-inner {
+  padding-right: 280px;
+}
+
 .editor-body:has(> .properties-panel) .zoom-controls {
   right: 276px;
 }
