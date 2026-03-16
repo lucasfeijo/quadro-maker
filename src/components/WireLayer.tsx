@@ -129,8 +129,13 @@ function getPortAbsolutePosition(
   const moduleY = railCenterY - mmToPx(MODULE_HEIGHT_MM / 2);
   const moduleH = mmToPx(MODULE_HEIGHT_MM);
 
+  const hasVerticalOffset = port.offsetYMm !== undefined;
   const x = moduleX + mmToPx(port.offsetXMm);
-  const y = port.side === 'top' ? moduleY - 2 : moduleY + moduleH + 2;
+  const y = hasVerticalOffset
+    ? moduleY + mmToPx(port.offsetYMm!)
+    : port.side === 'top'
+      ? moduleY - 2
+      : moduleY + moduleH + 2;
 
   return { x, y, type: port.type, side: port.side };
 }
@@ -194,8 +199,13 @@ function getPortObstacles(
       const moduleH = mmToPx(MODULE_HEIGHT_MM);
 
       for (const port of def.ports) {
+        const hasVerticalOffset = port.offsetYMm !== undefined;
         const px = moduleX + mmToPx(port.offsetXMm);
-        const py = port.side === 'top' ? moduleY - 2 : moduleY + moduleH + 2;
+        const py = hasVerticalOffset
+          ? moduleY + mmToPx(port.offsetYMm!)
+          : port.side === 'top'
+            ? moduleY - 2
+            : moduleY + moduleH + 2;
         rects.push({
           instanceId: `${mod.instanceId}:${port.id}`,
           x: px - PORT_OBSTACLE_R,

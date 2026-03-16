@@ -40,8 +40,13 @@ export const PortDot: React.FC<Props> = ({
   onPortHover,
   onPortLeave,
 }) => {
+  const hasVerticalOffset = port.offsetYMm !== undefined;
   const cx = moduleX + mmToPx(port.offsetXMm);
-  const cy = port.side === 'top' ? moduleY - 2 : moduleY + moduleH + 2;
+  const cy = hasVerticalOffset
+    ? moduleY + mmToPx(port.offsetYMm!)
+    : port.side === 'top'
+      ? moduleY - 2
+      : moduleY + moduleH + 2;
   const color = PORT_COLORS[port.type] ?? '#999';
 
   return (
@@ -79,9 +84,9 @@ export const PortDot: React.FC<Props> = ({
         strokeWidth={0.6}
       />
       <text
-        x={cx}
-        y={cy + (port.side === 'top' ? -4 : 5)}
-        textAnchor="middle"
+        x={hasVerticalOffset ? cx + 5 : cx}
+        y={hasVerticalOffset ? cy : cy + (port.side === 'top' ? -4 : 5)}
+        textAnchor={hasVerticalOffset ? 'start' : 'middle'}
         dominantBaseline="middle"
         fontSize={3.2}
         fill="#444"

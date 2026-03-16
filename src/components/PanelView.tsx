@@ -206,7 +206,13 @@ export const PanelView: React.FC<PanelViewProps> = ({
         const mx = usableX + mmToPx(mod.positionMm);
         const my = railCY - mmToPx(MODULE_H_MM / 2);
         const mh = mmToPx(MODULE_H_MM);
-        return { x: mx + mmToPx(port.offsetXMm), y: port.side === 'top' ? my - 2 : my + mh + 2 };
+        const hasVerticalOffset = port.offsetYMm !== undefined;
+        const py = hasVerticalOffset
+          ? my + mmToPx(port.offsetYMm!)
+          : port.side === 'top'
+            ? my - 2
+            : my + mh + 2;
+        return { x: mx + mmToPx(port.offsetXMm), y: py };
       }
       return null;
     };

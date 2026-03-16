@@ -89,6 +89,45 @@ export function makeRoutes(labels: string[]): InternalRoute[] {
   return labels.map((l) => ({ from: `in-${l}`, to: `out-${l}` }));
 }
 
+/**
+ * Cria portas distribuídas verticalmente (para barramentos estreitos).
+ * Largura fixa 10mm; uma única coluna de bornes centralizados e equidistantes.
+ * Cada borne aceita conexões por qualquer lado (modelado como um único ponto).
+ */
+export function makePortsVertical(
+  count: number,
+  heightMm: number,
+  labels: string[],
+  types: PortDefinition['type'][],
+): PortDefinition[] {
+  const ports: PortDefinition[] = [];
+  const spacing = heightMm / (count + 1);
+  const centerX = 5; // 10mm / 2 - bornes centralizados
+  for (let i = 0; i < count; i++) {
+    const offsetY = spacing * (i + 1);
+    const label = labels[i] ?? `${i + 1}`;
+    const pType = types[i] ?? 'phase';
+    ports.push({
+      id: label,
+      label,
+      side: 'right',
+      offsetXMm: centerX,
+      offsetYMm: offsetY,
+      type: pType,
+    });
+  }
+  return ports;
+}
+
+/** Rotas que interligam todos os bornes (barramento - todos eletricamente comuns). */
+export function makeRoutesBusbar(labels: string[]): InternalRoute[] {
+  const routes: InternalRoute[] = [];
+  for (let i = 0; i < labels.length - 1; i++) {
+    routes.push({ from: labels[i], to: labels[i + 1] });
+  }
+  return routes;
+}
+
 // Common behavior builders
 
 export function coilDrivenBehavior(

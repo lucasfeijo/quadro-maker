@@ -43,13 +43,15 @@ export type ModuleCategory =
   | 'button';
 
 export type PortType = 'phase' | 'neutral' | 'ground' | 'any';
-export type PortSide = 'top' | 'bottom';
+export type PortSide = 'top' | 'bottom' | 'left' | 'right';
 
 export type PortDefinition = {
   id: string;
   label: string;
   side: PortSide;
   offsetXMm: number;
+  /** Quando definido, o borne é posicionado verticalmente (ex.: barramentos estreitos com bornes na lateral) */
+  offsetYMm?: number;
   type: PortType;
   maxCurrentA?: number;
 };

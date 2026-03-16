@@ -94,7 +94,7 @@ function ComponentInfoSection({ spec }: { spec: ComponentSpec }) {
                     display: 'inline-block',
                     fontWeight: 600,
                     color: '#333',
-                    background: port.side === 'top' ? '#e3f2fd' : '#fce4ec',
+                    background: port.side === 'top' ? '#e3f2fd' : port.side === 'bottom' ? '#fce4ec' : '#e8f5e9',
                     padding: '1px 5px',
                     borderRadius: 3,
                     marginRight: 4,
@@ -105,7 +105,7 @@ function ComponentInfoSection({ spec }: { spec: ComponentSpec }) {
                     {port.label}
                   </span>
                   <span style={{ color: '#888', fontSize: 10 }}>
-                    ({port.side === 'top' ? '↓ cima' : '↑ baixo'} · {PORT_TYPE_LABELS[port.type] ?? port.type})
+                    ({port.side === 'top' ? '↓ cima' : port.side === 'bottom' ? '↑ baixo' : '↔ lateral'} · {PORT_TYPE_LABELS[port.type] ?? port.type})
                   </span>
                   {desc && (
                     <div style={{ color: '#666', marginLeft: 4, marginTop: 1 }}>{desc}</div>
