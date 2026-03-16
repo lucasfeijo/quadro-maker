@@ -1,20 +1,18 @@
 import { PlacedModule } from '../types';
 import { getModuleById } from '../data/modules';
 
-export const PX_PER_CM = 10;
+export const PX_PER_MM = 1;
 
-const SNAP_STEP_CM = 0.1;
-
-export function snapToCm(valueCm: number): number {
-  return Math.round(valueCm / SNAP_STEP_CM) * SNAP_STEP_CM;
+export function snapToMm(valueMm: number): number {
+  return Math.round(valueMm);
 }
 
-export function pxToCm(px: number): number {
-  return px / PX_PER_CM;
+export function pxToMm(px: number): number {
+  return Math.round(px / PX_PER_MM);
 }
 
-export function cmToPx(cm: number): number {
-  return cm * PX_PER_CM;
+export function mmToPx(mm: number): number {
+  return mm * PX_PER_MM;
 }
 
 export function getModuleRange(
@@ -22,7 +20,7 @@ export function getModuleRange(
 ): { start: number; end: number } | null {
   const def = getModuleById(mod.moduleId);
   if (!def) return null;
-  return { start: mod.positionCm, end: mod.positionCm + def.widthCm };
+  return { start: mod.positionMm, end: mod.positionMm + def.widthMm };
 }
 
 export function hasOverlap(
@@ -40,25 +38,25 @@ export function hasOverlap(
 }
 
 export function fitsInRail(
-  positionCm: number,
-  widthCm: number,
-  usableWidthCm: number,
+  positionMm: number,
+  widthMm: number,
+  usableWidthMm: number,
 ): boolean {
-  return positionCm >= 0 && positionCm + widthCm <= usableWidthCm;
+  return positionMm >= 0 && positionMm + widthMm <= usableWidthMm;
 }
 
 export function canPlace(
   modules: PlacedModule[],
-  positionCm: number,
-  widthCm: number,
-  usableWidthCm: number,
+  positionMm: number,
+  widthMm: number,
+  usableWidthMm: number,
   excludeInstanceId?: string,
 ): boolean {
-  if (!fitsInRail(positionCm, widthCm, usableWidthCm)) return false;
+  if (!fitsInRail(positionMm, widthMm, usableWidthMm)) return false;
   return !hasOverlap(
     modules,
-    positionCm,
-    positionCm + widthCm,
+    positionMm,
+    positionMm + widthMm,
     excludeInstanceId,
   );
 }
@@ -69,13 +67,12 @@ export function canPlace(
  */
 export function clampToNeighbors(
   modules: PlacedModule[],
-  desiredCm: number,
-  widthCm: number,
-  usableWidthCm: number,
+  desiredMm: number,
+  widthMm: number,
+  usableWidthMm: number,
   excludeInstanceId?: string,
 ): number {
-  let pos = desiredCm;
-  const newEnd = pos + widthCm;
+  let pos = desiredMm;
 
   const neighbors = modules
     .filter((m) => !excludeInstanceId || m.instanceId !== excludeInstanceId)
@@ -84,11 +81,11 @@ export function clampToNeighbors(
 
   for (const nb of neighbors) {
     const oStart = pos;
-    const oEnd = pos + widthCm;
+    const oEnd = pos + widthMm;
     if (oStart < nb.end && oEnd > nb.start) {
-      const snapLeft = nb.start - widthCm;
+      const snapLeft = nb.start - widthMm;
       const snapRight = nb.end;
-      if (Math.abs(snapLeft - desiredCm) <= Math.abs(snapRight - desiredCm)) {
+      if (Math.abs(snapLeft - desiredMm) <= Math.abs(snapRight - desiredMm)) {
         pos = snapLeft;
       } else {
         pos = snapRight;
@@ -96,11 +93,11 @@ export function clampToNeighbors(
     }
   }
 
-  pos = Math.max(0, Math.min(pos, usableWidthCm - widthCm));
-  pos = snapToCm(pos);
+  pos = Math.max(0, Math.min(pos, usableWidthMm - widthMm));
+  pos = snapToMm(pos);
 
-  if (canPlace(modules, pos, widthCm, usableWidthCm, excludeInstanceId)) {
+  if (canPlace(modules, pos, widthMm, usableWidthMm, excludeInstanceId)) {
     return pos;
   }
-  return desiredCm;
+  return desiredMm;
 }

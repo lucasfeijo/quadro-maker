@@ -1,8 +1,9 @@
 import React from 'react';
 import { ResolvedRail, PanelRow, GhostPreview, ComponentState } from '../types';
-import { cmToPx } from '../utils/geometry';
+import { mmToPx } from '../utils/geometry';
 import { ModuleBlock } from './ModuleBlock';
 import { useDroppable } from '@dnd-kit/core';
+import { DIN_MODULE_1P_MM } from '../data/enclosures';
 
 interface Props {
   rail: ResolvedRail;
@@ -21,12 +22,9 @@ interface Props {
   onSimModeChange?: (instanceId: string, newMode: string) => void;
 }
 
-const RAIL_HEIGHT_CM = 1;
-const MODULE_HEIGHT_CM = 7;
-/** Barra física do trilho não vai até as bordas; recuo em cada extremidade (cm) */
-const RAIL_BAR_END_INSET_CM = 1.5;
-/** Largura de 1 módulo DIN 1P (disjuntor unipolar) em cm */
-const DIN_MODULE_1P_CM = 1.8;
+const RAIL_HEIGHT_MM = 10;
+const MODULE_HEIGHT_MM = 70;
+const RAIL_BAR_END_INSET_MM = 15;
 
 export const DinRail: React.FC<Props> = ({
   rail,
@@ -49,34 +47,33 @@ export const DinRail: React.FC<Props> = ({
     data: { rowId: row.id, rail },
   });
 
-  const railLeftPx = interiorOffsetXPx + cmToPx(rail.xCm);
-  const railTopPx = interiorOffsetYPx + cmToPx(rail.yCm);
-  const railWidthPx = cmToPx(rail.widthCm);
-  const railHeightPx = cmToPx(RAIL_HEIGHT_CM);
-  const fixingPx = cmToPx(rail.fixingMarginCm);
-  const usablePx = cmToPx(rail.usableWidthCm);
+  const railLeftPx = interiorOffsetXPx + mmToPx(rail.xMm);
+  const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
+  const railWidthPx = mmToPx(rail.widthMm);
+  const railHeightPx = mmToPx(RAIL_HEIGHT_MM);
+  const fixingPx = mmToPx(rail.fixingMarginMm);
+  const usablePx = mmToPx(rail.usableWidthMm);
   const usableOffsetXPx = railLeftPx + fixingPx;
 
-  // Barra física: recua das bordas (não vai até o final do interior)
-  const railBarInsetPx = cmToPx(RAIL_BAR_END_INSET_CM);
+  const railBarInsetPx = mmToPx(RAIL_BAR_END_INSET_MM);
   const railBarLeftPx = railLeftPx + railBarInsetPx;
   const railBarWidthPx = railWidthPx - railBarInsetPx * 2;
 
   const ghostX = ghostPreview
-    ? usableOffsetXPx + cmToPx(ghostPreview.positionCm)
+    ? usableOffsetXPx + mmToPx(ghostPreview.positionMm)
     : 0;
-  const ghostW = ghostPreview ? cmToPx(ghostPreview.widthCm) : 0;
-  const ghostH = cmToPx(MODULE_HEIGHT_CM);
+  const ghostW = ghostPreview ? mmToPx(ghostPreview.widthMm) : 0;
+  const ghostH = mmToPx(MODULE_HEIGHT_MM);
   const ghostY = railTopPx + railHeightPx / 2 - ghostH / 2;
 
   const railCenterYPx = railTopPx + railHeightPx / 2;
-  const labelSpacingPx = cmToPx(0.35);
+  const labelSpacingPx = mmToPx(3.5);
   const heightLabelXPx = railBarLeftPx - labelSpacingPx;
   const lengthLabelYPx = railTopPx - labelSpacingPx;
 
   return (
     <g ref={(el) => setNodeRef(el as unknown as HTMLElement | null)}>
-      {/* Rail height label (35mm) - rotated 90°, vertically aligned with rail */}
+      {/* Rail height label (35mm) */}
       <text
         className="rail-length-label"
         x={heightLabelXPx}
@@ -90,7 +87,7 @@ export const DinRail: React.FC<Props> = ({
         35mm
       </text>
 
-      {/* Rail length label - above top face, left-aligned, same spacing */}
+      {/* Rail length label */}
       <text
         className="rail-length-label"
         x={railBarLeftPx + labelSpacingPx}
@@ -100,41 +97,41 @@ export const DinRail: React.FC<Props> = ({
         fill="#607d8b"
         fontSize={2.2}
       >
-        {rail.usableWidthCm*10}mm
+        {rail.usableWidthMm}mm
       </text>
 
       {/* Fixing margin left - hatched */}
       <rect
         x={railLeftPx}
-        y={railTopPx - cmToPx(3.5)}
+        y={railTopPx - mmToPx(35)}
         width={fixingPx}
-        height={cmToPx(8)}
+        height={mmToPx(80)}
         fill="url(#hatch)"
         opacity={0.25}
       />
       {/* Fixing margin right - hatched */}
       <rect
         x={railLeftPx + fixingPx + usablePx}
-        y={railTopPx - cmToPx(3.5)}
+        y={railTopPx - mmToPx(35)}
         width={fixingPx}
-        height={cmToPx(8)}
+        height={mmToPx(80)}
         fill="url(#hatch)"
         opacity={0.25}
       />
 
       {/* Grid: linhas menores a cada 1P, maiores a cada 3P */}
       {Array.from(
-        { length: Math.floor(rail.usableWidthCm / DIN_MODULE_1P_CM) + 1 },
+        { length: Math.floor(rail.usableWidthMm / DIN_MODULE_1P_MM) + 1 },
         (_, i) => {
-          const xCm = i * DIN_MODULE_1P_CM;
+          const xMm = i * DIN_MODULE_1P_MM;
           const isMajor = i % 3 === 0;
           return (
             <line
               key={i}
-              x1={usableOffsetXPx + cmToPx(xCm)}
-              y1={railTopPx - cmToPx(3.5)}
-              x2={usableOffsetXPx + cmToPx(xCm)}
-              y2={railTopPx + cmToPx(4.5)}
+              x1={usableOffsetXPx + mmToPx(xMm)}
+              y1={railTopPx - mmToPx(35)}
+              x2={usableOffsetXPx + mmToPx(xMm)}
+              y2={railTopPx + mmToPx(45)}
               stroke={isMajor ? '#ccc' : '#e8e8e8'}
               strokeWidth={isMajor ? 0.3 : 0.15}
             />
@@ -142,7 +139,7 @@ export const DinRail: React.FC<Props> = ({
         },
       )}
 
-      {/* DIN rail bar (não vai até as bordas do interior) */}
+      {/* DIN rail bar */}
       <rect
         x={railBarLeftPx}
         y={railTopPx}
@@ -155,14 +152,14 @@ export const DinRail: React.FC<Props> = ({
       />
       {/* Rail perforations */}
       {Array.from(
-        { length: Math.floor(railBarWidthPx / cmToPx(2)) },
+        { length: Math.floor(railBarWidthPx / mmToPx(20)) },
         (_, i) => (
           <rect
             key={i}
-            x={railBarLeftPx + cmToPx(0.5) + i * cmToPx(2)}
-            y={railTopPx + cmToPx(0.2)}
-            width={cmToPx(1)}
-            height={cmToPx(0.6)}
+            x={railBarLeftPx + mmToPx(5) + i * mmToPx(20)}
+            y={railTopPx + mmToPx(2)}
+            width={mmToPx(10)}
+            height={mmToPx(6)}
             rx={0.2}
             fill="#90a4ae"
           />
@@ -173,9 +170,9 @@ export const DinRail: React.FC<Props> = ({
       {isOver && (
         <rect
           x={usableOffsetXPx}
-          y={railTopPx - cmToPx(3.5)}
+          y={railTopPx - mmToPx(35)}
           width={usablePx}
-          height={cmToPx(8)}
+          height={mmToPx(80)}
           fill="#ffd600"
           opacity={0.07}
           rx={1}
@@ -197,7 +194,6 @@ export const DinRail: React.FC<Props> = ({
             strokeWidth={ghostPreview.valid ? 0.8 : 1}
             strokeDasharray={ghostPreview.valid ? 'none' : '2 1'}
           />
-          {/* Snap position indicator line */}
           <line
             x1={ghostX}
             y1={ghostY - 2}
@@ -207,7 +203,6 @@ export const DinRail: React.FC<Props> = ({
             strokeWidth={0.4}
             opacity={0.6}
           />
-          {/* Position label */}
           <text
             x={ghostX + ghostW / 2}
             y={ghostY - 3}
@@ -217,7 +212,7 @@ export const DinRail: React.FC<Props> = ({
             fontWeight={600}
             opacity={0.8}
           >
-            {ghostPreview.positionCm}cm
+            {ghostPreview.positionMm}mm
             {!ghostPreview.valid && ' ✕'}
           </text>
         </g>

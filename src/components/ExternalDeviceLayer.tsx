@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { getModuleById } from '../data/modules';
-import { cmToPx } from '../utils/geometry';
+import { mmToPx } from '../utils/geometry';
 import { getModeInfo, getNextMode, SIM_MODES } from '../engine/circuit';
 import type { ComponentState } from '../types';
 
@@ -27,14 +27,14 @@ export function getExternalDevicePortPosition(
   const def = getModuleById(device.moduleId);
   if (!def) return null;
 
-  const boxW = cmToPx(def.widthCm) * DEV_SCALE;
+  const boxW = mmToPx(def.widthMm) * DEV_SCALE;
   const bx = device.x - boxW / 2;
   const by = device.y - BOX_H / 2;
 
   const port = def.ports.find((p) => p.id === portId);
   if (!port) return null;
 
-  const px = bx + cmToPx(port.offsetXCm) * DEV_SCALE;
+  const px = bx + mmToPx(port.offsetXMm) * DEV_SCALE;
   const py = port.side === 'top' ? by - 2 : by + BOX_H + 2;
   return { x: px, y: py };
 }
@@ -44,7 +44,7 @@ export function getExternalDeviceBounds(
 ): { minX: number; minY: number; maxX: number; maxY: number } | null {
   const def = getModuleById(device.moduleId);
   if (!def) return null;
-  const boxW = cmToPx(def.widthCm) * DEV_SCALE;
+  const boxW = mmToPx(def.widthMm) * DEV_SCALE;
   const portMargin = 8;
   return {
     minX: device.x - boxW / 2 - portMargin,
@@ -164,7 +164,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
         const def = getModuleById(dev.moduleId);
         if (!def) return null;
 
-        const boxW = cmToPx(def.widthCm) * DEV_SCALE;
+        const boxW = mmToPx(def.widthMm) * DEV_SCALE;
         const bx = dev.x - boxW / 2;
         const by = dev.y - BOX_H / 2;
         const isSelected = selectedDeviceIds.includes(dev.instanceId);
@@ -309,7 +309,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
             })()}
 
             {def.ports.map((port) => {
-              const px = bx + cmToPx(port.offsetXCm) * DEV_SCALE;
+              const px = bx + mmToPx(port.offsetXMm) * DEV_SCALE;
               const py = port.side === 'top' ? by - 2 : by + BOX_H + 2;
               const labelY = port.side === 'top' ? py - 4 : py + 5;
               const connected = isConnected(port.id);

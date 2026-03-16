@@ -2,12 +2,11 @@ import { PanelState, ResolvedLayout } from '../types';
 import { getEnclosureById } from '../data/enclosures';
 import { getModuleById } from '../data/modules';
 
-const ROW_HEIGHT_CM = 10;
-const ROW_SPACING_CM = 3;
-const WALL_THICKNESS_CM = 3;
-const DEFAULT_FIXING_MARGIN = 3;
-const VERTICAL_PADDING_CM = 4;
-const RAIL_INSET_CM = 1.5;
+const ROW_HEIGHT_MM = 100;
+const ROW_SPACING_MM = 30;
+const WALL_THICKNESS_MM = 30;
+const DEFAULT_FIXING_MARGIN_MM = 30;
+const VERTICAL_PADDING_MM = 40;
 
 export function resolveLayout(state: PanelState): ResolvedLayout {
   const result = state.enclosureId
@@ -16,16 +15,16 @@ export function resolveLayout(state: PanelState): ResolvedLayout {
   // #region agent log
   const rail0 = result.rails[0];
   if (rail0) {
-    let occupiedCm = 0;
+    let occupiedMm = 0;
     const moduleIds: string[] = [];
     for (const row of state.rows) {
       for (const mod of row.modules) {
         moduleIds.push(mod.moduleId);
         const def = getModuleById(mod.moduleId);
-        if (def) occupiedCm += def.widthCm;
+        if (def) occupiedMm += def.widthMm;
       }
     }
-    fetch('http://127.0.0.1:7933/ingest/9df62cad-4dbe-44e5-9845-8a9dc613936c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9770de'},body:JSON.stringify({sessionId:'9770de',location:'panelLayout.ts:resolveLayout',message:'Layout resolved',data:{enclosureId:state.enclosureId,widthUnits:state.widthUnits,railUsableWidthCm:rail0.usableWidthCm,occupiedCm,totalModules:moduleIds.length,moduleIds,leftoverCm:rail0.usableWidthCm-occupiedCm},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7933/ingest/9df62cad-4dbe-44e5-9845-8a9dc613936c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9770de'},body:JSON.stringify({sessionId:'9770de',location:'panelLayout.ts:resolveLayout',message:'Layout resolved',data:{enclosureId:state.enclosureId,widthUnits:state.widthUnits,railUsableWidthMm:rail0.usableWidthMm,occupiedMm,totalModules:moduleIds.length,moduleIds,leftoverMm:rail0.usableWidthMm-occupiedMm},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
   }
   // #endregion
   return result;
@@ -33,27 +32,27 @@ export function resolveLayout(state: PanelState): ResolvedLayout {
 
 function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
   const enc = getEnclosureById(enclosureId)!;
-  const origWallX = (enc.exteriorWidthCm - enc.interiorWidthCm) / 2;
-  const origWallY = (enc.exteriorHeightCm - enc.interiorHeightCm) / 2;
-  const minWall = WALL_THICKNESS_CM;
+  const origWallX = (enc.exteriorWidthMm - enc.interiorWidthMm) / 2;
+  const origWallY = (enc.exteriorHeightMm - enc.interiorHeightMm) / 2;
+  const minWall = WALL_THICKNESS_MM;
   const extraX = Math.max(0, minWall - origWallX);
   const extraY = Math.max(0, minWall - origWallY);
 
   return {
-    exteriorWidthCm: enc.exteriorWidthCm + extraX * 2,
-    exteriorHeightCm: enc.exteriorHeightCm + extraY * 2,
-    interiorWidthCm: enc.interiorWidthCm,
-    interiorHeightCm: enc.interiorHeightCm,
-    interiorOffsetXCm: origWallX + extraX,
-    interiorOffsetYCm: origWallY + extraY,
+    exteriorWidthMm: enc.exteriorWidthMm + extraX * 2,
+    exteriorHeightMm: enc.exteriorHeightMm + extraY * 2,
+    interiorWidthMm: enc.interiorWidthMm,
+    interiorHeightMm: enc.interiorHeightMm,
+    interiorOffsetXMm: origWallX + extraX,
+    interiorOffsetYMm: origWallY + extraY,
     rails: enc.rails.map((r) => {
-      const fixingMarginCm = (enc.interiorWidthCm - r.usableWidthCm) / 2;
+      const fixingMarginMm = (enc.interiorWidthMm - r.usableWidthMm) / 2;
       return {
         ...r,
-        xCm: 0,
-        widthCm: enc.interiorWidthCm,
-        usableWidthCm: r.usableWidthCm,
-        fixingMarginCm,
+        xMm: 0,
+        widthMm: enc.interiorWidthMm,
+        usableWidthMm: r.usableWidthMm,
+        fixingMarginMm,
       };
     }),
     mountingHoles: enc.mountingHoles,
@@ -65,30 +64,29 @@ function resolveCustomLayout(
   widthUnits: number,
   rowCount: number,
 ): ResolvedLayout {
-  const usableWidth = widthUnits * 3;
-  const interiorWidth = usableWidth + DEFAULT_FIXING_MARGIN * 2;
+  const usableWidth = widthUnits * 30;
+  const interiorWidth = usableWidth + DEFAULT_FIXING_MARGIN_MM * 2;
   const interiorHeight =
-    VERTICAL_PADDING_CM * 2 + rowCount * ROW_HEIGHT_CM + (rowCount - 1) * ROW_SPACING_CM;
-  const exteriorWidth = interiorWidth + WALL_THICKNESS_CM * 2;
-  const exteriorHeight = interiorHeight + WALL_THICKNESS_CM * 2;
+    VERTICAL_PADDING_MM * 2 + rowCount * ROW_HEIGHT_MM + (rowCount - 1) * ROW_SPACING_MM;
+  const exteriorWidth = interiorWidth + WALL_THICKNESS_MM * 2;
+  const exteriorHeight = interiorHeight + WALL_THICKNESS_MM * 2;
 
-  // Rail ocupa toda a largura do interior; área útil = interior - zonas de fixação
   const rails = Array.from({ length: rowCount }, (_, i) => ({
     id: `row-${i}`,
-    xCm: 0,
-    yCm: VERTICAL_PADDING_CM + i * (ROW_HEIGHT_CM + ROW_SPACING_CM) + ROW_HEIGHT_CM / 2 - 0.5,
-    widthCm: interiorWidth,
-    usableWidthCm: interiorWidth - DEFAULT_FIXING_MARGIN * 2,
-    fixingMarginCm: DEFAULT_FIXING_MARGIN,
+    xMm: 0,
+    yMm: VERTICAL_PADDING_MM + i * (ROW_HEIGHT_MM + ROW_SPACING_MM) + ROW_HEIGHT_MM / 2 - 5,
+    widthMm: interiorWidth,
+    usableWidthMm: interiorWidth - DEFAULT_FIXING_MARGIN_MM * 2,
+    fixingMarginMm: DEFAULT_FIXING_MARGIN_MM,
   }));
 
   return {
-    exteriorWidthCm: exteriorWidth,
-    exteriorHeightCm: exteriorHeight,
-    interiorWidthCm: interiorWidth,
-    interiorHeightCm: interiorHeight,
-    interiorOffsetXCm: WALL_THICKNESS_CM,
-    interiorOffsetYCm: WALL_THICKNESS_CM,
+    exteriorWidthMm: exteriorWidth,
+    exteriorHeightMm: exteriorHeight,
+    interiorWidthMm: interiorWidth,
+    interiorHeightMm: interiorHeight,
+    interiorOffsetXMm: WALL_THICKNESS_MM,
+    interiorOffsetYMm: WALL_THICKNESS_MM,
     rails,
     mountingHoles: [],
     isEnclosure: false,

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PlacedModule, ComponentState } from '../types';
 import { getModuleById } from '../data/modules';
-import { cmToPx } from '../utils/geometry';
+import { mmToPx } from '../utils/geometry';
 import { usePanelStore } from '../store/panelStore';
 import { ModuleIcon } from './ModuleIcon';
 import { PortDot } from './PortDot';
@@ -25,7 +25,7 @@ interface Props {
   onSimModeChange?: (instanceId: string, newMode: string) => void;
 }
 
-const MODULE_HEIGHT_CM = 7;
+const MODULE_HEIGHT_MM = 70;
 
 export const ModuleBlock: React.FC<Props> = ({
   mod,
@@ -65,10 +65,10 @@ export const ModuleBlock: React.FC<Props> = ({
 
   if (!def) return null;
 
-  const x = railUsableOffsetXPx + cmToPx(mod.positionCm);
-  const y = railYPx - cmToPx(MODULE_HEIGHT_CM / 2);
-  const w = cmToPx(def.widthCm);
-  const h = cmToPx(MODULE_HEIGHT_CM);
+  const x = railUsableOffsetXPx + mmToPx(mod.positionMm);
+  const y = railYPx - mmToPx(MODULE_HEIGHT_MM / 2);
+  const w = mmToPx(def.widthMm);
+  const h = mmToPx(MODULE_HEIGHT_MM);
   const iconSize = Math.min(w * 0.6, h * 0.35);
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -125,8 +125,7 @@ export const ModuleBlock: React.FC<Props> = ({
         x={x + (w - iconSize) / 2}
         y={y + h * 0.08}
       />
-      {/* Module name + label inside the module */}
-      {def.widthCm >= 3 ? (
+      {def.widthMm >= 30 ? (
         <>
           <text
             x={x + w / 2}
@@ -179,7 +178,7 @@ export const ModuleBlock: React.FC<Props> = ({
         fontSize={2}
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
-        {Math.round(def.widthCm * 10)}mm
+        {def.widthMm}mm
       </text>
       {editing && (
         <foreignObject x={x - 10} y={y + h + 1} width={w + 20} height={10}>

@@ -4,14 +4,14 @@ const component: ComponentSpec = {
   id: 'terminal',
   name: 'Borne',
   description: 'Ponto de conexão passivo. Liga o fio de entrada ao de saída sem interrupção. Usado para organizar e distribuir conexões dentro do quadro.',
-  widthCm: 0.6,
+  widthMm: 6,
   category: 'terminal',
   poles: 1,
   color: '#78909c',
   icon: 'terminal',
   ports: [
-    { id: 'in-top', label: 'Ent', side: 'top', offsetXCm: 0.3, type: 'any' },
-    { id: 'out-bottom', label: 'Saí', side: 'bottom', offsetXCm: 0.3, type: 'any' },
+    { id: 'in-top', label: 'Ent', side: 'top', offsetXMm: 3, type: 'any' },
+    { id: 'out-bottom', label: 'Saí', side: 'bottom', offsetXMm: 3, type: 'any' },
   ],
   portDescriptions: {
     'in-top': 'Entrada — conexão superior',

@@ -11,7 +11,7 @@ interface WiringFrom {
 }
 
 export interface PasteData {
-  modules: Array<{ oldId: string; moduleId: string; positionCm: number; rowId: string; label?: string; properties?: Record<string, number | string> }>;
+  modules: Array<{ oldId: string; moduleId: string; positionMm: number; rowId: string; label?: string; properties?: Record<string, number | string> }>;
   externalDevices: Array<{ oldId: string; moduleId: string; x: number; y: number; label?: string; properties?: Record<string, number | string> }>;
   wires: Array<{ sourceOldId: string; sourcePortId: string; targetOldId: string; targetPortId: string }>;
 }
@@ -30,8 +30,8 @@ interface PanelStore extends PanelState {
   configureFromEnclosure: (enclosureId: string) => void;
   goToSetup: () => void;
 
-  addModule: (rowId: string, moduleId: string, positionCm: number) => void;
-  moveModule: (rowId: string, instanceId: string, newPositionCm: number, newRowId?: string) => void;
+  addModule: (rowId: string, moduleId: string, positionMm: number) => void;
+  moveModule: (rowId: string, instanceId: string, newPositionMm: number, newRowId?: string) => void;
   removeModule: (rowId: string, instanceId: string) => void;
   updateLabel: (rowId: string, instanceId: string, label: string) => void;
 
@@ -172,7 +172,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     set({
       screen: 'editor',
       enclosureId,
-      widthUnits: Math.round(enc.rails[0]?.usableWidthCm / 3) || 12,
+      widthUnits: Math.round(enc.rails[0]?.usableWidthMm / 30) || 12,
       rowCount: enc.rails.length,
       rows: enc.rails.map((r) => ({ id: r.id, modules: [] })),
       wires: [],
@@ -185,16 +185,16 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
 
   goToSetup: () => set({ screen: 'setup' }),
 
-  addModule: (rowId, moduleId, positionCm) =>
+  addModule: (rowId, moduleId, positionMm) =>
     set((s) => ({
       rows: s.rows.map((row) =>
         row.id === rowId
-          ? { ...row, modules: [...row.modules, { instanceId: nanoid(), moduleId, positionCm }] }
+          ? { ...row, modules: [...row.modules, { instanceId: nanoid(), moduleId, positionMm }] }
           : row,
       ),
     })),
 
-  moveModule: (rowId, instanceId, newPositionCm, newRowId) =>
+  moveModule: (rowId, instanceId, newPositionMm, newRowId) =>
     set((s) => {
       if (newRowId && newRowId !== rowId) {
         const mod = s.rows.find((r) => r.id === rowId)?.modules.find((m) => m.instanceId === instanceId);
@@ -202,7 +202,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         return {
           rows: s.rows.map((row) => {
             if (row.id === rowId) return { ...row, modules: row.modules.filter((m) => m.instanceId !== instanceId) };
-            if (row.id === newRowId) return { ...row, modules: [...row.modules, { ...mod, positionCm: newPositionCm }] };
+            if (row.id === newRowId) return { ...row, modules: [...row.modules, { ...mod, positionMm: newPositionMm }] };
             return row;
           }),
         };
@@ -210,7 +210,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       return {
         rows: s.rows.map((row) =>
           row.id === rowId
-            ? { ...row, modules: row.modules.map((m) => (m.instanceId === instanceId ? { ...m, positionCm: newPositionCm } : m)) }
+            ? { ...row, modules: row.modules.map((m) => (m.instanceId === instanceId ? { ...m, positionMm: newPositionMm } : m)) }
             : row,
         ),
       };
@@ -478,7 +478,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
           .map((m) => ({
             instanceId: idMap.get(m.oldId)!,
             moduleId: m.moduleId,
-            positionCm: m.positionCm,
+            positionMm: m.positionMm,
             label: m.label,
             properties: m.properties ? { ...m.properties } : undefined,
           }));
@@ -629,8 +629,18 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       x: d.x ?? 0,
       y: d.y ?? -40,
     }));
+    // Migrate legacy positionCm → positionMm
+    const migratedRows = (state.rows ?? []).map((row: any) => ({
+      ...row,
+      modules: (row.modules ?? []).map((m: any) => {
+        if (m.positionMm != null) return m;
+        const { positionCm, ...rest } = m;
+        return { ...rest, positionMm: Math.round((positionCm ?? 0) * 10) };
+      }),
+    }));
     const normalized = {
       ...state,
+      rows: migratedRows,
       wires: state.wires ?? [],
       panelIOs: state.panelIOs ?? [],
       busbars: state.busbars ?? [],

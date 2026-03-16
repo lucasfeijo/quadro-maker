@@ -49,11 +49,11 @@ const IO_ITEMS: {
   { direction: 'output', type: 'signal', defaultEdge: 'right', label: 'Saída Sinal', color: '#f57c00', abbr: 'SIG' },
 ];
 
-function DraggableModule({ moduleId, name, color, widthCm, icon, imageUrl }: {
+function DraggableModule({ moduleId, name, color, widthMm, icon, imageUrl }: {
   moduleId: string;
   name: string;
   color: string;
-  widthCm: number;
+  widthMm: number;
   icon?: string;
   imageUrl?: string;
 }) {
@@ -79,7 +79,7 @@ function DraggableModule({ moduleId, name, color, widthCm, icon, imageUrl }: {
       </div>
       <div className="library-item-info">
         <span className="library-item-name">{name}</span>
-        <span className="library-item-size">{Math.round(widthCm * 10)}mm</span>
+        <span className="library-item-size">{widthMm}mm</span>
       </div>
     </div>
   );
@@ -308,7 +308,7 @@ export const ModuleLibrary: React.FC = () => {
               moduleId={mod.id}
               name={mod.name}
               color={mod.color}
-              widthCm={mod.widthCm}
+              widthMm={mod.widthMm}
               icon={mod.icon}
               imageUrl={mod.imageUrl}
             />

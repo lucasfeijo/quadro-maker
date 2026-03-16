@@ -39,60 +39,60 @@ export const EnclosureSelector: React.FC<Props> = ({ onSelect }) => {
           >
             <div className="enclosure-card-preview">
               <svg
-                viewBox={`0 0 ${enc.exteriorWidthCm} ${enc.exteriorHeightCm}`}
+                viewBox={`0 0 ${enc.exteriorWidthMm} ${enc.exteriorHeightMm}`}
                 width="100%"
                 height="100%"
               >
                 <rect
                   x={0}
                   y={0}
-                  width={enc.exteriorWidthCm}
-                  height={enc.exteriorHeightCm}
-                  rx={0.5}
+                  width={enc.exteriorWidthMm}
+                  height={enc.exteriorHeightMm}
+                  rx={5}
                   fill="#e0e0e0"
                   stroke="#999"
-                  strokeWidth={0.3}
+                  strokeWidth={3}
                 />
                 {(() => {
                   const wallX =
-                    (enc.exteriorWidthCm - enc.interiorWidthCm) / 2;
+                    (enc.exteriorWidthMm - enc.interiorWidthMm) / 2;
                   const wallY =
-                    (enc.exteriorHeightCm - enc.interiorHeightCm) / 2;
+                    (enc.exteriorHeightMm - enc.interiorHeightMm) / 2;
                   return (
                     <>
                       <rect
                         x={wallX}
                         y={wallY}
-                        width={enc.interiorWidthCm}
-                        height={enc.interiorHeightCm}
+                        width={enc.interiorWidthMm}
+                        height={enc.interiorHeightMm}
                         fill="#fafafa"
                         stroke="#bbb"
-                        strokeWidth={0.2}
+                        strokeWidth={2}
                       />
                       {enc.rails.map((r) => {
-                        const fixingCm =
-                          (enc.interiorWidthCm - r.usableWidthCm) / 2;
+                        const fixingMm =
+                          (enc.interiorWidthMm - r.usableWidthMm) / 2;
                         return (
                           <rect
                             key={r.id}
-                            x={wallX + r.xCm + fixingCm}
-                            y={wallY + r.yCm - 0.3}
-                            width={r.usableWidthCm}
-                            height={0.6}
+                            x={wallX + r.xMm + fixingMm}
+                            y={wallY + r.yMm - 3}
+                            width={r.usableWidthMm}
+                            height={6}
                             fill="#90a4ae"
-                            rx={0.1}
+                            rx={1}
                           />
                         );
                       })}
                       {enc.mountingHoles.map((h, i) => (
                         <circle
                           key={i}
-                          cx={wallX + h.xCm}
-                          cy={wallY + h.yCm}
-                          r={h.diameterMm / 20}
+                          cx={wallX + h.xMm}
+                          cy={wallY + h.yMm}
+                          r={h.diameterMm / 2}
                           fill="none"
                           stroke="#999"
-                          strokeWidth={0.15}
+                          strokeWidth={1.5}
                         />
                       ))}
                     </>
@@ -105,7 +105,7 @@ export const EnclosureSelector: React.FC<Props> = ({ onSelect }) => {
               <div className="enclosure-model">{enc.model}</div>
               <div className="enclosure-desc">{enc.description}</div>
               <div className="enclosure-dims">
-                {enc.exteriorWidthCm}×{enc.exteriorHeightCm}cm
+                {enc.exteriorWidthMm}×{enc.exteriorHeightMm}mm
               </div>
             </div>
           </div>

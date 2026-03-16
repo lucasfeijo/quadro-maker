@@ -1,7 +1,7 @@
 import { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { resolveLayout } from '../utils/panelLayout';
-import { cmToPx, canPlace, snapToCm } from '../utils/geometry';
+import { mmToPx, canPlace, snapToMm } from '../utils/geometry';
 import { getModuleById } from '../data/modules';
 import type { PasteData } from '../store/panelStore';
 import { DinRail } from './DinRail';
@@ -15,7 +15,7 @@ import { getIOPosition } from '../utils/panelIO';
 import type { GhostPreview, ComponentState } from '../types';
 
 const MARGIN = 15;
-const MODULE_HEIGHT_CM = 7;
+const MODULE_HEIGHT_MM = 70;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 20;
 
@@ -42,23 +42,23 @@ function marqueeToRect(m: MarqueeRect) {
 }
 
 interface ClipboardData {
-  modules: Array<{ oldId: string; moduleId: string; positionCm: number; rowId: string; label?: string; properties?: Record<string, number | string> }>;
+  modules: Array<{ oldId: string; moduleId: string; positionMm: number; rowId: string; label?: string; properties?: Record<string, number | string> }>;
   externalDevices: Array<{ oldId: string; moduleId: string; x: number; y: number; label?: string; properties?: Record<string, number | string> }>;
   wires: Array<{ sourceOldId: string; sourcePortId: string; targetOldId: string; targetPortId: string }>;
 }
 
 function findFirstFit(
   occupied: { start: number; end: number }[],
-  widthCm: number,
-  railWidthCm: number,
+  widthMm: number,
+  railWidthMm: number,
 ): number {
   const sorted = [...occupied].sort((a, b) => a.start - b.start);
   let pos = 0;
   for (const seg of sorted) {
-    if (pos + widthCm <= seg.start) return snapToCm(pos);
+    if (pos + widthMm <= seg.start) return snapToMm(pos);
     pos = Math.max(pos, seg.end);
   }
-  if (pos + widthCm <= railWidthCm) return snapToCm(pos);
+  if (pos + widthMm <= railWidthMm) return snapToMm(pos);
   return -1;
 }
 
@@ -169,15 +169,15 @@ export const PanelView: React.FC<PanelViewProps> = ({
     [state.enclosureId, state.widthUnits, state.rowCount, state.rows, state.name],
   );
 
-  const svgWidth = cmToPx(layout.exteriorWidthCm);
-  const svgHeight = cmToPx(layout.exteriorHeightCm);
-  const intX = cmToPx(layout.interiorOffsetXCm);
-  const intY = cmToPx(layout.interiorOffsetYCm);
-  const intW = cmToPx(layout.interiorWidthCm);
-  const intH = cmToPx(layout.interiorHeightCm);
+  const svgWidth = mmToPx(layout.exteriorWidthMm);
+  const svgHeight = mmToPx(layout.exteriorHeightMm);
+  const intX = mmToPx(layout.interiorOffsetXMm);
+  const intY = mmToPx(layout.interiorOffsetYMm);
+  const intW = mmToPx(layout.interiorWidthMm);
+  const intH = mmToPx(layout.interiorHeightMm);
 
   const ioWireTargets = useMemo(() => {
-    const MODULE_H_CM = 7;
+    const MODULE_H_MM = 70;
     const resolvePort = (instanceId: string, portId: string): { x: number; y: number } | null => {
       if (instanceId.startsWith('panel-io:')) {
         const ioId = instanceId.replace('panel-io:', '');
@@ -200,13 +200,13 @@ export const PanelView: React.FC<PanelViewProps> = ({
         const port = def?.ports.find((p) => p.id === portId);
         const rail = layout.rails[ri];
         if (!def || !port || !rail) return null;
-        const railLeft = intX + cmToPx(rail.xCm);
-        const usableX = railLeft + cmToPx(rail.fixingMarginCm);
-        const railCY = intY + cmToPx(rail.yCm) + cmToPx(1) / 2;
-        const mx = usableX + cmToPx(mod.positionCm);
-        const my = railCY - cmToPx(MODULE_H_CM / 2);
-        const mh = cmToPx(MODULE_H_CM);
-        return { x: mx + cmToPx(port.offsetXCm), y: port.side === 'top' ? my - 2 : my + mh + 2 };
+        const railLeft = intX + mmToPx(rail.xMm);
+        const usableX = railLeft + mmToPx(rail.fixingMarginMm);
+        const railCY = intY + mmToPx(rail.yMm) + mmToPx(10) / 2;
+        const mx = usableX + mmToPx(mod.positionMm);
+        const my = railCY - mmToPx(MODULE_H_MM / 2);
+        const mh = mmToPx(MODULE_H_MM);
+        return { x: mx + mmToPx(port.offsetXMm), y: port.side === 'top' ? my - 2 : my + mh + 2 };
       }
       return null;
     };
@@ -328,20 +328,20 @@ export const PanelView: React.FC<PanelViewProps> = ({
       const railIdx = state.rows.indexOf(row);
       const rail = layout.rails[railIdx];
       if (!rail) continue;
-      const railLeftPx = intX + cmToPx(rail.xCm);
-      const fixingPx = cmToPx(rail.fixingMarginCm);
+      const railLeftPx = intX + mmToPx(rail.xMm);
+      const fixingPx = mmToPx(rail.fixingMarginMm);
       const usableOffsetXPx = railLeftPx + fixingPx;
-      const railTopPx = intY + cmToPx(rail.yCm);
-      const railHeightPx = cmToPx(1);
+      const railTopPx = intY + mmToPx(rail.yMm);
+      const railHeightPx = mmToPx(10);
       const railCenterY = railTopPx + railHeightPx / 2;
 
       for (const mod of row.modules) {
         const def = getModuleById(mod.moduleId);
         if (!def) continue;
-        const mx = usableOffsetXPx + cmToPx(mod.positionCm);
-        const my = railCenterY - cmToPx(MODULE_HEIGHT_CM / 2);
-        const mw = cmToPx(def.widthCm);
-        const mh = cmToPx(MODULE_HEIGHT_CM);
+        const mx = usableOffsetXPx + mmToPx(mod.positionMm);
+        const my = railCenterY - mmToPx(MODULE_HEIGHT_MM / 2);
+        const mw = mmToPx(def.widthMm);
+        const mh = mmToPx(MODULE_HEIGHT_MM);
         if (rectsOverlap(sel.x, sel.y, sel.w, sel.h, mx, my, mw, mh)) {
           ids.push(mod.instanceId);
         }
@@ -505,7 +505,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
             const mod = row.modules.find((m) => m.instanceId === id);
             if (mod) {
               cbData.modules.push({
-                oldId: id, moduleId: mod.moduleId, positionCm: mod.positionCm, rowId: row.id, label: mod.label,
+                oldId: id, moduleId: mod.moduleId, positionMm: mod.positionMm, rowId: row.id, label: mod.label,
                 properties: mod.properties ? { ...mod.properties } : undefined,
               });
               break;
@@ -570,16 +570,16 @@ export const PanelView: React.FC<PanelViewProps> = ({
           if (!rail) continue;
           const row = state.rows[rowIdx];
 
-          let targetPos = snapToCm(mod.positionCm + 2 * offset);
-          if (!canPlace(row.modules, targetPos, def.widthCm, rail.usableWidthCm)) {
+          let targetPos = snapToMm(mod.positionMm + 20 * offset);
+          if (!canPlace(row.modules, targetPos, def.widthMm, rail.usableWidthMm)) {
             const occupied = row.modules.map((m) => {
               const md = getModuleById(m.moduleId);
-              return { start: m.positionCm, end: m.positionCm + (md?.widthCm ?? 0) };
+              return { start: m.positionMm, end: m.positionMm + (md?.widthMm ?? 0) };
             });
-            targetPos = findFirstFit(occupied, def.widthCm, rail.usableWidthCm);
+            targetPos = findFirstFit(occupied, def.widthMm, rail.usableWidthMm);
           }
-          if (targetPos >= 0 && canPlace(row.modules, targetPos, def.widthCm, rail.usableWidthCm)) {
-            pasteData.modules.push({ ...mod, positionCm: targetPos });
+          if (targetPos >= 0 && canPlace(row.modules, targetPos, def.widthMm, rail.usableWidthMm)) {
+            pasteData.modules.push({ ...mod, positionMm: targetPos });
           }
         }
 
@@ -706,8 +706,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
         {layout.mountingHoles.map((hole, i) => (
           <circle
             key={i}
-            cx={intX + cmToPx(hole.xCm)}
-            cy={intY + cmToPx(hole.yCm)}
+            cx={intX + mmToPx(hole.xMm)}
+            cy={intY + mmToPx(hole.yMm)}
             r={hole.diameterMm / 2}
             fill="none"
             stroke="#999"

@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { PlacedModule, ResolvedRail, GhostPreview } from '../types';
 import { getModuleById } from '../data/modules';
-import { cmToPx } from '../utils/geometry';
+import { mmToPx } from '../utils/geometry';
 import { usePanelStore } from '../store/panelStore';
 import { getIOPortPosition } from '../utils/panelIO';
 import { getExternalDevicePortPosition } from './ExternalDeviceLayer';
 import { getBusbarPortPosition } from './BusbarLayer';
 
-const MODULE_HEIGHT_CM = 7;
+const MODULE_HEIGHT_MM = 70;
 const WIRE_COLORS: Record<string, string> = {
   phase: '#333',
   neutral: '#2196f3',
@@ -118,18 +118,18 @@ function getPortAbsolutePosition(
   const rail = rails[rowIndex];
   if (!rail) return null;
 
-  const railLeftPx = interiorOffsetXPx + cmToPx(rail.xCm);
-  const fixingPx = cmToPx(rail.fixingMarginCm);
+  const railLeftPx = interiorOffsetXPx + mmToPx(rail.xMm);
+  const fixingPx = mmToPx(rail.fixingMarginMm);
   const usableOffsetXPx = railLeftPx + fixingPx;
-  const railTopPx = interiorOffsetYPx + cmToPx(rail.yCm);
-  const railHeightPx = cmToPx(1);
+  const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
+  const railHeightPx = mmToPx(10);
   const railCenterY = railTopPx + railHeightPx / 2;
 
-  const moduleX = usableOffsetXPx + cmToPx(mod.positionCm);
-  const moduleY = railCenterY - cmToPx(MODULE_HEIGHT_CM / 2);
-  const moduleH = cmToPx(MODULE_HEIGHT_CM);
+  const moduleX = usableOffsetXPx + mmToPx(mod.positionMm);
+  const moduleY = railCenterY - mmToPx(MODULE_HEIGHT_MM / 2);
+  const moduleH = mmToPx(MODULE_HEIGHT_MM);
 
-  const x = moduleX + cmToPx(port.offsetXCm);
+  const x = moduleX + mmToPx(port.offsetXMm);
   const y = port.side === 'top' ? moduleY - 2 : moduleY + moduleH + 2;
 
   return { x, y, type: port.type, side: port.side };
@@ -147,11 +147,11 @@ function getModuleBounds(
   for (let i = 0; i < rows.length; i++) {
     const rail = rails[i];
     if (!rail) continue;
-    const railLeftPx = interiorOffsetXPx + cmToPx(rail.xCm);
-    const fixingPx = cmToPx(rail.fixingMarginCm);
+    const railLeftPx = interiorOffsetXPx + mmToPx(rail.xMm);
+    const fixingPx = mmToPx(rail.fixingMarginMm);
     const usableOffsetXPx = railLeftPx + fixingPx;
-    const railTopPx = interiorOffsetYPx + cmToPx(rail.yCm);
-    const railHeightPx = cmToPx(1);
+    const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
+    const railHeightPx = mmToPx(10);
     const railCenterY = railTopPx + railHeightPx / 2;
 
     for (const mod of rows[i].modules) {
@@ -159,10 +159,10 @@ function getModuleBounds(
       if (!def) continue;
       rects.push({
         instanceId: mod.instanceId,
-        x: usableOffsetXPx + cmToPx(mod.positionCm),
-        y: railCenterY - cmToPx(MODULE_HEIGHT_CM / 2),
-        w: cmToPx(def.widthCm),
-        h: cmToPx(MODULE_HEIGHT_CM),
+        x: usableOffsetXPx + mmToPx(mod.positionMm),
+        y: railCenterY - mmToPx(MODULE_HEIGHT_MM / 2),
+        w: mmToPx(def.widthMm),
+        h: mmToPx(MODULE_HEIGHT_MM),
       });
     }
   }
@@ -179,22 +179,22 @@ function getPortObstacles(
   for (let i = 0; i < rows.length; i++) {
     const rail = rails[i];
     if (!rail) continue;
-    const railLeftPx = interiorOffsetXPx + cmToPx(rail.xCm);
-    const fixingPx = cmToPx(rail.fixingMarginCm);
+    const railLeftPx = interiorOffsetXPx + mmToPx(rail.xMm);
+    const fixingPx = mmToPx(rail.fixingMarginMm);
     const usableOffsetXPx = railLeftPx + fixingPx;
-    const railTopPx = interiorOffsetYPx + cmToPx(rail.yCm);
-    const railHeightPx = cmToPx(1);
+    const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
+    const railHeightPx = mmToPx(10);
     const railCenterY = railTopPx + railHeightPx / 2;
 
     for (const mod of rows[i].modules) {
       const def = getModuleById(mod.moduleId);
       if (!def) continue;
-      const moduleX = usableOffsetXPx + cmToPx(mod.positionCm);
-      const moduleY = railCenterY - cmToPx(MODULE_HEIGHT_CM / 2);
-      const moduleH = cmToPx(MODULE_HEIGHT_CM);
+      const moduleX = usableOffsetXPx + mmToPx(mod.positionMm);
+      const moduleY = railCenterY - mmToPx(MODULE_HEIGHT_MM / 2);
+      const moduleH = mmToPx(MODULE_HEIGHT_MM);
 
       for (const port of def.ports) {
-        const px = moduleX + cmToPx(port.offsetXCm);
+        const px = moduleX + mmToPx(port.offsetXMm);
         const py = port.side === 'top' ? moduleY - 2 : moduleY + moduleH + 2;
         rects.push({
           instanceId: `${mod.instanceId}:${port.id}`,
@@ -759,7 +759,7 @@ export const WireLayer: React.FC<Props> = ({
     if (!mr) return null;
     if (dragGhost?.instanceId === instanceId) {
       const ghostRowIndex = rows.findIndex(r => r.id === dragGhost.rowId);
-      const ghostMod = { ...mr.mod, positionCm: dragGhost.positionCm };
+      const ghostMod = { ...mr.mod, positionMm: dragGhost.positionMm };
       return getPortAbsolutePosition(ghostMod, portId, ghostRowIndex >= 0 ? ghostRowIndex : mr.rowIndex, rails, interiorOffsetXPx, interiorOffsetYPx);
     }
     return getPortAbsolutePosition(mr.mod, portId, mr.rowIndex, rails, interiorOffsetXPx, interiorOffsetYPx);

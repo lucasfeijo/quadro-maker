@@ -1,18 +1,18 @@
 // --- Enclosure Library (real panels) ---
 
 export type MountingHole = {
-  xCm: number;
-  yCm: number;
+  xMm: number;
+  yMm: number;
   diameterMm: number;
 };
 
 export type RailDefinition = {
   id: string;
-  xCm: number;
-  yCm: number;
-  widthCm: number;
-  usableWidthCm: number;
-  fixingMarginCm: number;
+  xMm: number;
+  yMm: number;
+  widthMm: number;
+  usableWidthMm: number;
+  fixingMarginMm: number;
 };
 
 export type EnclosureDefinition = {
@@ -20,10 +20,10 @@ export type EnclosureDefinition = {
   brand: string;
   model: string;
   description: string;
-  exteriorWidthCm: number;
-  exteriorHeightCm: number;
-  interiorWidthCm: number;
-  interiorHeightCm: number;
+  exteriorWidthMm: number;
+  exteriorHeightMm: number;
+  interiorWidthMm: number;
+  interiorHeightMm: number;
   rails: RailDefinition[];
   mountingHoles: MountingHole[];
 };
@@ -49,7 +49,7 @@ export type PortDefinition = {
   id: string;
   label: string;
   side: PortSide;
-  offsetXCm: number;
+  offsetXMm: number;
   type: PortType;
   maxCurrentA?: number;
 };
@@ -57,7 +57,7 @@ export type PortDefinition = {
 export type ModuleDefinition = {
   id: string;
   name: string;
-  widthCm: number;
+  widthMm: number;
   category: ModuleCategory;
   poles?: number;
   color: string;
@@ -167,7 +167,7 @@ export type TextAnnotation = {
 export type PlacedModule = {
   instanceId: string;
   moduleId: string;
-  positionCm: number;
+  positionMm: number;
   label?: string;
   properties?: Record<string, number | string>;
 };
@@ -194,20 +194,20 @@ export type PanelState = {
 
 export type ResolvedRail = {
   id: string;
-  xCm: number;
-  yCm: number;
-  widthCm: number;
-  usableWidthCm: number;
-  fixingMarginCm: number;
+  xMm: number;
+  yMm: number;
+  widthMm: number;
+  usableWidthMm: number;
+  fixingMarginMm: number;
 };
 
 export type ResolvedLayout = {
-  exteriorWidthCm: number;
-  exteriorHeightCm: number;
-  interiorWidthCm: number;
-  interiorHeightCm: number;
-  interiorOffsetXCm: number;
-  interiorOffsetYCm: number;
+  exteriorWidthMm: number;
+  exteriorHeightMm: number;
+  interiorWidthMm: number;
+  interiorHeightMm: number;
+  interiorOffsetXMm: number;
+  interiorOffsetYMm: number;
   rails: ResolvedRail[];
   mountingHoles: MountingHole[];
   isEnclosure: boolean;
@@ -217,8 +217,8 @@ export type ResolvedLayout = {
 
 export type GhostPreview = {
   rowId: string;
-  positionCm: number;
-  widthCm: number;
+  positionMm: number;
+  widthMm: number;
   color: string;
   valid: boolean;
   instanceId?: string;

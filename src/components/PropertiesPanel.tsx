@@ -825,7 +825,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
         </div>
         <div className="prop-row">
           <span className="prop-label">Largura</span>
-          <span className="prop-value">{Math.round(def.widthCm * 10)} mm</span>
+          <span className="prop-value">{def.widthMm} mm</span>
         </div>
         {def.poles != null && (
           <div className="prop-row">
@@ -839,7 +839,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
         </div>
         <div className="prop-row">
           <span className="prop-label">Posição</span>
-          <span className="prop-value">{placed.positionCm.toFixed(1)} cm</span>
+          <span className="prop-value">{placed.positionMm} mm</span>
         </div>
         <div className="prop-row">
           <span className="prop-label">Rótulo</span>

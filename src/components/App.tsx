@@ -21,7 +21,7 @@ import { SchematicView } from './SchematicView';
 import { SimulationOverlay } from './SimulationView';
 import { getModuleById } from '../data/modules';
 import type { ComponentState, PanelState } from '../types';
-import { snapToCm, pxToCm, cmToPx, canPlace, clampToNeighbors } from '../utils/geometry';
+import { snapToMm, pxToMm, mmToPx, canPlace, clampToNeighbors } from '../utils/geometry';
 import { resolveLayout } from '../utils/panelLayout';
 import { closestEdge } from '../utils/panelIO';
 import type { ResolvedRail, GhostPreview } from '../types';
@@ -283,7 +283,7 @@ export const App: React.FC = () => {
     (
       event: { activatorEvent: Event; delta: { x: number; y: number } },
       rail: ResolvedRail,
-      moduleWidthCm: number,
+      moduleWidthMm: number,
     ): number => {
       const svgEl = document.querySelector('.panel-view-container svg');
       if (!svgEl) return 0;
@@ -299,12 +299,12 @@ export const App: React.FC = () => {
         svgRect.left;
 
       const svgX = dropX * scaleX + svgViewBox[0];
-      const intX = layout.interiorOffsetXCm * 10;
-      const usableStartPx = intX + (rail.xCm + rail.fixingMarginCm) * 10;
+      const intX = layout.interiorOffsetXMm;
+      const usableStartPx = intX + rail.xMm + rail.fixingMarginMm;
 
-      let pos = snapToCm(pxToCm(svgX - usableStartPx));
-      pos = Math.max(0, Math.min(pos, rail.usableWidthCm - moduleWidthCm));
-      return snapToCm(pos);
+      let pos = pxToMm(svgX - usableStartPx);
+      pos = Math.max(0, Math.min(pos, rail.usableWidthMm - moduleWidthMm));
+      return snapToMm(pos);
     },
     [layout],
   );
@@ -360,20 +360,20 @@ export const App: React.FC = () => {
       const row = store.rows.find((r) => r.id === overData.rowId);
       if (!row) return;
 
-      let positionCm = computeSnapPosition(event, rail, def.widthCm);
+      let positionMm = computeSnapPosition(event, rail, def.widthMm);
       const excludeId = isPlaced ? (data.instanceId as string) : undefined;
       const freeMove = shiftHeldRef.current;
 
-      if (!freeMove && !canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, excludeId)) {
-        positionCm = clampToNeighbors(row.modules, positionCm, def.widthCm, rail.usableWidthCm, excludeId);
+      if (!freeMove && !canPlace(row.modules, positionMm, def.widthMm, rail.usableWidthMm, excludeId)) {
+        positionMm = clampToNeighbors(row.modules, positionMm, def.widthMm, rail.usableWidthMm, excludeId);
       }
 
-      const valid = freeMove || canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, excludeId);
+      const valid = freeMove || canPlace(row.modules, positionMm, def.widthMm, rail.usableWidthMm, excludeId);
 
       setGhostPreview({
         rowId: overData.rowId,
-        positionCm,
-        widthCm: def.widthCm,
+        positionMm,
+        widthMm: def.widthMm,
         color: def.color,
         valid,
         instanceId: isPlaced ? (data.instanceId as string) : undefined,
@@ -435,8 +435,8 @@ export const App: React.FC = () => {
         const pos = computeExternalDevicePosition(event);
         if (pos) {
           const layout = resolveLayout(store);
-          const panelW = cmToPx(layout.exteriorWidthCm);
-          const panelH = cmToPx(layout.exteriorHeightCm);
+          const panelW = mmToPx(layout.exteriorWidthMm);
+          const panelH = mmToPx(layout.exteriorHeightMm);
           const { edge, positionPercent } = closestEdge(pos.x, pos.y, panelW, panelH);
           store.addPanelIO(data.direction, data.ioType, edge, positionPercent);
         }
@@ -477,19 +477,19 @@ export const App: React.FC = () => {
       const freeMove = shiftHeldRef.current;
 
       if (data.type === 'placed-module' && placedInfo) {
-        let positionCm = computeSnapPosition(event, rail, def.widthCm);
-        positionCm = Math.max(0, Math.min(positionCm, rail.usableWidthCm - def.widthCm));
-        positionCm = snapToCm(positionCm);
+        let positionMm = computeSnapPosition(event, rail, def.widthMm);
+        positionMm = Math.max(0, Math.min(positionMm, rail.usableWidthMm - def.widthMm));
+        positionMm = snapToMm(positionMm);
 
-        if (!freeMove && !canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, placedInfo.instanceId)) {
-          positionCm = clampToNeighbors(row.modules, positionCm, def.widthCm, rail.usableWidthCm, placedInfo.instanceId);
+        if (!freeMove && !canPlace(row.modules, positionMm, def.widthMm, rail.usableWidthMm, placedInfo.instanceId)) {
+          positionMm = clampToNeighbors(row.modules, positionMm, def.widthMm, rail.usableWidthMm, placedInfo.instanceId);
         }
 
-        if (freeMove || canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm, placedInfo.instanceId)) {
+        if (freeMove || canPlace(row.modules, positionMm, def.widthMm, rail.usableWidthMm, placedInfo.instanceId)) {
           store.moveModule(
             placedInfo.rowId,
             placedInfo.instanceId,
-            positionCm,
+            positionMm,
             overData.rowId !== placedInfo.rowId ? overData.rowId : undefined,
           );
         }
@@ -498,39 +498,39 @@ export const App: React.FC = () => {
 
       if (data.type !== 'new-module') return;
 
-      let positionCm: number;
+      let positionMm: number;
       if (event.delta) {
-        positionCm = computeSnapPosition(event, rail, def.widthCm);
+        positionMm = computeSnapPosition(event, rail, def.widthMm);
       } else {
-        positionCm = findFirstFit(
+        positionMm = findFirstFit(
           row.modules.map((m) => {
             const md = getModuleById(m.moduleId);
-            return { start: m.positionCm, end: m.positionCm + (md?.widthCm ?? 0) };
+            return { start: m.positionMm, end: m.positionMm + (md?.widthMm ?? 0) };
           }),
-          def.widthCm,
-          rail.usableWidthCm,
+          def.widthMm,
+          rail.usableWidthMm,
         );
       }
 
-      positionCm = Math.max(0, Math.min(positionCm, rail.usableWidthCm - def.widthCm));
-      positionCm = snapToCm(positionCm);
+      positionMm = Math.max(0, Math.min(positionMm, rail.usableWidthMm - def.widthMm));
+      positionMm = snapToMm(positionMm);
 
-      if (!freeMove && !canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm)) {
-        positionCm = clampToNeighbors(row.modules, positionCm, def.widthCm, rail.usableWidthCm);
+      if (!freeMove && !canPlace(row.modules, positionMm, def.widthMm, rail.usableWidthMm)) {
+        positionMm = clampToNeighbors(row.modules, positionMm, def.widthMm, rail.usableWidthMm);
       }
 
-      if (freeMove || canPlace(row.modules, positionCm, def.widthCm, rail.usableWidthCm)) {
-        store.addModule(overData.rowId, moduleId, positionCm);
+      if (freeMove || canPlace(row.modules, positionMm, def.widthMm, rail.usableWidthMm)) {
+        store.addModule(overData.rowId, moduleId, positionMm);
       } else {
         const fallback = findFirstFit(
           row.modules.map((m) => {
             const md = getModuleById(m.moduleId);
-            return { start: m.positionCm, end: m.positionCm + (md?.widthCm ?? 0) };
+            return { start: m.positionMm, end: m.positionMm + (md?.widthMm ?? 0) };
           }),
-          def.widthCm,
-          rail.usableWidthCm,
+          def.widthMm,
+          rail.usableWidthMm,
         );
-        if (fallback >= 0 && canPlace(row.modules, fallback, def.widthCm, rail.usableWidthCm)) {
+        if (fallback >= 0 && canPlace(row.modules, fallback, def.widthMm, rail.usableWidthMm)) {
           store.addModule(overData.rowId, moduleId, fallback);
         }
       }
@@ -684,15 +684,15 @@ function clonePanelState(state: PanelState): PanelState {
 
 function findFirstFit(
   occupied: { start: number; end: number }[],
-  widthCm: number,
-  railWidthCm: number,
+  widthMm: number,
+  railWidthMm: number,
 ): number {
   const sorted = [...occupied].sort((a, b) => a.start - b.start);
   let pos = 0;
   for (const seg of sorted) {
-    if (pos + widthCm <= seg.start) return snapToCm(pos);
+    if (pos + widthMm <= seg.start) return snapToMm(pos);
     pos = Math.max(pos, seg.end);
   }
-  if (pos + widthCm <= railWidthCm) return snapToCm(pos);
+  if (pos + widthMm <= railWidthMm) return snapToMm(pos);
   return -1;
 }

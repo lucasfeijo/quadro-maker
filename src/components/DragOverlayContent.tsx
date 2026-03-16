@@ -1,6 +1,6 @@
 import React from 'react';
 import { getModuleById } from '../data/modules';
-import { cmToPx } from '../utils/geometry';
+import { mmToPx } from '../utils/geometry';
 import { usePanelStore } from '../store/panelStore';
 import { ModuleIcon } from './ModuleIcon';
 
@@ -8,15 +8,15 @@ interface Props {
   moduleId: string;
 }
 
-const MODULE_HEIGHT_CM = 7;
+const MODULE_HEIGHT_MM = 70;
 
 export const DragOverlayContent: React.FC<Props> = ({ moduleId }) => {
   const def = getModuleById(moduleId);
   const displayMode = usePanelStore((s) => s.displayMode);
   if (!def) return null;
 
-  const w = cmToPx(def.widthCm);
-  const h = cmToPx(MODULE_HEIGHT_CM);
+  const w = mmToPx(def.widthMm);
+  const h = mmToPx(MODULE_HEIGHT_MM);
   const iconSize = Math.min(w * 0.6, h * 0.35);
 
   return (
@@ -50,7 +50,7 @@ export const DragOverlayContent: React.FC<Props> = ({ moduleId }) => {
         x={(w - iconSize) / 2}
         y={h * 0.08}
       />
-      {def.widthCm >= 3 && (
+      {def.widthMm >= 30 && (
         <text
           x={w / 2}
           y={h * 0.7}
@@ -71,7 +71,7 @@ export const DragOverlayContent: React.FC<Props> = ({ moduleId }) => {
         fill="rgba(255,255,255,0.7)"
         fontSize={2.5}
       >
-        {Math.round(def.widthCm * 10)}mm
+        {def.widthMm}mm
       </text>
     </svg>
   );

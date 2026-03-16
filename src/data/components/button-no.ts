@@ -4,14 +4,14 @@ const component: ComponentSpec = {
   id: 'button-no',
   name: 'Botão NA',
   description: 'Botão pulsador Normalmente Aberto. O circuito só conduz enquanto o botão está pressionado. Ao soltar, retorna ao estado aberto. Usado para partidas de motores, chamadas, comandos momentâneos.',
-  widthCm: 3,
+  widthMm: 30,
   category: 'button',
   poles: 1,
   color: '#d32f2f',
   icon: 'button',
   ports: [
-    { id: 'in-1', label: '1', side: 'top', offsetXCm: 1.5, type: 'any' },
-    { id: 'out-2', label: '2', side: 'bottom', offsetXCm: 1.5, type: 'any' },
+    { id: 'in-1', label: '1', side: 'top', offsetXMm: 15, type: 'any' },
+    { id: 'out-2', label: '2', side: 'bottom', offsetXMm: 15, type: 'any' },
   ],
   portDescriptions: {
     'in-1': 'Entrada do contato',

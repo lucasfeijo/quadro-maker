@@ -1,12 +1,12 @@
 import type { ComponentSpec } from './_spec';
 
 const PORTS = [
-  { id: 'in-S1L1', label: 'S1-L1', side: 'top' as const, offsetXCm: 1.5, type: 'phase' as const },
-  { id: 'in-S1L2', label: 'S1-L2', side: 'top' as const, offsetXCm: 3, type: 'phase' as const },
-  { id: 'in-S2L1', label: 'S2-L1', side: 'top' as const, offsetXCm: 6, type: 'phase' as const },
-  { id: 'in-S2L2', label: 'S2-L2', side: 'top' as const, offsetXCm: 7.5, type: 'phase' as const },
-  { id: 'out-L1', label: 'O-L1', side: 'bottom' as const, offsetXCm: 3.5, type: 'phase' as const },
-  { id: 'out-L2', label: 'O-L2', side: 'bottom' as const, offsetXCm: 5.5, type: 'phase' as const },
+  { id: 'in-S1L1', label: 'S1-L1', side: 'top' as const, offsetXMm: 15, type: 'phase' as const },
+  { id: 'in-S1L2', label: 'S1-L2', side: 'top' as const, offsetXMm: 30, type: 'phase' as const },
+  { id: 'in-S2L1', label: 'S2-L1', side: 'top' as const, offsetXMm: 60, type: 'phase' as const },
+  { id: 'in-S2L2', label: 'S2-L2', side: 'top' as const, offsetXMm: 75, type: 'phase' as const },
+  { id: 'out-L1', label: 'O-L1', side: 'bottom' as const, offsetXMm: 35, type: 'phase' as const },
+  { id: 'out-L2', label: 'O-L2', side: 'bottom' as const, offsetXMm: 55, type: 'phase' as const },
 ];
 
 const MODES = [
@@ -31,7 +31,7 @@ const component: ComponentSpec = {
   id: 'ats-manual',
   name: 'ATS Manual',
   description: 'Chave de Transferência Manual. Permite ao operador selecionar manualmente entre Fonte 1 e Fonte 2. Não faz comutação automática — requer ação humana para trocar a fonte de alimentação.',
-  widthCm: 9,
+  widthMm: 90,
   category: 'ats',
   poles: 2,
   color: '#283593',

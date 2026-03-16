@@ -5,28 +5,28 @@ const component: ComponentSpec = {
   id: 'contactor-weg-cwb32',
   name: 'Contator WEG CWB32',
   description: 'Contator trifásico WEG CWB32, 32A, com contatos auxiliares 1NA+1NF incorporados. Bobina A1/A2. Terminais principais L1/L2/L3 (entrada) e T1/T2/T3 (saída). Contatos auxiliares NA e NF.',
-  widthCm: 4.5,
+  widthMm: 45,
   category: 'contactor',
   color: '#1565c0',
   icon: 'contactor',
   ports: [
     // Bobina
-    { id: 'coil-A1', label: 'A1', side: 'top', offsetXCm: 0.5, type: 'any' },
-    { id: 'coil-A2', label: 'A2', side: 'bottom', offsetXCm: 0.5, type: 'any' },
+    { id: 'coil-A1', label: 'A1', side: 'top', offsetXMm: 5, type: 'any' },
+    { id: 'coil-A2', label: 'A2', side: 'bottom', offsetXMm: 5, type: 'any' },
     // Principais - entrada
-    { id: 'in-1L1', label: 'L1', side: 'top', offsetXCm: 1.3, type: 'phase' },
-    { id: 'in-3L2', label: 'L2', side: 'top', offsetXCm: 2.1, type: 'phase' },
-    { id: 'in-5L3', label: 'L3', side: 'top', offsetXCm: 2.9, type: 'phase' },
+    { id: 'in-1L1', label: 'L1', side: 'top', offsetXMm: 13, type: 'phase' },
+    { id: 'in-3L2', label: 'L2', side: 'top', offsetXMm: 21, type: 'phase' },
+    { id: 'in-5L3', label: 'L3', side: 'top', offsetXMm: 29, type: 'phase' },
     // Principais - saída
-    { id: 'out-2T1', label: 'T1', side: 'bottom', offsetXCm: 1.3, type: 'phase' },
-    { id: 'out-4T2', label: 'T2', side: 'bottom', offsetXCm: 2.1, type: 'phase' },
-    { id: 'out-6T3', label: 'T3', side: 'bottom', offsetXCm: 2.9, type: 'phase' },
+    { id: 'out-2T1', label: 'T1', side: 'bottom', offsetXMm: 13, type: 'phase' },
+    { id: 'out-4T2', label: 'T2', side: 'bottom', offsetXMm: 21, type: 'phase' },
+    { id: 'out-6T3', label: 'T3', side: 'bottom', offsetXMm: 29, type: 'phase' },
     // Auxiliares NA
-    { id: 'aux-13', label: 'NA', side: 'top', offsetXCm: 3.6, type: 'any' },
-    { id: 'aux-14', label: 'NA', side: 'bottom', offsetXCm: 3.6, type: 'any' },
+    { id: 'aux-13', label: 'NA', side: 'top', offsetXMm: 36, type: 'any' },
+    { id: 'aux-14', label: 'NA', side: 'bottom', offsetXMm: 36, type: 'any' },
     // Auxiliares NF
-    { id: 'aux-21', label: 'NF', side: 'top', offsetXCm: 4.1, type: 'any' },
-    { id: 'aux-22', label: 'NF', side: 'bottom', offsetXCm: 4.1, type: 'any' },
+    { id: 'aux-21', label: 'NF', side: 'top', offsetXMm: 41, type: 'any' },
+    { id: 'aux-22', label: 'NF', side: 'bottom', offsetXMm: 41, type: 'any' },
   ],
   portDescriptions: {
     'coil-A1': 'Bobina — terminal A1 (comando)',

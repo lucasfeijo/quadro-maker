@@ -1,6 +1,6 @@
 import React from 'react';
 import { PortDefinition } from '../types';
-import { cmToPx } from '../utils/geometry';
+import { mmToPx } from '../utils/geometry';
 
 const PORT_COLORS: Record<string, string> = {
   phase: '#f44336',
@@ -40,7 +40,7 @@ export const PortDot: React.FC<Props> = ({
   onPortHover,
   onPortLeave,
 }) => {
-  const cx = moduleX + cmToPx(port.offsetXCm);
+  const cx = moduleX + mmToPx(port.offsetXMm);
   const cy = port.side === 'top' ? moduleY - 2 : moduleY + moduleH + 2;
   const color = PORT_COLORS[port.type] ?? '#999';
 

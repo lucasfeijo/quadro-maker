@@ -12,17 +12,17 @@ const component = {
   description:
     'Relé de proteção contra falta de fase bifásico (CCA). Monitora L1, L2 e N. Quando as fases estão OK, energiza (C→NA). Em falta de fase ou assimetria, desenergiza (C→NF). Usado em painéis para proteção de motores e equipamentos.',
   // Datasheet CCA: largura 24,1 mm (DIMENSÕES FÍSICAS)
-  widthCm: 2.4,
+  widthMm: 24,
   category: 'relay' as const,
   color: '#c62828',
   icon: 'relay',
   ports: [
-    { id: 'nf', label: 'NF', side: 'top' as const, offsetXCm: 0.4, type: 'any' as const },
-    { id: 'c', label: 'C', side: 'top' as const, offsetXCm: 1.2, type: 'any' as const },
-    { id: 'na', label: 'NA', side: 'top' as const, offsetXCm: 2.0, type: 'any' as const },
-    { id: 'l1', label: 'L1', side: 'bottom' as const, offsetXCm: 0.4, type: 'phase' as const },
-    { id: 'l2', label: 'L2', side: 'bottom' as const, offsetXCm: 1.2, type: 'phase' as const },
-    { id: 'n', label: 'N', side: 'bottom' as const, offsetXCm: 2.0, type: 'neutral' as const },
+    { id: 'nf', label: 'NF', side: 'top' as const, offsetXMm: 4, type: 'any' as const },
+    { id: 'c', label: 'C', side: 'top' as const, offsetXMm: 12, type: 'any' as const },
+    { id: 'na', label: 'NA', side: 'top' as const, offsetXMm: 20, type: 'any' as const },
+    { id: 'l1', label: 'L1', side: 'bottom' as const, offsetXMm: 4, type: 'phase' as const },
+    { id: 'l2', label: 'L2', side: 'bottom' as const, offsetXMm: 12, type: 'phase' as const },
+    { id: 'n', label: 'N', side: 'bottom' as const, offsetXMm: 20, type: 'neutral' as const },
   ],
   portDescriptions: {
     nf: 'Normally Closed — fechado em falta de fase',

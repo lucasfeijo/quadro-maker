@@ -4,14 +4,14 @@ const component: ComponentSpec = {
   id: 'button-nc',
   name: 'Botão NF',
   description: 'Botão pulsador Normalmente Fechado. O circuito conduz por padrão. Ao pressionar, interrompe o circuito. Ao soltar, volta a conduzir. Usado para paradas de emergência, botões de desligamento.',
-  widthCm: 3,
+  widthMm: 30,
   category: 'button',
   poles: 1,
   color: '#c62828',
   icon: 'button',
   ports: [
-    { id: 'in-1', label: '1', side: 'top', offsetXCm: 1.5, type: 'any' },
-    { id: 'out-2', label: '2', side: 'bottom', offsetXCm: 1.5, type: 'any' },
+    { id: 'in-1', label: '1', side: 'top', offsetXMm: 15, type: 'any' },
+    { id: 'out-2', label: '2', side: 'bottom', offsetXMm: 15, type: 'any' },
   ],
   portDescriptions: {
     'in-1': 'Entrada do contato',

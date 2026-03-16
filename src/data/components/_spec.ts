@@ -69,18 +69,18 @@ export interface ComponentSpec extends ModuleDefinition {
 
 export function makePorts(
   poles: number,
-  widthCm: number,
+  widthMm: number,
   labels: string[],
   types: PortDefinition['type'][],
 ): PortDefinition[] {
   const ports: PortDefinition[] = [];
-  const spacing = widthCm / (poles + 1);
+  const spacing = widthMm / (poles + 1);
   for (let i = 0; i < poles; i++) {
     const offset = spacing * (i + 1);
     const label = labels[i] ?? `P${i + 1}`;
     const pType = types[i] ?? 'phase';
-    ports.push({ id: `in-${label}`, label, side: 'top', offsetXCm: offset, type: pType });
-    ports.push({ id: `out-${label}`, label, side: 'bottom', offsetXCm: offset, type: pType });
+    ports.push({ id: `in-${label}`, label, side: 'top', offsetXMm: offset, type: pType });
+    ports.push({ id: `out-${label}`, label, side: 'bottom', offsetXMm: offset, type: pType });
   }
   return ports;
 }

@@ -4,14 +4,14 @@ const component: ComponentSpec = {
   id: 'busbar-rail-ground',
   name: 'Barr. Terra',
   description: 'Barramento de trilho DIN para terra/PE. Coloque vários lado a lado para criar uma barra de distribuição.',
-  widthCm: 0.6,
+  widthMm: 6,
   category: 'terminal',
   poles: 1,
   color: '#2e7d32',
   icon: 'terminal',
   ports: [
-    { id: 'in-top', label: 'PE', side: 'top', offsetXCm: 0.3, type: 'ground' },
-    { id: 'out-bottom', label: 'PE', side: 'bottom', offsetXCm: 0.3, type: 'ground' },
+    { id: 'in-top', label: 'PE', side: 'top', offsetXMm: 3, type: 'ground' },
+    { id: 'out-bottom', label: 'PE', side: 'bottom', offsetXMm: 3, type: 'ground' },
   ],
   portDescriptions: {
     'in-top': 'Conexão superior — terra',

@@ -13,13 +13,13 @@ const component: ComponentSpec = {
   id: 'led',
   name: 'LED',
   description: 'Indicador luminoso (LED). Acende quando recebe tensão nos terminais + e −. A cor pode ser configurada nas propriedades.',
-  widthCm: 2,
+  widthMm: 20,
   category: 'button',
   color: '#f44336',
   icon: 'led',
   ports: [
-    { id: 'in-plus', label: '+', side: 'top', offsetXCm: 1, type: 'any' },
-    { id: 'in-minus', label: '−', side: 'bottom', offsetXCm: 1, type: 'any' },
+    { id: 'in-plus', label: '+', side: 'top', offsetXMm: 10, type: 'any' },
+    { id: 'in-minus', label: '−', side: 'bottom', offsetXMm: 10, type: 'any' },
   ],
   portDescriptions: {
     'in-plus': 'Terminal positivo (ânodo)',
