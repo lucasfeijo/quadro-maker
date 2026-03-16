@@ -6,41 +6,41 @@ const component: ComponentSpec = {
   name: 'ATS NLQ4-125/2P',
   description:
     'Chave de Transferência Automática 100A, 230V, 2 polos. Modelo NLQ4-125/2P com comutação automática entre Normal Power A (ex: solar) e Reserve Power B (ex: rede). Possui seletor Manual/Auto, indicadores LED, entradas de sensing (AR/AN, BR/BN) e contatos auxiliares secos (NC/COM/NO) para sinalização de fonte ativa.',
-  widthMm: 140,
+  widthMm: 108,
   category: 'ats',
   poles: 2,
   color: '#78909c',
   icon: 'ats',
   ports: [
     // Main power A — big screw terminals (high current path)
-    { id: 'in-A-R',  label: 'A-R',   side: 'top',    offsetXMm: 15,  type: 'phase' },
-    { id: 'in-A-N',  label: 'A-N',   side: 'top',    offsetXMm: 30,    type: 'neutral' },
+    { id: 'in-A-R',  label: 'A-R',   side: 'top',    offsetXMm: 12,  type: 'phase' },
+    { id: 'in-A-N',  label: 'A-N',   side: 'top',    offsetXMm: 23,  type: 'neutral' },
 
     // Sensing input A — green terminal block (voltage monitoring)
-    { id: 'sense-AR', label: 'AR',    side: 'top',    offsetXMm: 50,    type: 'phase' },
-    { id: 'sense-AN', label: 'AN',    side: 'top',    offsetXMm: 65,  type: 'neutral' },
+    { id: 'sense-AR', label: 'AR',    side: 'top',    offsetXMm: 39,  type: 'phase' },
+    { id: 'sense-AN', label: 'AN',    side: 'top',    offsetXMm: 50,  type: 'neutral' },
 
     // Auxiliary contact A — green terminal block (passive dry contact)
-    { id: 'aux-A-NC',  label: 'NC-A',  side: 'top',  offsetXMm: 85,  type: 'any' },
-    { id: 'aux-A-COM', label: 'COM-A', side: 'top',  offsetXMm: 100,   type: 'any' },
-    { id: 'aux-A-NO',  label: 'NO-A',  side: 'top',  offsetXMm: 115, type: 'any' },
+    { id: 'aux-A-NC',  label: 'NC-A',  side: 'top',  offsetXMm: 66,  type: 'any' },
+    { id: 'aux-A-COM', label: 'COM-A', side: 'top',  offsetXMm: 77,  type: 'any' },
+    { id: 'aux-A-NO',  label: 'NO-A',  side: 'top',  offsetXMm: 89,  type: 'any' },
 
     // Main power B — big screw terminals (high current path)
-    { id: 'in-B-R',  label: 'B-R',   side: 'bottom', offsetXMm: 15,  type: 'phase' },
-    { id: 'in-B-N',  label: 'B-N',   side: 'bottom', offsetXMm: 29,  type: 'neutral' },
+    { id: 'in-B-R',  label: 'B-R',   side: 'bottom', offsetXMm: 12,  type: 'phase' },
+    { id: 'in-B-N',  label: 'B-N',   side: 'bottom', offsetXMm: 22,  type: 'neutral' },
 
     // Load output (routed internally by the contactor mechanism)
-    { id: 'out-R',   label: 'O-R',   side: 'bottom', offsetXMm: 43,  type: 'phase' },
-    { id: 'out-N',   label: 'O-N',   side: 'bottom', offsetXMm: 57,  type: 'neutral' },
+    { id: 'out-R',   label: 'O-R',   side: 'bottom', offsetXMm: 33,  type: 'phase' },
+    { id: 'out-N',   label: 'O-N',   side: 'bottom', offsetXMm: 44,  type: 'neutral' },
 
     // Sensing input B — green terminal block (voltage monitoring)
-    { id: 'sense-BR', label: 'BR',    side: 'bottom', offsetXMm: 71,  type: 'phase' },
-    { id: 'sense-BN', label: 'BN',    side: 'bottom', offsetXMm: 85,  type: 'neutral' },
+    { id: 'sense-BR', label: 'BR',    side: 'bottom', offsetXMm: 55,  type: 'phase' },
+    { id: 'sense-BN', label: 'BN',    side: 'bottom', offsetXMm: 66,  type: 'neutral' },
 
     // Auxiliary contact B — green terminal block (passive dry contact)
-    { id: 'aux-B-NC',  label: 'NC-B',  side: 'bottom', offsetXMm: 99,  type: 'any' },
-    { id: 'aux-B-COM', label: 'COM-B', side: 'bottom', offsetXMm: 113, type: 'any' },
-    { id: 'aux-B-NO',  label: 'NO-B',  side: 'bottom', offsetXMm: 127, type: 'any' },
+    { id: 'aux-B-NC',  label: 'NC-B',  side: 'bottom', offsetXMm: 76,  type: 'any' },
+    { id: 'aux-B-COM', label: 'COM-B', side: 'bottom', offsetXMm: 87,  type: 'any' },
+    { id: 'aux-B-NO',  label: 'NO-B',  side: 'bottom', offsetXMm: 98,  type: 'any' },
   ],
   portDescriptions: {
     'in-A-R':     'Normal Power A — fase (ex: energia solar) — borne de parafuso',
