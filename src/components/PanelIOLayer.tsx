@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { getIOPosition, closestEdge } from '../utils/panelIO';
 
@@ -26,6 +26,13 @@ const DIR_ARROWS: Record<string, string> = {
 };
 
 const DOT_R = 2.5;
+const IO_SNAP_TOLERANCE = 2;
+
+interface DimensionLine {
+  x1: number; y1: number;
+  x2: number; y2: number;
+  label: string;
+}
 
 interface Props {
   svgWidth: number;
@@ -37,6 +44,7 @@ interface Props {
   onPortMouseUp?: (instanceId: string, portId: string) => void;
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
+  onIODragChange?: (dragging: boolean) => void;
 }
 
 function screenToSvg(svgEl: SVGSVGElement, clientX: number, clientY: number) {
@@ -58,44 +66,122 @@ export const PanelIOLayer: React.FC<Props> = ({
   onPortMouseUp,
   onPortHover,
   onPortLeave,
+  onIODragChange,
 }) => {
   const panelIOs = usePanelStore((s) => s.panelIOs);
   const wiringFrom = usePanelStore((s) => s.wiringFrom);
   const wires = usePanelStore((s) => s.wires);
   const movePanelIO = usePanelStore((s) => s.movePanelIO);
 
-  const draggingRef = useRef<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [eqGuides, setEqGuides] = useState<DimensionLine[]>([]);
+  const svgElRef = useRef<SVGSVGElement | null>(null);
+
+  useEffect(() => {
+    onIODragChange?.(draggingId != null);
+  }, [draggingId, onIODragChange]);
 
   const handleMouseDown = useCallback(
     (ioId: string, e: React.MouseEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      draggingRef.current = ioId;
-
       const svgEl = (e.target as Element).closest('svg') as SVGSVGElement | null;
-      if (!svgEl) return;
-
-      const onMove = (me: MouseEvent) => {
-        if (!draggingRef.current) return;
-        const svgPt = screenToSvg(svgEl, me.clientX, me.clientY);
-        const { edge, positionPercent } = closestEdge(svgPt.x, svgPt.y, svgWidth, svgHeight);
-        movePanelIO(draggingRef.current, edge, positionPercent);
-      };
-
-      const onUp = () => {
-        draggingRef.current = null;
-        window.removeEventListener('mousemove', onMove);
-        window.removeEventListener('mouseup', onUp);
-      };
-
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
+      svgElRef.current = svgEl;
+      setDraggingId(ioId);
     },
-    [svgWidth, svgHeight, movePanelIO],
+    [],
   );
 
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!draggingId) return;
+      const svgEl = svgElRef.current ?? (e.target as Element).ownerSVGElement as SVGSVGElement | null;
+      if (!svgEl) return;
+      const svgPt = screenToSvg(svgEl, e.clientX, e.clientY);
+      const { edge, positionPercent } = closestEdge(svgPt.x, svgPt.y, svgWidth, svgHeight);
+
+      let finalPercent = positionPercent;
+      const newGuides: DimensionLine[] = [];
+
+      if (!e.shiftKey) {
+        const isHEdge = edge === 'top' || edge === 'bottom';
+        const totalLen = isHEdge ? svgWidth : svgHeight;
+        const currentPx = (positionPercent / 100) * totalLen;
+        const sameEdgeIOs = panelIOs.filter(io => io.id !== draggingId && io.edge === edge);
+        const coords = [...new Set(sameEdgeIOs.map(io => (io.positionPercent / 100) * totalLen))].sort((a, b) => a - b);
+
+        let bestDist = IO_SNAP_TOLERANCE + 1;
+        let bestPos = currentPx;
+        let bestSegs: [number, number, number] | null = null;
+
+        for (let i = 0; i < coords.length; i++) {
+          for (let j = i + 1; j < coords.length; j++) {
+            const gap = coords[j] - coords[i];
+            if (gap < 3) continue;
+            const candidates: Array<{ pos: number; segs: [number, number, number] }> = [
+              { pos: coords[i] - gap, segs: [coords[i] - gap, coords[i], coords[j]] },
+              { pos: (coords[i] + coords[j]) / 2, segs: [coords[i], (coords[i] + coords[j]) / 2, coords[j]] },
+              { pos: coords[j] + gap, segs: [coords[i], coords[j], coords[j] + gap] },
+            ];
+            for (const cand of candidates) {
+              const d = Math.abs(currentPx - cand.pos);
+              if (d < bestDist) {
+                bestDist = d;
+                bestPos = cand.pos;
+                bestSegs = cand.segs;
+              }
+            }
+          }
+        }
+
+        if (bestSegs && bestDist <= IO_SNAP_TOLERANCE) {
+          finalPercent = Math.max(5, Math.min(95, (bestPos / totalLen) * 100));
+          const [s1, s2, s3] = bestSegs;
+          const gapMm = Math.abs(s2 - s1);
+          const label = gapMm % 1 < 0.05 ? `${Math.round(gapMm)} mm` : `${gapMm.toFixed(1)} mm`;
+
+          if (isHEdge) {
+            const ly = edge === 'top' ? 30 : svgHeight - 30;
+            newGuides.push(
+              { x1: s1, y1: ly, x2: s2, y2: ly, label },
+              { x1: s2, y1: ly, x2: s3, y2: ly, label },
+            );
+          } else {
+            const lx = edge === 'left' ? 29 : svgWidth - 29;
+            newGuides.push(
+              { x1: lx, y1: s1, x2: lx, y2: s2, label },
+              { x1: lx, y1: s2, x2: lx, y2: s3, label },
+            );
+          }
+        }
+      }
+
+      setEqGuides(newGuides);
+      movePanelIO(draggingId, edge, finalPercent);
+    },
+    [draggingId, panelIOs, svgWidth, svgHeight, movePanelIO],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setDraggingId(null);
+    setEqGuides([]);
+  }, []);
+
   return (
-    <g className="panel-io-layer">
+    <g
+      className="panel-io-layer"
+      onMouseMove={draggingId ? handleMouseMove : undefined}
+      onMouseUp={draggingId ? handleMouseUp : undefined}
+      onMouseLeave={draggingId ? handleMouseUp : undefined}
+    >
+      {draggingId && (
+        <rect
+          x={-svgWidth} y={-svgHeight}
+          width={svgWidth * 3} height={svgHeight * 3}
+          fill="transparent"
+          style={{ pointerEvents: 'all' }}
+        />
+      )}
       {panelIOs.map((io) => {
         const pos = getIOPosition(io, svgWidth, svgHeight);
         const color = io.customColor ?? IO_COLORS[io.type] ?? '#999';
@@ -234,6 +320,53 @@ export const PanelIOLayer: React.FC<Props> = ({
               opacity={0.6}
               style={{ pointerEvents: 'none' }}
             />
+          </g>
+        );
+      })}
+
+      {/* Equidistant dimension lines */}
+      {eqGuides.map((line, i) => {
+        const ldx = line.x2 - line.x1;
+        const ldy = line.y2 - line.y1;
+        const lLen = Math.sqrt(ldx * ldx + ldy * ldy);
+        if (lLen < 2) return null;
+        const ux = ldx / lLen;
+        const uy = ldy / lLen;
+        const px = -uy;
+        const py = ux;
+        const a = 1.5;
+        const midX = (line.x1 + line.x2) / 2;
+        const midY = (line.y1 + line.y2) / 2;
+
+        const arrowStart = [
+          `M ${line.x1 + ux * a + px * a * 0.5} ${line.y1 + uy * a + py * a * 0.5}`,
+          `L ${line.x1} ${line.y1}`,
+          `L ${line.x1 + ux * a - px * a * 0.5} ${line.y1 + uy * a - py * a * 0.5}`,
+        ].join(' ');
+        const arrowEnd = [
+          `M ${line.x2 - ux * a + px * a * 0.5} ${line.y2 - uy * a + py * a * 0.5}`,
+          `L ${line.x2} ${line.y2}`,
+          `L ${line.x2 - ux * a - px * a * 0.5} ${line.y2 - uy * a - py * a * 0.5}`,
+        ].join(' ');
+
+        return (
+          <g key={`eq-guide-${i}`} style={{ pointerEvents: 'none' }}>
+            <line
+              x1={line.x1} y1={line.y1}
+              x2={line.x2} y2={line.y2}
+              stroke="#ff9800" strokeWidth={0.3} opacity={0.9}
+            />
+            <path d={arrowStart} stroke="#ff9800" strokeWidth={0.3} fill="none" opacity={0.9} />
+            <path d={arrowEnd} stroke="#ff9800" strokeWidth={0.3} fill="none" opacity={0.9} />
+            <text
+              x={midX + px * 3} y={midY + py * 3}
+              textAnchor="middle" dominantBaseline="central"
+              fontSize={2.5} fontWeight={600}
+              fill="#ff9800" stroke="#fff" strokeWidth={2} paintOrder="stroke"
+              style={{ pointerEvents: 'none', userSelect: 'none' }}
+            >
+              {line.label}
+            </text>
           </g>
         );
       })}

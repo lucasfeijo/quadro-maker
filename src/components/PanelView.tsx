@@ -118,6 +118,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
   zoomRef.current = zoom;
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
   const [isDraggingSegment, setIsDraggingSegment] = useState(false);
+  const [isDraggingIO, setIsDraggingIO] = useState(false);
   const clipboardRef = useRef<{ data: ClipboardData; pasteCount: number } | null>(null);
   const clampZoom = useCallback((value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value)), []);
 
@@ -655,6 +656,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
           onPortMouseUp={onPortMouseUp}
           onPortHover={onPortHover}
           onPortLeave={onPortLeave}
+          onIODragChange={setIsDraggingIO}
         />
 
         {/* External Devices */}
@@ -742,7 +744,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
             ↷
           </button>
         </div>
-        {isDraggingSegment && (
+        {(isDraggingSegment || isDraggingIO) && (
           <div className="drag-hint">
             Segure <kbd>Shift</kbd> para desativar snap
           </div>
