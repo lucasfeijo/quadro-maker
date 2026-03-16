@@ -721,11 +721,30 @@ html, body, #root {
   background: rgba(255,255,255,0.15);
 }
 
-.zoom-controls span {
+.zoom-controls button.zoom-btn-fit svg {
+  flex-shrink: 0;
+}
+
+.zoom-controls .zoom-input {
+  width: 36px;
   font-size: 0.75rem;
   color: #fff;
-  min-width: 40px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 4px;
   text-align: center;
+  outline: none;
+}
+
+.zoom-controls .zoom-input:focus {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.3);
+}
+
+.zoom-controls .zoom-percent-suffix {
+  font-size: 0.75rem;
+  color: #fff;
 }
 
 .editor-body:has(> .properties-panel) .panel-view-inner {

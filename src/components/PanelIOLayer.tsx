@@ -45,6 +45,7 @@ interface Props {
   onPortHover?: (instanceId: string, portId: string) => void;
   onPortLeave?: () => void;
   onIODragChange?: (dragging: boolean) => void;
+  wireAlignTargets?: Map<string, Array<{ x: number; y: number }>>;
 }
 
 function screenToSvg(svgEl: SVGSVGElement, clientX: number, clientY: number) {
@@ -67,6 +68,7 @@ export const PanelIOLayer: React.FC<Props> = ({
   onPortHover,
   onPortLeave,
   onIODragChange,
+  wireAlignTargets,
 }) => {
   const panelIOs = usePanelStore((s) => s.panelIOs);
   const wiringFrom = usePanelStore((s) => s.wiringFrom);
@@ -75,6 +77,7 @@ export const PanelIOLayer: React.FC<Props> = ({
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [eqGuides, setEqGuides] = useState<DimensionLine[]>([]);
+  const [alignGuide, setAlignGuide] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const svgElRef = useRef<SVGSVGElement | null>(null);
 
   useEffect(() => {
@@ -102,69 +105,110 @@ export const PanelIOLayer: React.FC<Props> = ({
 
       let finalPercent = positionPercent;
       const newGuides: DimensionLine[] = [];
+      let newAlignGuide: { x1: number; y1: number; x2: number; y2: number } | null = null;
+      let wireAlignFired = false;
 
       if (!e.shiftKey) {
         const isHEdge = edge === 'top' || edge === 'bottom';
         const totalLen = isHEdge ? svgWidth : svgHeight;
         const currentPx = (positionPercent / 100) * totalLen;
-        const sameEdgeIOs = panelIOs.filter(io => io.id !== draggingId && io.edge === edge);
-        const coords = [...new Set(sameEdgeIOs.map(io => (io.positionPercent / 100) * totalLen))].sort((a, b) => a - b);
 
-        let bestDist = IO_SNAP_TOLERANCE + 1;
-        let bestPos = currentPx;
-        let bestSegs: [number, number, number] | null = null;
+        // --- Wire-straight snap (highest priority) ---
+        const targets = wireAlignTargets?.get(draggingId);
+        if (targets && targets.length > 0) {
+          let bestWireDist = IO_SNAP_TOLERANCE + 1;
+          let bestWireTarget: { x: number; y: number } | null = null;
+          let bestWirePos = currentPx;
 
-        for (let i = 0; i < coords.length; i++) {
-          for (let j = i + 1; j < coords.length; j++) {
-            const gap = coords[j] - coords[i];
-            if (gap < 3) continue;
-            const candidates: Array<{ pos: number; segs: [number, number, number] }> = [
-              { pos: coords[i] - gap, segs: [coords[i] - gap, coords[i], coords[j]] },
-              { pos: (coords[i] + coords[j]) / 2, segs: [coords[i], (coords[i] + coords[j]) / 2, coords[j]] },
-              { pos: coords[j] + gap, segs: [coords[i], coords[j], coords[j] + gap] },
-            ];
-            for (const cand of candidates) {
-              const d = Math.abs(currentPx - cand.pos);
-              if (d < bestDist) {
-                bestDist = d;
-                bestPos = cand.pos;
-                bestSegs = cand.segs;
-              }
+          for (const t of targets) {
+            const targetPx = isHEdge ? t.x : t.y;
+            const d = Math.abs(currentPx - targetPx);
+            if (d < bestWireDist) {
+              bestWireDist = d;
+              bestWirePos = targetPx;
+              bestWireTarget = t;
+            }
+          }
+
+          if (bestWireTarget && bestWireDist <= IO_SNAP_TOLERANCE) {
+            wireAlignFired = true;
+            finalPercent = Math.max(5, Math.min(95, (bestWirePos / totalLen) * 100));
+            const snappedFrac = finalPercent / 100;
+            if (isHEdge) {
+              const portX = snappedFrac * svgWidth;
+              const portY = edge === 'top' ? 38 : svgHeight - 38;
+              newAlignGuide = { x1: portX, y1: portY, x2: bestWireTarget.x, y2: bestWireTarget.y };
+            } else {
+              const portY = snappedFrac * svgHeight;
+              const portX = edge === 'left' ? 38 : svgWidth - 38;
+              newAlignGuide = { x1: portX, y1: portY, x2: bestWireTarget.x, y2: bestWireTarget.y };
             }
           }
         }
 
-        if (bestSegs && bestDist <= IO_SNAP_TOLERANCE) {
-          finalPercent = Math.max(5, Math.min(95, (bestPos / totalLen) * 100));
-          const [s1, s2, s3] = bestSegs;
-          const gapMm = Math.abs(s2 - s1);
-          const label = gapMm % 1 < 0.05 ? `${Math.round(gapMm)} mm` : `${gapMm.toFixed(1)} mm`;
+        // --- Equidistant snap (only if wire-straight didn't fire) ---
+        if (!wireAlignFired) {
+          const sameEdgeIOs = panelIOs.filter(io => io.id !== draggingId && io.edge === edge);
+          const coords = [...new Set(sameEdgeIOs.map(io => (io.positionPercent / 100) * totalLen))].sort((a, b) => a - b);
 
-          if (isHEdge) {
-            const ly = edge === 'top' ? 30 : svgHeight - 30;
-            newGuides.push(
-              { x1: s1, y1: ly, x2: s2, y2: ly, label },
-              { x1: s2, y1: ly, x2: s3, y2: ly, label },
-            );
-          } else {
-            const lx = edge === 'left' ? 29 : svgWidth - 29;
-            newGuides.push(
-              { x1: lx, y1: s1, x2: lx, y2: s2, label },
-              { x1: lx, y1: s2, x2: lx, y2: s3, label },
-            );
+          let bestDist = IO_SNAP_TOLERANCE + 1;
+          let bestPos = currentPx;
+          let bestSegs: [number, number, number] | null = null;
+
+          for (let i = 0; i < coords.length; i++) {
+            for (let j = i + 1; j < coords.length; j++) {
+              const gap = coords[j] - coords[i];
+              if (gap < 3) continue;
+              const candidates: Array<{ pos: number; segs: [number, number, number] }> = [
+                { pos: coords[i] - gap, segs: [coords[i] - gap, coords[i], coords[j]] },
+                { pos: (coords[i] + coords[j]) / 2, segs: [coords[i], (coords[i] + coords[j]) / 2, coords[j]] },
+                { pos: coords[j] + gap, segs: [coords[i], coords[j], coords[j] + gap] },
+              ];
+              for (const cand of candidates) {
+                const d = Math.abs(currentPx - cand.pos);
+                if (d < bestDist) {
+                  bestDist = d;
+                  bestPos = cand.pos;
+                  bestSegs = cand.segs;
+                }
+              }
+            }
+          }
+
+          if (bestSegs && bestDist <= IO_SNAP_TOLERANCE) {
+            finalPercent = Math.max(5, Math.min(95, (bestPos / totalLen) * 100));
+            const [s1, s2, s3] = bestSegs;
+            const gapMm = Math.abs(s2 - s1);
+            const label = gapMm % 1 < 0.05 ? `${Math.round(gapMm)} mm` : `${gapMm.toFixed(1)} mm`;
+
+            if (isHEdge) {
+              const ly = edge === 'top' ? 30 : svgHeight - 30;
+              newGuides.push(
+                { x1: s1, y1: ly, x2: s2, y2: ly, label },
+                { x1: s2, y1: ly, x2: s3, y2: ly, label },
+              );
+            } else {
+              const lx = edge === 'left' ? 29 : svgWidth - 29;
+              newGuides.push(
+                { x1: lx, y1: s1, x2: lx, y2: s2, label },
+                { x1: lx, y1: s2, x2: lx, y2: s3, label },
+              );
+            }
           }
         }
       }
 
       setEqGuides(newGuides);
+      setAlignGuide(newAlignGuide);
       movePanelIO(draggingId, edge, finalPercent);
     },
-    [draggingId, panelIOs, svgWidth, svgHeight, movePanelIO],
+    [draggingId, panelIOs, svgWidth, svgHeight, movePanelIO, wireAlignTargets],
   );
 
   const handleMouseUp = useCallback(() => {
     setDraggingId(null);
     setEqGuides([]);
+    setAlignGuide(null);
   }, []);
 
   return (
@@ -323,6 +367,23 @@ export const PanelIOLayer: React.FC<Props> = ({
           </g>
         );
       })}
+
+      {/* Wire-straight alignment guide */}
+      {alignGuide && (
+        <g style={{ pointerEvents: 'none' }}>
+          <line
+            x1={alignGuide.x1} y1={alignGuide.y1}
+            x2={alignGuide.x2} y2={alignGuide.y2}
+            stroke="#42a5f5" strokeWidth={0.3}
+            strokeDasharray="1.5 1" opacity={0.8}
+          />
+          <circle
+            cx={alignGuide.x2} cy={alignGuide.y2}
+            r={1.2} fill="none" stroke="#42a5f5"
+            strokeWidth={0.3} opacity={0.8}
+          />
+        </g>
+      )}
 
       {/* Equidistant dimension lines */}
       {eqGuides.map((line, i) => {

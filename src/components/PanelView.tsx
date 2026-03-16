@@ -7,9 +7,10 @@ import type { PasteData } from '../store/panelStore';
 import { DinRail } from './DinRail';
 import { WireLayer } from './WireLayer';
 import { PanelIOLayer } from './PanelIOLayer';
-import { ExternalDeviceLayer, getExternalDeviceBounds } from './ExternalDeviceLayer';
-import { BusbarLayer } from './BusbarLayer';
+import { ExternalDeviceLayer, getExternalDeviceBounds, getExternalDevicePortPosition } from './ExternalDeviceLayer';
+import { BusbarLayer, getBusbarPortPosition } from './BusbarLayer';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
+import { FitToWidthIcon, FitToContainerIcon } from './ZoomIcons';
 import { getIOPosition } from '../utils/panelIO';
 import type { GhostPreview, ComponentState } from '../types';
 
@@ -116,11 +117,45 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const [zoom, setZoom] = useState(1);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
+  const [zoomInput, setZoomInput] = useState('');
+  const [zoomInputActive, setZoomInputActive] = useState(false);
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
   const [isDraggingSegment, setIsDraggingSegment] = useState(false);
   const [isDraggingIO, setIsDraggingIO] = useState(false);
   const clipboardRef = useRef<{ data: ClipboardData; pasteCount: number } | null>(null);
   const clampZoom = useCallback((value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value)), []);
+
+  const commitZoomInput = useCallback(() => {
+    const v = parseFloat(zoomInput);
+    if (Number.isNaN(v) || v <= 0 || v >= 1000) {
+      setZoomInputActive(false);
+      return;
+    }
+    setZoom(clampZoom(v / 100));
+    setZoomInputActive(false);
+  }, [zoomInput, clampZoom]);
+
+  const zoomInputRef = useRef<HTMLInputElement>(null);
+
+  const handleZoomInputFocus = useCallback(() => {
+    setZoomInput(String(Math.round(zoom * 100)));
+    setZoomInputActive(true);
+    requestAnimationFrame(() => zoomInputRef.current?.select());
+  }, [zoom]);
+
+  const handleZoomInputBlur = useCallback(() => {
+    commitZoomInput();
+  }, [commitZoomInput]);
+
+  const handleZoomInputKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        (e.currentTarget as HTMLInputElement).blur();
+      }
+    },
+    [],
+  );
 
   const layout = useMemo(
     () =>
@@ -140,6 +175,57 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const intY = cmToPx(layout.interiorOffsetYCm);
   const intW = cmToPx(layout.interiorWidthCm);
   const intH = cmToPx(layout.interiorHeightCm);
+
+  const ioWireTargets = useMemo(() => {
+    const MODULE_H_CM = 7;
+    const resolvePort = (instanceId: string, portId: string): { x: number; y: number } | null => {
+      if (instanceId.startsWith('panel-io:')) {
+        const ioId = instanceId.replace('panel-io:', '');
+        const io = state.panelIOs.find((p) => p.id === ioId);
+        if (!io) return null;
+        const pos = getIOPosition(io, svgWidth, svgHeight);
+        return { x: pos.portX, y: pos.portY };
+      }
+      if (instanceId.startsWith('busbar:')) {
+        const bar = state.busbars.find((b) => b.id === instanceId.replace('busbar:', ''));
+        if (!bar) return null;
+        return getBusbarPortPosition(bar, portId);
+      }
+      const extDev = state.externalDevices.find((d) => d.instanceId === instanceId);
+      if (extDev) return getExternalDevicePortPosition(extDev, portId);
+      for (let ri = 0; ri < state.rows.length; ri++) {
+        const mod = state.rows[ri].modules.find((m) => m.instanceId === instanceId);
+        if (!mod) continue;
+        const def = getModuleById(mod.moduleId);
+        const port = def?.ports.find((p) => p.id === portId);
+        const rail = layout.rails[ri];
+        if (!def || !port || !rail) return null;
+        const railLeft = intX + cmToPx(rail.xCm);
+        const usableX = railLeft + cmToPx(rail.fixingMarginCm);
+        const railCY = intY + cmToPx(rail.yCm) + cmToPx(1) / 2;
+        const mx = usableX + cmToPx(mod.positionCm);
+        const my = railCY - cmToPx(MODULE_H_CM / 2);
+        const mh = cmToPx(MODULE_H_CM);
+        return { x: mx + cmToPx(port.offsetXCm), y: port.side === 'top' ? my - 2 : my + mh + 2 };
+      }
+      return null;
+    };
+
+    const targets = new Map<string, Array<{ x: number; y: number }>>();
+    for (const wire of state.wires) {
+      const addTarget = (ioInstanceId: string, otherInstanceId: string, otherPortId: string) => {
+        if (!ioInstanceId.startsWith('panel-io:')) return;
+        const ioId = ioInstanceId.replace('panel-io:', '');
+        const pos = resolvePort(otherInstanceId, otherPortId);
+        if (!pos) return;
+        if (!targets.has(ioId)) targets.set(ioId, []);
+        targets.get(ioId)!.push(pos);
+      };
+      addTarget(wire.sourceInstanceId, wire.targetInstanceId, wire.targetPortId);
+      addTarget(wire.targetInstanceId, wire.sourceInstanceId, wire.sourcePortId);
+    }
+    return targets;
+  }, [state.wires, state.panelIOs, state.busbars, state.externalDevices, state.rows, layout.rails, svgWidth, svgHeight, intX, intY]);
 
   const contentBounds = useMemo(() => {
     let minX = 0;
@@ -177,6 +263,17 @@ export const PanelView: React.FC<PanelViewProps> = ({
     const availH = container.clientHeight - cssPad * 2;
     if (availW <= 0 || availH <= 0) return;
     const fitZoom = Math.min(availW / cb.w, availH / cb.h);
+    setZoom(clampZoom(fitZoom));
+  }, [clampZoom]);
+
+  const fitToWidth = useCallback(() => {
+    const container = containerRef.current;
+    const cb = contentBoundsRef.current;
+    if (!container || cb.w <= 0) return;
+    const cssPad = 20;
+    const availW = container.clientWidth - cssPad * 2;
+    if (availW <= 0) return;
+    const fitZoom = availW / cb.w;
     setZoom(clampZoom(fitZoom));
   }, [clampZoom]);
 
@@ -657,6 +754,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
           onPortHover={onPortHover}
           onPortLeave={onPortLeave}
           onIODragChange={setIsDraggingIO}
+          wireAlignTargets={ioWireTargets}
         />
 
         {/* External Devices */}
@@ -751,9 +849,25 @@ export const PanelView: React.FC<PanelViewProps> = ({
         )}
         <div className="zoom-controls">
           <button onClick={() => setZoom((z) => clampZoom(z - 0.2))}>-</button>
-          <span>{Math.round(zoom * 100)}%</span>
+          <input
+            ref={zoomInputRef}
+            type="text"
+            className="zoom-input"
+            value={zoomInputActive ? zoomInput : Math.round(zoom * 100)}
+            onChange={(e) => zoomInputActive && setZoomInput(e.target.value)}
+            onFocus={handleZoomInputFocus}
+            onBlur={handleZoomInputBlur}
+            onKeyDown={handleZoomInputKeyDown}
+            aria-label="Zoom percentual"
+          />
+          <span className="zoom-percent-suffix">%</span>
           <button onClick={() => setZoom((z) => clampZoom(z + 0.2))}>+</button>
-          <button onClick={fitToContainer} title="Ajustar ao container">⊡</button>
+          <button onClick={fitToWidth} title="Encaiar na largura (quadro cabe horizontalmente)" className="zoom-btn-fit">
+            <FitToWidthIcon size="1.1em" />
+          </button>
+          <button onClick={fitToContainer} title="Ajustar ao container" className="zoom-btn-fit">
+            <FitToContainerIcon size="1.1em" />
+          </button>
         </div>
       </div>
     </div>

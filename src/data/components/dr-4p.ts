@@ -11,7 +11,7 @@ const component: ComponentSpec = {
   id: 'dr-4p',
   name: 'DR Tetrapolar',
   description: 'Dispositivo Diferencial Residual tetrapolar para circuitos trifásicos com neutro. Detecta fugas de corrente em qualquer uma das fases e desarma todas simultaneamente.',
-  widthCm: 12,
+  widthCm: 7.2,
   category: 'dr',
   poles: 4,
   color: '#1b5e20',
