@@ -67,8 +67,40 @@ export const DinRail: React.FC<Props> = ({
   const ghostH = cmToPx(MODULE_HEIGHT_CM);
   const ghostY = railTopPx + railHeightPx / 2 - ghostH / 2;
 
+  const railCenterYPx = railTopPx + railHeightPx / 2;
+  const labelSpacingPx = cmToPx(0.35);
+  const heightLabelXPx = railBarLeftPx - labelSpacingPx;
+  const lengthLabelYPx = railTopPx - labelSpacingPx;
+
   return (
     <g ref={(el) => setNodeRef(el as unknown as HTMLElement | null)}>
+      {/* Rail height label (35mm) - rotated 90°, vertically aligned with rail */}
+      <text
+        className="rail-length-label"
+        x={heightLabelXPx}
+        y={railCenterYPx}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="#607d8b"
+        fontSize={2.2}
+        transform={`rotate(-90, ${heightLabelXPx}, ${railCenterYPx})`}
+      >
+        35mm
+      </text>
+
+      {/* Rail length label - above top face, left-aligned, same spacing */}
+      <text
+        className="rail-length-label"
+        x={railBarLeftPx + labelSpacingPx}
+        y={lengthLabelYPx}
+        textAnchor="start"
+        dominantBaseline="auto"
+        fill="#607d8b"
+        fontSize={2.2}
+      >
+        {rail.usableWidthCm*10}mm
+      </text>
+
       {/* Fixing margin left - hatched */}
       <rect
         x={railLeftPx}

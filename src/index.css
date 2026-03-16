@@ -681,6 +681,12 @@ html, body, #root {
   pointer-events: auto;
 }
 
+/* Rail length label - rotated 90°, vertically aligned with rail */
+.rail-length-label {
+  pointer-events: none;
+  user-select: none;
+}
+
 .zoom-controls {
   position: absolute;
   right: 16px;
