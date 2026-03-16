@@ -55,9 +55,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
     setShowLoadModal(false);
   };
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   const handleDelete = (id: string) => {
-    deleteProject(id);
-    setSavedProjects(listProjects());
+    if (confirmDeleteId === id) {
+      deleteProject(id);
+      setConfirmDeleteId(null);
+      if (projectId === id) setProjectId(null);
+      setSavedProjects(listProjects());
+    } else {
+      setConfirmDeleteId(id);
+    }
   };
 
   const handleExportCurrent = () => {
@@ -231,20 +239,35 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
                     <div className="project-info">
                       <strong>{p.name}</strong>
                       <span className="project-date">
-                        {new Date(p.updatedAt).toLocaleDateString('pt-BR')}
+                        {new Date(p.updatedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
                       </span>
                     </div>
                     <div className="project-actions">
-                      <button onClick={() => handleLoad(p.id)}>Abrir</button>
-                      <button onClick={() => exportProject(p.id)} title="Exportar">
-                        ↓
-                      </button>
-                      <button
-                        className="delete-btn"
-                        onClick={() => handleDelete(p.id)}
-                      >
-                        ×
-                      </button>
+                      {confirmDeleteId === p.id ? (
+                        <>
+                          <span className="confirm-delete-label">Excluir?</span>
+                          <button className="confirm-yes-btn" onClick={() => handleDelete(p.id)}>
+                            Sim
+                          </button>
+                          <button className="confirm-no-btn" onClick={() => setConfirmDeleteId(null)}>
+                            Não
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => handleLoad(p.id)}>Abrir</button>
+                          <button onClick={() => exportProject(p.id)} title="Exportar">
+                            ↓
+                          </button>
+                          <button
+                            className="delete-btn"
+                            onClick={() => handleDelete(p.id)}
+                            title="Excluir"
+                          >
+                            ×
+                          </button>
+                        </>
+                      )}
                     </div>
                   </li>
                 ))}
@@ -252,7 +275,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
             )}
             <button
               className="toolbar-btn"
-              onClick={() => setShowLoadModal(false)}
+              onClick={() => { setShowLoadModal(false); setConfirmDeleteId(null); }}
             >
               Fechar
             </button>

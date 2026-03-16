@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { EnclosureSelector } from './EnclosureSelector';
-import { listProjects, loadProject } from '../utils/storage';
+import { listProjects, loadProject, deleteProject } from '../utils/storage';
 import { SavedProject } from '../types';
 
 export const PanelConfig: React.FC = () => {
@@ -24,9 +24,21 @@ export const PanelConfig: React.FC = () => {
     setTab('load');
   };
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   const handleLoad = (id: string) => {
     const state = loadProject(id);
     if (state) store.loadState(state);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirmDeleteId === id) {
+      deleteProject(id);
+      setConfirmDeleteId(null);
+      setSavedProjects(listProjects());
+    } else {
+      setConfirmDeleteId(id);
+    }
   };
 
   return (
@@ -114,15 +126,38 @@ export const PanelConfig: React.FC = () => {
                     <div className="project-info">
                       <strong>{p.name}</strong>
                       <span className="project-date">
-                        {new Date(p.updatedAt).toLocaleDateString('pt-BR')}
+                        {new Date(p.updatedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
                       </span>
                     </div>
-                    <button
-                      className="start-btn small"
-                      onClick={() => handleLoad(p.id)}
-                    >
-                      Abrir
-                    </button>
+                    <div className="project-actions">
+                      {confirmDeleteId === p.id ? (
+                        <>
+                          <span className="confirm-delete-label">Excluir?</span>
+                          <button className="confirm-yes-btn" onClick={() => handleDelete(p.id)}>
+                            Sim
+                          </button>
+                          <button className="confirm-no-btn" onClick={() => setConfirmDeleteId(null)}>
+                            Não
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="start-btn small"
+                            onClick={() => handleLoad(p.id)}
+                          >
+                            Abrir
+                          </button>
+                          <button
+                            className="delete-btn"
+                            onClick={() => handleDelete(p.id)}
+                            title="Excluir"
+                          >
+                            ×
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>

@@ -293,6 +293,26 @@ html, body, #root {
   padding: 4px 10px !important;
 }
 
+.confirm-delete-label {
+  color: var(--danger);
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  align-self: center;
+}
+
+.confirm-yes-btn {
+  background: var(--danger) !important;
+  color: #1e1e2e !important;
+  font-weight: 600 !important;
+}
+
+.confirm-no-btn {
+  background: #585b70 !important;
+  color: #cdd6f4 !important;
+  font-weight: 500 !important;
+}
+
 .empty-msg {
   text-align: center;
   opacity: 0.5;
