@@ -25,6 +25,8 @@ const RAIL_HEIGHT_CM = 1;
 const MODULE_HEIGHT_CM = 7;
 /** Barra física do trilho não vai até as bordas; recuo em cada extremidade (cm) */
 const RAIL_BAR_END_INSET_CM = 1.5;
+/** Largura de 1 módulo DIN 1P (disjuntor unipolar) em cm */
+const DIN_MODULE_1P_CM = 1.8;
 
 export const DinRail: React.FC<Props> = ({
   rail,
@@ -120,18 +122,25 @@ export const DinRail: React.FC<Props> = ({
         opacity={0.25}
       />
 
-      {/* 1cm grid lines in usable area */}
-      {Array.from({ length: rail.usableWidthCm + 1 }, (_, i) => (
-        <line
-          key={i}
-          x1={usableOffsetXPx + cmToPx(i)}
-          y1={railTopPx - cmToPx(3.5)}
-          x2={usableOffsetXPx + cmToPx(i)}
-          y2={railTopPx + cmToPx(4.5)}
-          stroke={i % 3 === 0 ? '#ccc' : '#e8e8e8'}
-          strokeWidth={i % 3 === 0 ? 0.3 : 0.15}
-        />
-      ))}
+      {/* Grid: linhas menores a cada 1P, maiores a cada 3P */}
+      {Array.from(
+        { length: Math.floor(rail.usableWidthCm / DIN_MODULE_1P_CM) + 1 },
+        (_, i) => {
+          const xCm = i * DIN_MODULE_1P_CM;
+          const isMajor = i % 3 === 0;
+          return (
+            <line
+              key={i}
+              x1={usableOffsetXPx + cmToPx(xCm)}
+              y1={railTopPx - cmToPx(3.5)}
+              x2={usableOffsetXPx + cmToPx(xCm)}
+              y2={railTopPx + cmToPx(4.5)}
+              stroke={isMajor ? '#ccc' : '#e8e8e8'}
+              strokeWidth={isMajor ? 0.3 : 0.15}
+            />
+          );
+        },
+      )}
 
       {/* DIN rail bar (não vai até as bordas do interior) */}
       <rect

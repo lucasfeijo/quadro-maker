@@ -1,5 +1,8 @@
 import { EnclosureDefinition } from '../types';
 
+/** Largura por módulo DIN 1P (disjuntor unipolar) em cm - padrão 17.5mm, app usa 1.8 */
+const DIN_MODULE_1P_CM = 1.8;
+
 function makeRails(
   count: number,
   railWidthCm: number,
@@ -30,7 +33,7 @@ export const ENCLOSURE_LIBRARY: EnclosureDefinition[] = [
     exteriorHeightCm: 23,
     interiorWidthCm: 30,
     interiorHeightCm: 19,
-    rails: makeRails(1, 30, 24, 3, 7.5, 0, 0),
+    rails: makeRails(1, 30, 12 * DIN_MODULE_1P_CM, 3, 7.5, 0, 0),
     mountingHoles: [
       { xCm: 2, yCm: 2, diameterMm: 6 },
       { xCm: 28, yCm: 2, diameterMm: 6 },
@@ -47,7 +50,7 @@ export const ENCLOSURE_LIBRARY: EnclosureDefinition[] = [
     exteriorHeightCm: 23,
     interiorWidthCm: 36,
     interiorHeightCm: 19,
-    rails: makeRails(1, 36, 30, 3, 7.5, 0, 0),
+    rails: makeRails(1, 36, 18 * DIN_MODULE_1P_CM, 3, 7.5, 0, 0),
     mountingHoles: [
       { xCm: 2, yCm: 2, diameterMm: 6 },
       { xCm: 34, yCm: 2, diameterMm: 6 },
@@ -64,7 +67,7 @@ export const ENCLOSURE_LIBRARY: EnclosureDefinition[] = [
     exteriorHeightCm: 33,
     interiorWidthCm: 30,
     interiorHeightCm: 29,
-    rails: makeRails(2, 30, 24, 3, 6, 15, 0),
+    rails: makeRails(2, 30, 12 * DIN_MODULE_1P_CM, 3, 6, 15, 0),
     mountingHoles: [
       { xCm: 2, yCm: 2, diameterMm: 6 },
       { xCm: 28, yCm: 2, diameterMm: 6 },
@@ -81,7 +84,7 @@ export const ENCLOSURE_LIBRARY: EnclosureDefinition[] = [
     exteriorHeightCm: 43,
     interiorWidthCm: 30,
     interiorHeightCm: 39,
-    rails: makeRails(3, 30, 24, 3, 5, 13, 0),
+    rails: makeRails(3, 30, 12 * DIN_MODULE_1P_CM, 3, 5, 13, 0),
     mountingHoles: [
       { xCm: 2, yCm: 2, diameterMm: 6 },
       { xCm: 28, yCm: 2, diameterMm: 6 },
@@ -99,7 +102,7 @@ export const ENCLOSURE_LIBRARY: EnclosureDefinition[] = [
     exteriorHeightCm: 22,
     interiorWidthCm: 29,
     interiorHeightCm: 18,
-    rails: makeRails(1, 29, 23, 3, 7, 0, 0),
+    rails: makeRails(1, 29, 12 * DIN_MODULE_1P_CM, 3, 7, 0, 0),
     mountingHoles: [
       { xCm: 1.5, yCm: 1.5, diameterMm: 5 },
       { xCm: 27.5, yCm: 1.5, diameterMm: 5 },
@@ -116,7 +119,7 @@ export const ENCLOSURE_LIBRARY: EnclosureDefinition[] = [
     exteriorHeightCm: 32,
     interiorWidthCm: 29,
     interiorHeightCm: 28,
-    rails: makeRails(2, 29, 23, 3, 5.5, 14.5, 0),
+    rails: makeRails(2, 29, 12 * DIN_MODULE_1P_CM, 3, 5.5, 14.5, 0),
     mountingHoles: [
       { xCm: 1.5, yCm: 1.5, diameterMm: 5 },
       { xCm: 27.5, yCm: 1.5, diameterMm: 5 },
@@ -133,7 +136,7 @@ export const ENCLOSURE_LIBRARY: EnclosureDefinition[] = [
     exteriorHeightCm: 42,
     interiorWidthCm: 29,
     interiorHeightCm: 38,
-    rails: makeRails(3, 29, 23, 3, 4.5, 12.5, 0),
+    rails: makeRails(3, 29, 12 * DIN_MODULE_1P_CM, 3, 4.5, 12.5, 0),
     mountingHoles: [
       { xCm: 1.5, yCm: 1.5, diameterMm: 5 },
       { xCm: 27.5, yCm: 1.5, diameterMm: 5 },

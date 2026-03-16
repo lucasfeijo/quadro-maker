@@ -1,5 +1,6 @@
 import { PanelState, ResolvedLayout } from '../types';
 import { getEnclosureById } from '../data/enclosures';
+import { getModuleById } from '../data/modules';
 
 const ROW_HEIGHT_CM = 10;
 const ROW_SPACING_CM = 3;
@@ -9,10 +10,25 @@ const VERTICAL_PADDING_CM = 4;
 const RAIL_INSET_CM = 1.5;
 
 export function resolveLayout(state: PanelState): ResolvedLayout {
-  if (state.enclosureId) {
-    return resolveEnclosureLayout(state.enclosureId);
+  const result = state.enclosureId
+    ? resolveEnclosureLayout(state.enclosureId)
+    : resolveCustomLayout(state.widthUnits, state.rowCount);
+  // #region agent log
+  const rail0 = result.rails[0];
+  if (rail0) {
+    let occupiedCm = 0;
+    const moduleIds: string[] = [];
+    for (const row of state.rows) {
+      for (const mod of row.modules) {
+        moduleIds.push(mod.moduleId);
+        const def = getModuleById(mod.moduleId);
+        if (def) occupiedCm += def.widthCm;
+      }
+    }
+    fetch('http://127.0.0.1:7933/ingest/9df62cad-4dbe-44e5-9845-8a9dc613936c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9770de'},body:JSON.stringify({sessionId:'9770de',location:'panelLayout.ts:resolveLayout',message:'Layout resolved',data:{enclosureId:state.enclosureId,widthUnits:state.widthUnits,railUsableWidthCm:rail0.usableWidthCm,occupiedCm,totalModules:moduleIds.length,moduleIds,leftoverCm:rail0.usableWidthCm-occupiedCm},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
   }
-  return resolveCustomLayout(state.widthUnits, state.rowCount);
+  // #endregion
+  return result;
 }
 
 function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
@@ -30,12 +46,16 @@ function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
     interiorHeightCm: enc.interiorHeightCm,
     interiorOffsetXCm: origWallX + extraX,
     interiorOffsetYCm: origWallY + extraY,
-    rails: enc.rails.map((r) => ({
-      ...r,
-      xCm: 0,
-      widthCm: enc.interiorWidthCm,
-      usableWidthCm: enc.interiorWidthCm - r.fixingMarginCm * 2,
-    })),
+    rails: enc.rails.map((r) => {
+      const fixingMarginCm = (enc.interiorWidthCm - r.usableWidthCm) / 2;
+      return {
+        ...r,
+        xCm: 0,
+        widthCm: enc.interiorWidthCm,
+        usableWidthCm: r.usableWidthCm,
+        fixingMarginCm,
+      };
+    }),
     mountingHoles: enc.mountingHoles,
     isEnclosure: true,
   };
