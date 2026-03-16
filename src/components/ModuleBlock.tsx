@@ -179,7 +179,7 @@ export const ModuleBlock: React.FC<Props> = ({
         fontSize={2}
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
-        {def.widthCm}cm
+        {Math.round(def.widthCm * 10)}mm
       </text>
       {editing && (
         <foreignObject x={x - 10} y={y + h + 1} width={w + 20} height={10}>

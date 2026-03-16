@@ -71,7 +71,7 @@ export const DragOverlayContent: React.FC<Props> = ({ moduleId }) => {
         fill="rgba(255,255,255,0.7)"
         fontSize={2.5}
       >
-        {def.widthCm}cm
+        {Math.round(def.widthCm * 10)}mm
       </text>
     </svg>
   );

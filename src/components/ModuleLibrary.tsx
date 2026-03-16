@@ -79,7 +79,7 @@ function DraggableModule({ moduleId, name, color, widthCm, icon, imageUrl }: {
       </div>
       <div className="library-item-info">
         <span className="library-item-name">{name}</span>
-        <span className="library-item-size">{widthCm}cm</span>
+        <span className="library-item-size">{Math.round(widthCm * 10)}mm</span>
       </div>
     </div>
   );

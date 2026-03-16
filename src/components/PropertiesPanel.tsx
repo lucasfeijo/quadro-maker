@@ -825,7 +825,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
         </div>
         <div className="prop-row">
           <span className="prop-label">Largura</span>
-          <span className="prop-value">{def.widthCm} cm</span>
+          <span className="prop-value">{Math.round(def.widthCm * 10)} mm</span>
         </div>
         {def.poles != null && (
           <div className="prop-row">
