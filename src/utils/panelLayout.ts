@@ -1,7 +1,7 @@
 import type { ResolvedLayout } from '../types';
 
 type LayoutInput = Pick<import('../types').PanelState, 'enclosureId' | 'widthUnits' | 'rowCount' | 'rows'>;
-import { getEnclosureById } from '../data/enclosures';
+import { getEnclosureById, DIN_MODULE_1P_MM } from '../data/enclosures';
 import { getModuleById } from '../data/modules';
 
 const ROW_HEIGHT_MM = 100;
@@ -66,7 +66,7 @@ function resolveCustomLayout(
   widthUnits: number,
   rowCount: number,
 ): ResolvedLayout {
-  const usableWidth = widthUnits * 30;
+  const usableWidth = widthUnits * DIN_MODULE_1P_MM;
   const interiorWidth = usableWidth + DEFAULT_FIXING_MARGIN_MM * 2;
   const interiorHeight =
     VERTICAL_PADDING_MM * 2 + rowCount * ROW_HEIGHT_MM + (rowCount - 1) * ROW_SPACING_MM;

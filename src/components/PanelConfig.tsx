@@ -3,6 +3,7 @@ import { usePanelStore } from '../store/panelStore';
 import { EnclosureSelector } from './EnclosureSelector';
 import { listProjects, loadProject, deleteProject } from '../utils/storage';
 import { SavedProject } from '../types';
+import { DIN_MODULE_1P_MM } from '../data/enclosures';
 
 export const PanelConfig: React.FC = () => {
   const store = usePanelStore();
@@ -80,7 +81,7 @@ export const PanelConfig: React.FC = () => {
               >
                 {[6, 8, 10, 12, 16, 18, 20, 24, 30, 36].map((n) => (
                   <option key={n} value={n}>
-                    {n} unidades ({n * 3}cm)
+                    {n} unidades ({n * DIN_MODULE_1P_MM}mm)
                   </option>
                 ))}
               </select>
@@ -100,10 +101,10 @@ export const PanelConfig: React.FC = () => {
             </div>
             <div className="config-summary">
               <p>
-                Trilho DIN: {widthUnits * 3}cm utilizável + 3cm fixação cada
-                lado = {widthUnits * 3 + 6}cm total
+                Trilho DIN: {widthUnits * DIN_MODULE_1P_MM}mm utilizável + 30mm
+                fixação cada lado = {widthUnits * DIN_MODULE_1P_MM + 60}mm total
               </p>
-              <p>Subunidade mínima: 1cm (snap grid)</p>
+              <p>Subunidade mínima: {DIN_MODULE_1P_MM}mm (snap grid)</p>
             </div>
             <button className="start-btn" onClick={handleCustomStart}>
               Criar Quadro

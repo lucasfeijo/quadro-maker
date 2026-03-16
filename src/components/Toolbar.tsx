@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
 import { saveProject, listProjects, loadProject, deleteProject, exportProject, exportCurrentState, importProject } from '../utils/storage';
 import { SavedProject } from '../types';
+import { DIN_MODULE_1P_MM } from '../data/enclosures';
 
 interface ToolbarProps {
   viewMode: 'panel' | 'schematic';
@@ -188,7 +189,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
               <select value={optWidth} onChange={(e) => setOptWidth(Number(e.target.value))}>
                 {[6, 8, 10, 12, 16, 18, 20, 24, 30, 36, 44, 56].map((n) => (
                   <option key={n} value={n}>
-                    {n} unidades ({n * 3}cm)
+                    {n} unidades ({n * DIN_MODULE_1P_MM}mm)
                   </option>
                 ))}
               </select>
