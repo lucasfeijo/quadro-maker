@@ -69,17 +69,21 @@ export const EnclosureSelector: React.FC<Props> = ({ onSelect }) => {
                         stroke="#bbb"
                         strokeWidth={0.2}
                       />
-                      {enc.rails.map((r) => (
-                        <rect
-                          key={r.id}
-                          x={wallX + r.xCm + r.fixingMarginCm}
-                          y={wallY + r.yCm - 0.3}
-                          width={r.usableWidthCm}
-                          height={0.6}
-                          fill="#90a4ae"
-                          rx={0.1}
-                        />
-                      ))}
+                      {enc.rails.map((r) => {
+                        const fixingCm =
+                          (enc.interiorWidthCm - r.usableWidthCm) / 2;
+                        return (
+                          <rect
+                            key={r.id}
+                            x={wallX + r.xCm + fixingCm}
+                            y={wallY + r.yCm - 0.3}
+                            width={r.usableWidthCm}
+                            height={0.6}
+                            fill="#90a4ae"
+                            rx={0.1}
+                          />
+                        );
+                      })}
                       {enc.mountingHoles.map((h, i) => (
                         <circle
                           key={i}

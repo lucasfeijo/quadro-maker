@@ -1116,6 +1116,14 @@ export const WireLayer: React.FC<Props> = ({
 
   const isDragging = draggingWp || draggingSegment || pendingSegmentDrag;
 
+  const sortedRenderData = selectedWireId
+    ? [...renderData].sort((a, b) => {
+        const aSelected = a.wire.id === selectedWireId ? 1 : 0;
+        const bSelected = b.wire.id === selectedWireId ? 1 : 0;
+        return aSelected - bSelected;
+      })
+    : renderData;
+
   return (
     <g
       className="wire-layer"
@@ -1134,7 +1142,7 @@ export const WireLayer: React.FC<Props> = ({
           style={{ pointerEvents: 'all' }}
         />
       )}
-      {renderData.map(({ wire, src, tgt, points, hasWaypoints, displayPath, hitPath }) => {
+      {sortedRenderData.map(({ wire, src, tgt, points, hasWaypoints, displayPath, hitPath }) => {
         const isSelected = wire.id === selectedWireId;
         const isEnergized = energizedWires?.has(wire.id);
         const isDragPreview = dragGhost?.instanceId != null && (
@@ -1188,6 +1196,19 @@ export const WireLayer: React.FC<Props> = ({
                 onDoubleClick={(e) =>
                   handleSegmentDoubleClick(e, wire.id, 0, points, false)
                 }
+              />
+            )}
+
+            {isSelected && !isDragPreview && (
+              <path
+                d={displayPath}
+                fill="none"
+                stroke="#ffd600"
+                strokeWidth={Math.max(baseWidth, 0.8) + 2}
+                opacity={0.35}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ pointerEvents: 'none' }}
               />
             )}
 
