@@ -847,6 +847,16 @@ export const PanelView: React.FC<PanelViewProps> = ({
             Segure <kbd>Shift</kbd> para desativar snap
           </div>
         )}
+        {state.selectedWireId && !isDraggingSegment && (
+          <div className="drag-hint wire-hint">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+              <path d="M4 1v10l2.5-2.5L9 14h1.5l-2.5-5.5L11 6H4V1z" fill="currentColor" opacity="0.85" />
+              <rect x="9" y="1" width="5" height="7" rx="1.2" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.5" />
+              <rect x="11.5" y="1" width="2.5" height="3.5" rx="0.6" fill="currentColor" opacity="0.7" />
+            </svg>
+            Clique direito em um ponto para removê-lo
+          </div>
+        )}
         <div className="zoom-controls">
           <button onClick={() => setZoom((z) => clampZoom(z - 0.2))}>-</button>
           <input
