@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { PlacedModule, ResolvedRail } from '../types';
+import { PlacedModule, ResolvedRail, GhostPreview } from '../types';
 import { getModuleById } from '../data/modules';
 import { cmToPx } from '../utils/geometry';
 import { usePanelStore } from '../store/panelStore';
@@ -86,6 +86,7 @@ interface Props {
   hoverTarget?: { instanceId: string; portId: string } | null;
   energizedWires?: Set<string>;
   onSegmentDragChange?: (dragging: boolean) => void;
+  dragGhost?: GhostPreview;
 }
 
 // --- Module/port helpers ---
@@ -683,6 +684,7 @@ export const WireLayer: React.FC<Props> = ({
   hoverTarget,
   energizedWires,
   onSegmentDragChange,
+  dragGhost,
 }) => {
   const rows = usePanelStore((s) => s.rows);
   const wires = usePanelStore((s) => s.wires);
@@ -755,6 +757,11 @@ export const WireLayer: React.FC<Props> = ({
     }
     const mr = findModuleAndRow(rows, instanceId);
     if (!mr) return null;
+    if (dragGhost?.instanceId === instanceId) {
+      const ghostRowIndex = rows.findIndex(r => r.id === dragGhost.rowId);
+      const ghostMod = { ...mr.mod, positionCm: dragGhost.positionCm };
+      return getPortAbsolutePosition(ghostMod, portId, ghostRowIndex >= 0 ? ghostRowIndex : mr.rowIndex, rails, interiorOffsetXPx, interiorOffsetYPx);
+    }
     return getPortAbsolutePosition(mr.mod, portId, mr.rowIndex, rails, interiorOffsetXPx, interiorOffsetYPx);
   };
 
@@ -1130,6 +1137,9 @@ export const WireLayer: React.FC<Props> = ({
       {renderData.map(({ wire, src, tgt, points, hasWaypoints, displayPath, hitPath }) => {
         const isSelected = wire.id === selectedWireId;
         const isEnergized = energizedWires?.has(wire.id);
+        const isDragPreview = dragGhost?.instanceId != null && (
+          wire.sourceInstanceId === dragGhost.instanceId || wire.targetInstanceId === dragGhost.instanceId
+        );
         const baseColor = wire.wireColor ?? WIRE_COLORS[src.type] ?? '#333';
         const color = isEnergized ? '#ffab00' : baseColor;
         const isGround = src.type === 'ground' || tgt.type === 'ground';
@@ -1195,10 +1205,10 @@ export const WireLayer: React.FC<Props> = ({
             <path
               d={displayPath}
               fill="none"
-              stroke={isSelected ? '#ffd600' : color}
-              strokeWidth={isSelected ? Math.max(baseWidth, 0.8) : isEnergized ? Math.max(baseWidth, 0.7) : baseWidth}
-              strokeDasharray={isGround ? '1.5 0.8' : 'none'}
-              opacity={0.9}
+              stroke={isDragPreview ? '#42a5f5' : isSelected ? '#ffd600' : color}
+              strokeWidth={isDragPreview ? Math.max(baseWidth, 0.6) : isSelected ? Math.max(baseWidth, 0.8) : isEnergized ? Math.max(baseWidth, 0.7) : baseWidth}
+              strokeDasharray={isDragPreview ? '2 1' : isGround ? '1.5 0.8' : 'none'}
+              opacity={isDragPreview ? 0.6 : 0.9}
               style={{ pointerEvents: 'none' }}
             />
 

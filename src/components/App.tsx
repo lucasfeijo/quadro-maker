@@ -376,6 +376,7 @@ export const App: React.FC = () => {
         widthCm: def.widthCm,
         color: def.color,
         valid,
+        instanceId: isPlaced ? (data.instanceId as string) : undefined,
       });
     },
     [store.rows, computeSnapPosition],

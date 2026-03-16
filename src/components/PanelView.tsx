@@ -796,6 +796,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
           hoverTarget={hoverTarget}
           energizedWires={simActive ? energizedWires : undefined}
           onSegmentDragChange={setIsDraggingSegment}
+          dragGhost={ghostPreview?.instanceId ? ghostPreview : undefined}
         />
 
         {/* Text Annotations — on top of everything */}

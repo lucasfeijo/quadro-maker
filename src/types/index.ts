@@ -221,6 +221,7 @@ export type GhostPreview = {
   widthCm: number;
   color: string;
   valid: boolean;
+  instanceId?: string;
 };
 
 // --- Save/Load ---
