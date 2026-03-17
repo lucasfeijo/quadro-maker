@@ -63,6 +63,10 @@ export interface ComponentSpec extends ModuleDefinition {
   portDescriptions?: Record<string, string>;
   /** Custom behavior function called each simulation pass */
   behavior?: ComponentBehavior;
+  /** Encaixa no trilho DIN (snap em trilhos) */
+  din_mounted?: boolean;
+  /** Posicionamento livre por parafusos (x, y arbitrários) */
+  screw_mounted?: boolean;
 }
 
 // ---- Helpers ----
@@ -113,6 +117,35 @@ export function makePortsVertical(
       side: 'right',
       offsetXMm: centerX,
       offsetYMm: offsetY,
+      type: pType,
+    });
+  }
+  return ports;
+}
+
+/**
+ * Cria portas distribuídas horizontalmente (para barramentos parafuso - barra horizontal).
+ * Portas no centro do corpo, espaçadas ao longo da largura.
+ */
+export function makePortsHorizontal(
+  count: number,
+  widthMm: number,
+  labels: string[],
+  types: PortDefinition['type'][],
+): PortDefinition[] {
+  const ports: PortDefinition[] = [];
+  const spacing = widthMm / (count + 1);
+  const centerY = 4; // altura da barra ~8mm / 2
+  for (let i = 0; i < count; i++) {
+    const offsetX = spacing * (i + 1);
+    const label = labels[i] ?? `${i + 1}`;
+    const pType = types[i] ?? 'phase';
+    ports.push({
+      id: label,
+      label,
+      side: 'top',
+      offsetXMm: offsetX,
+      offsetYMm: centerY,
       type: pType,
     });
   }

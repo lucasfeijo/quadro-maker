@@ -58,6 +58,8 @@ const component: ComponentSpec = {
   properties: [
     { key: 'switchDelayMs', label: 'Tempo de comutação (ms)', type: 'number', defaultValue: 500 },
   ],
+  din_mounted: true,
+  screw_mounted: false,
 };
 
 export default component;

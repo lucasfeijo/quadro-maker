@@ -130,26 +130,6 @@ export type ExternalDevice = {
   properties?: Record<string, number | string>;
 };
 
-// --- Busbars (barramentos) ---
-
-export type BusbarType = 'phase' | 'neutral' | 'ground';
-
-export type BusbarConnectionPoint = {
-  id: string;
-  offsetPercent: number; // 0–100 along bar length
-};
-
-export type Busbar = {
-  id: string;
-  x: number;
-  y: number;
-  widthPx: number;
-  type: BusbarType;
-  label?: string;
-  customColor?: string;
-  connectionPoints: BusbarConnectionPoint[];
-};
-
 // --- Text Annotations ---
 
 export type TextAnnotation = {
@@ -188,7 +168,6 @@ export type PanelState = {
   wires: Wire[];
   panelIOs: PanelIO[];
   externalDevices: ExternalDevice[];
-  busbars: Busbar[];
   textAnnotations: TextAnnotation[];
 };
 

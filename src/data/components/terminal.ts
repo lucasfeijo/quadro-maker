@@ -21,6 +21,8 @@ const component: ComponentSpec = {
     { id: 'on', label: 'Conectado', color: '#4caf50', routes: [{ from: 'in-top', to: 'out-bottom' }] },
   ],
   defaultMode: 'on',
+  din_mounted: true,
+  screw_mounted: false,
 };
 
 export default component;

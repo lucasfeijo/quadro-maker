@@ -38,6 +38,8 @@ const component = {
   ],
   defaultMode: 'off',
   behavior: phaseMonitorBehavior(['l1', 'l2'], 'on', 'off'),
+  din_mounted: true,
+  screw_mounted: false,
 };
 
 export default component;

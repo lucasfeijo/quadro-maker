@@ -8,7 +8,6 @@ import { DinRail } from './DinRail';
 import { WireLayer } from './WireLayer';
 import { PanelIOLayer } from './PanelIOLayer';
 import { ExternalDeviceLayer, getExternalDeviceBounds, getExternalDevicePortPosition } from './ExternalDeviceLayer';
-import { BusbarLayer, getBusbarPortPosition } from './BusbarLayer';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { FitToWidthIcon, FitToContainerIcon } from './ZoomIcons';
 import { getIOPosition } from '../utils/panelIO';
@@ -81,8 +80,6 @@ interface PanelViewProps {
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
-  onSelectBusbar?: (id: string) => void;
-  selectedBusbarId?: string | null;
   onSelectAnnotation?: (id: string) => void;
   selectedAnnotationId?: string | null;
 }
@@ -106,8 +103,6 @@ export const PanelView: React.FC<PanelViewProps> = ({
   onRedo,
   canUndo,
   canRedo,
-  onSelectBusbar,
-  selectedBusbarId,
   onSelectAnnotation,
   selectedAnnotationId,
 }) => {
@@ -185,11 +180,6 @@ export const PanelView: React.FC<PanelViewProps> = ({
         const pos = getIOPosition(io, svgWidth, svgHeight);
         return { x: pos.portX, y: pos.portY };
       }
-      if (instanceId.startsWith('busbar:')) {
-        const bar = state.busbars.find((b) => b.id === instanceId.replace('busbar:', ''));
-        if (!bar) return null;
-        return getBusbarPortPosition(bar, portId);
-      }
       const extDev = state.externalDevices.find((d) => d.instanceId === instanceId);
       if (extDev) return getExternalDevicePortPosition(extDev, portId);
       for (let ri = 0; ri < state.rows.length; ri++) {
@@ -230,7 +220,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
       addTarget(wire.targetInstanceId, wire.sourceInstanceId, wire.sourcePortId);
     }
     return targets;
-  }, [state.wires, state.panelIOs, state.busbars, state.externalDevices, state.rows, layout.rails, svgWidth, svgHeight, intX, intY]);
+  }, [state.wires, state.panelIOs, state.externalDevices, state.rows, layout.rails, svgWidth, svgHeight, intX, intY]);
 
   const contentBounds = useMemo(() => {
     let minX = 0;
@@ -297,7 +287,6 @@ export const PanelView: React.FC<PanelViewProps> = ({
     onSelectModule(null);
     state.selectWire(null);
     state.selectIO(null);
-    state.selectBusbar(null);
     state.selectAnnotation(null);
     if (state.wiringFrom) state.cancelWiring();
   }, [onSelectModule, state]);
@@ -773,17 +762,6 @@ export const PanelView: React.FC<PanelViewProps> = ({
           onPortLeave={onPortLeave}
           simStates={simActive ? simStates : undefined}
           onSimModeChange={simActive ? onSimModeChange : undefined}
-        />
-
-        {/* Busbars */}
-        <BusbarLayer
-          onPortClick={onPortClick}
-          onPortMouseDown={onPortMouseDown}
-          onPortMouseUp={onPortMouseUp}
-          onPortHover={onPortHover}
-          onPortLeave={onPortLeave}
-          onSelectBusbar={onSelectBusbar}
-          selectedBusbarId={selectedBusbarId}
         />
 
         {/* Wires — rendered on top so they stay clickable when passing through switches/buttons */}

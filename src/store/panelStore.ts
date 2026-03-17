@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
-import { PanelState, PanelRow, DisplayMode, Wire, PanelIO, PanelIODirection, PanelIOType, PanelEdge, Busbar, BusbarType, TextAnnotation } from '../types';
+import { PanelState, PanelRow, DisplayMode, Wire, PanelIO, PanelIODirection, PanelIOType, PanelEdge, TextAnnotation } from '../types';
 import { getEnclosureById } from '../data/enclosures';
 
 type EditorScreen = 'setup' | 'editor';
@@ -23,7 +23,6 @@ interface PanelStore extends PanelState {
   wiringFrom: WiringFrom | null;
   selectedWireId: string | null;
   selectedIOId: string | null;
-  selectedBusbarId: string | null;
   selectedAnnotationId: string | null;
 
   configureCustom: (widthUnits: number, rowCount: number) => void;
@@ -59,7 +58,6 @@ interface PanelStore extends PanelState {
   updatePanelIO: (ioId: string, props: Partial<Pick<PanelIO, 'label' | 'type' | 'voltageV' | 'maxCurrentA' | 'consumptionA' | 'customColor'>>) => void;
   movePanelIO: (ioId: string, edge: PanelEdge, positionPercent: number) => void;
   selectIO: (ioId: string | null) => void;
-  selectBusbar: (id: string | null) => void;
 
   // External Devices
   addExternalDevice: (moduleId: string, x: number, y: number) => void;
@@ -70,18 +68,6 @@ interface PanelStore extends PanelState {
   updateExternalDeviceLabel: (instanceId: string, label: string) => void;
   updateInstanceProperty: (instanceId: string, key: string, value: number | string) => void;
   pasteElements: (data: PasteData) => string[];
-
-  // Busbars
-  addBusbar: (type: BusbarType, x: number, y: number) => void;
-  moveBusbar: (id: string, x: number, y: number) => void;
-  resizeBusbar: (id: string, widthPx: number) => void;
-  removeBusbar: (id: string) => void;
-  updateBusbarLabel: (id: string, label: string) => void;
-  updateBusbarType: (id: string, type: BusbarType) => void;
-  updateBusbarColor: (id: string, customColor: string | undefined) => void;
-  addBusbarConnectionPoint: (busbarId: string) => void;
-  removeBusbarConnectionPoint: (busbarId: string, pointId: string) => void;
-  moveBusbarConnectionPoint: (busbarId: string, pointId: string, offsetPercent: number) => void;
 
   // Text Annotations
   addTextAnnotation: (x: number, y: number) => void;
@@ -108,7 +94,6 @@ function getSavableSnapshot(s: PanelStore): string {
     wires: s.wires,
     panelIOs: s.panelIOs,
     externalDevices: s.externalDevices,
-    busbars: s.busbars,
     textAnnotations: s.textAnnotations,
   };
   return JSON.stringify(snap);
@@ -142,14 +127,12 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   wires: [],
   panelIOs: [],
   externalDevices: [],
-  busbars: [],
   textAnnotations: [],
   displayMode: 'icon' as DisplayMode,
   wireSnapAlignment: true,
   wiringFrom: null,
   selectedWireId: null,
   selectedIOId: null,
-  selectedBusbarId: null,
   selectedAnnotationId: null,
 
   configureCustom: (widthUnits, rowCount) =>
@@ -162,7 +145,6 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       wires: [],
       panelIOs: [],
       externalDevices: [],
-      busbars: [],
       textAnnotations: [],
     }),
 
@@ -178,7 +160,6 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       wires: [],
       panelIOs: [],
       externalDevices: [],
-      busbars: [],
       textAnnotations: [],
     });
   },
@@ -390,7 +371,6 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     })),
 
   selectIO: (ioId) => set({ selectedIOId: ioId }),
-  selectBusbar: (id) => set({ selectedBusbarId: id }),
 
   addExternalDevice: (moduleId, x, y) =>
     set((s) => ({
@@ -513,80 +493,6 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     return Array.from(idMap.values());
   },
 
-  // --- Busbars ---
-
-  addBusbar: (type, x, y) =>
-    set((s) => {
-      const id = nanoid();
-      const defaultPoints = [
-        { id: nanoid(), offsetPercent: 10 },
-        { id: nanoid(), offsetPercent: 50 },
-        { id: nanoid(), offsetPercent: 90 },
-      ];
-      const newBar: Busbar = { id, x, y, widthPx: 120, type, label: '', connectionPoints: defaultPoints };
-      return { busbars: [...s.busbars, newBar] };
-    }),
-
-  moveBusbar: (id, x, y) =>
-    set((s) => ({ busbars: s.busbars.map((b) => (b.id === id ? { ...b, x, y } : b)) })),
-
-  resizeBusbar: (id, widthPx) =>
-    set((s) => ({ busbars: s.busbars.map((b) => (b.id === id ? { ...b, widthPx: Math.max(30, widthPx) } : b)) })),
-
-  removeBusbar: (id) =>
-    set((s) => {
-      const prefix = `busbar:${id}`;
-      return {
-        busbars: s.busbars.filter((b) => b.id !== id),
-        wires: s.wires.filter((w) => !w.sourceInstanceId.startsWith(prefix) && !w.targetInstanceId.startsWith(prefix)),
-      };
-    }),
-
-  updateBusbarLabel: (id, label) =>
-    set((s) => ({ busbars: s.busbars.map((b) => (b.id === id ? { ...b, label } : b)) })),
-
-  updateBusbarType: (id, type) =>
-    set((s) => ({ busbars: s.busbars.map((b) => (b.id === id ? { ...b, type } : b)) })),
-
-  updateBusbarColor: (id, customColor) =>
-    set((s) => ({ busbars: s.busbars.map((b) => (b.id === id ? { ...b, customColor } : b)) })),
-
-  addBusbarConnectionPoint: (busbarId) =>
-    set((s) => ({
-      busbars: s.busbars.map((b) => {
-        if (b.id !== busbarId) return b;
-        const existing = b.connectionPoints.map((p) => p.offsetPercent).sort((a, c) => a - c);
-        let best = 50;
-        let maxGap = 0;
-        for (let i = 0; i <= existing.length; i++) {
-          const lo = i === 0 ? 0 : existing[i - 1];
-          const hi = i === existing.length ? 100 : existing[i];
-          if (hi - lo > maxGap) { maxGap = hi - lo; best = (lo + hi) / 2; }
-        }
-        return { ...b, connectionPoints: [...b.connectionPoints, { id: nanoid(), offsetPercent: Math.round(best) }] };
-      }),
-    })),
-
-  removeBusbarConnectionPoint: (busbarId, pointId) =>
-    set((s) => ({
-      busbars: s.busbars.map((b) =>
-        b.id === busbarId ? { ...b, connectionPoints: b.connectionPoints.filter((p) => p.id !== pointId) } : b,
-      ),
-      wires: s.wires.filter((w) => {
-        const iid = `busbar:${busbarId}`;
-        return !((w.sourceInstanceId === iid && w.sourcePortId === pointId) || (w.targetInstanceId === iid && w.targetPortId === pointId));
-      }),
-    })),
-
-  moveBusbarConnectionPoint: (busbarId, pointId, offsetPercent) =>
-    set((s) => ({
-      busbars: s.busbars.map((b) =>
-        b.id === busbarId
-          ? { ...b, connectionPoints: b.connectionPoints.map((p) => (p.id === pointId ? { ...p, offsetPercent: Math.max(0, Math.min(100, offsetPercent)) } : p)) }
-          : b,
-      ),
-    })),
-
   // Text Annotations
   addTextAnnotation: (x, y) =>
     set((s) => ({
@@ -638,12 +544,18 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         return { ...rest, positionMm: Math.round((positionCm ?? 0) * 10) };
       }),
     }));
+
+    // Drop wires that reference old busbars (busbar:xxx) — no migration
+    const wiresFiltered = (state.wires ?? []).filter(
+      (w: any) =>
+        !w.sourceInstanceId?.startsWith('busbar:') && !w.targetInstanceId?.startsWith('busbar:'),
+    );
+
     const normalized = {
       ...state,
       rows: migratedRows,
-      wires: state.wires ?? [],
+      wires: wiresFiltered,
       panelIOs: state.panelIOs ?? [],
-      busbars: state.busbars ?? [],
       externalDevices: normalizedExtDevices,
       textAnnotations: state.textAnnotations ?? [],
     };

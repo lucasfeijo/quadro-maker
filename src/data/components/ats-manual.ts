@@ -47,6 +47,8 @@ const component: ComponentSpec = {
   },
   modes: MODES,
   defaultMode: 'src1',
+  din_mounted: true,
+  screw_mounted: false,
 };
 
 export default component;

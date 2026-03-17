@@ -35,6 +35,8 @@ const component: ComponentSpec = {
     { key: 'sensitivityMA', label: 'Sensibilidade', type: 'select', options: SENSITIVITY_OPTIONS, defaultValue: 30 },
   ],
   behavior: overcurrentTripBehavior('DR'),
+  din_mounted: true,
+  screw_mounted: false,
 };
 
 export default component;

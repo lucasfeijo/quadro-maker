@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { MODULE_DEFINITIONS, isExternalModule } from '../data/modules';
-import { ModuleCategory, PanelIODirection, PanelIOType, PanelEdge, BusbarType } from '../types';
+import { MODULE_DEFINITIONS, getModuleById, isExternalModule } from '../data/modules';
+import { ModuleCategory, PanelIODirection, PanelIOType, PanelEdge } from '../types';
 import { useDraggable } from '@dnd-kit/core';
 import { usePanelStore } from '../store/panelStore';
 import { ModuleIcon } from './ModuleIcon';
@@ -115,39 +115,9 @@ function IOItem({ direction, type, defaultEdge, label, color, abbr }: typeof IO_
 
 const EXTERNAL_MODULES = MODULE_DEFINITIONS.filter((m) => isExternalModule(m.id));
 
-const BUSBAR_ITEMS: { type: BusbarType; label: string; color: string; abbr: string }[] = [
-  { type: 'phase', label: 'Barramento Fase', color: '#d32f2f', abbr: 'F' },
-  { type: 'neutral', label: 'Barramento Neutro', color: '#1565c0', abbr: 'N' },
-  { type: 'ground', label: 'Barramento Terra', color: '#2e7d32', abbr: 'PE' },
-];
-
-function BusbarItem({ type, label, color, abbr }: typeof BUSBAR_ITEMS[number]) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `library-busbar-${type}`,
-    data: { type: 'new-busbar', busbarType: type, color, label },
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      className="library-item io-item"
-      style={{ borderLeftColor: color, opacity: isDragging ? 0.4 : 1 }}
-    >
-      <div
-        className="library-item-icon"
-        style={{ background: color, borderRadius: 4, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700 }}
-      >
-        {abbr}
-      </div>
-      <div className="library-item-info">
-        <span className="library-item-name">{label}</span>
-        <span className="library-item-size">Arraste para o painel</span>
-      </div>
-    </div>
-  );
-}
+const BUSBAR_RAIL_IDS = ['busbar-rail-8p-phase', 'busbar-rail-8p-neutral', 'busbar-rail-8p-ground'];
+const BUSBAR_SCREW_IDS = ['busbar-screw-8p-phase', 'busbar-screw-8p-neutral', 'busbar-screw-8p-ground'];
+const BUSBAR_MODULE_IDS = [...BUSBAR_RAIL_IDS, ...BUSBAR_SCREW_IDS];
 
 function TextAnnotationItem() {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -183,6 +153,8 @@ function ExternalDeviceItem({ moduleId, name, color }: { moduleId: string; name:
     data: { type: 'new-external-device', moduleId },
   });
 
+  const iconLabel = moduleId.startsWith('switch') ? 'SW' : moduleId === 'led' ? 'LED' : moduleId.startsWith('busbar-screw') ? 'B' : 'BTN';
+
   return (
     <div
       ref={setNodeRef}
@@ -195,11 +167,11 @@ function ExternalDeviceItem({ moduleId, name, color }: { moduleId: string; name:
         className="library-item-icon"
         style={{ background: color, borderRadius: 4, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700 }}
       >
-        {moduleId.startsWith('switch') ? 'SW' : moduleId === 'led' ? 'LED' : 'BTN'}
+        {iconLabel}
       </div>
       <div className="library-item-info">
         <span className="library-item-name">{name}</span>
-        <span className="library-item-size">Arraste para fora do quadro</span>
+        <span className="library-item-size">{moduleId.startsWith('busbar-screw') ? 'Arraste para o painel' : 'Arraste para fora do quadro'}</span>
       </div>
     </div>
   );
@@ -255,7 +227,7 @@ export const ModuleLibrary: React.FC = () => {
     CATEGORY_ORDER.map((cat) => {
       const label = CATEGORY_LABELS[cat] ?? cat;
       const modules = MODULE_DEFINITIONS.filter(
-        (m) => m.category === cat && !isExternalModule(m.id),
+        (m) => m.category === cat && !isExternalModule(m.id) && !BUSBAR_MODULE_IDS.includes(m.id),
       );
       const filtered = q
         ? modules.filter((m) => matchesFilter(m.name) || matchesFilter(label))
@@ -274,18 +246,22 @@ export const ModuleLibrary: React.FC = () => {
     [matchesFilter],
   );
   const filteredExternal = useMemo(
-    () => EXTERNAL_MODULES.filter((m) => matchesFilter(m.name)),
+    () => EXTERNAL_MODULES.filter((m) => matchesFilter(m.name) && !BUSBAR_SCREW_IDS.includes(m.id)),
     [matchesFilter],
   );
 
-  const filteredBusbars = useMemo(
-    () => BUSBAR_ITEMS.filter((b) => matchesFilter(b.label)),
+  const filteredBusbarRail = useMemo(
+    () => BUSBAR_RAIL_IDS.map((id) => getModuleById(id)).filter(Boolean).filter((m) => matchesFilter(m!.name)),
     [matchesFilter],
   );
+  const filteredBusbarScrew = useMemo(
+    () => BUSBAR_SCREW_IDS.map((id) => getModuleById(id)).filter(Boolean).filter((m) => matchesFilter(m!.name)),
+    [matchesFilter],
+  );
+  const hasBusbars = filteredBusbarRail.length > 0 || filteredBusbarScrew.length > 0;
 
   const hasIO = filteredInputIO.length > 0 || filteredOutputIO.length > 0;
   const hasExternal = filteredExternal.length > 0;
-  const hasBusbars = filteredBusbars.length > 0;
 
   return (
     <div className="module-library">
@@ -330,8 +306,19 @@ export const ModuleLibrary: React.FC = () => {
 
       {hasBusbars && <h3 style={{ marginTop: 20 }}>Barramentos</h3>}
       <CollapsibleGroup label="Barramentos" visible={hasBusbars} defaultOpen>
-        {filteredBusbars.map((item) => (
-          <BusbarItem key={item.type} {...item} />
+        {filteredBusbarRail.map((mod) => (
+          <DraggableModule
+            key={mod!.id}
+            moduleId={mod!.id}
+            name={mod!.name}
+            color={mod!.color}
+            widthMm={mod!.widthMm}
+            icon={mod!.icon}
+            imageUrl={mod!.imageUrl}
+          />
+        ))}
+        {filteredBusbarScrew.map((mod) => (
+          <ExternalDeviceItem key={mod!.id} moduleId={mod!.id} name={mod!.name} color={mod!.color} />
         ))}
       </CollapsibleGroup>
 

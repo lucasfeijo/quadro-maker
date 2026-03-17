@@ -19,38 +19,80 @@ interface Props {
 
 const DEV_SCALE = 1;
 const BOX_H = 18 * DEV_SCALE;
+const BAR_H = 8;
+
+function isScrewBusbar(moduleId: string): boolean {
+  return moduleId.startsWith('busbar-screw-8p-');
+}
+
+function rotatePoint(cx: number, cy: number, px: number, py: number, deg: number): { x: number; y: number } {
+  if (deg === 0) return { x: px, y: py };
+  const rad = (deg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const dx = px - cx;
+  const dy = py - cy;
+  return {
+    x: cx + dx * cos - dy * sin,
+    y: cy + dx * sin + dy * cos,
+  };
+}
 
 export function getExternalDevicePortPosition(
-  device: { x: number; y: number; moduleId: string },
+  device: { x: number; y: number; moduleId: string; properties?: Record<string, number | string> },
   portId: string,
 ): { x: number; y: number } | null {
   const def = getModuleById(device.moduleId);
   if (!def) return null;
 
   const boxW = mmToPx(def.widthMm) * DEV_SCALE;
+  const isBar = isScrewBusbar(device.moduleId);
+  const h = isBar ? BAR_H : BOX_H;
   const bx = device.x - boxW / 2;
-  const by = device.y - BOX_H / 2;
+  const by = device.y - h / 2;
 
   const port = def.ports.find((p) => p.id === portId);
   if (!port) return null;
 
-  const px = bx + mmToPx(port.offsetXMm) * DEV_SCALE;
-  const py = port.side === 'top' ? by - 2 : by + BOX_H + 2;
-  return { x: px, y: py };
+  let px: number;
+  let py: number;
+  if (port.offsetYMm !== undefined) {
+    px = bx + mmToPx(port.offsetXMm) * DEV_SCALE;
+    py = by + mmToPx(port.offsetYMm);
+  } else {
+    px = bx + mmToPx(port.offsetXMm) * DEV_SCALE;
+    py = port.side === 'top' ? by - 2 : by + h + 2;
+  }
+
+  const rot = Number(device.properties?.rotationDeg) || 0;
+  return rotatePoint(device.x, device.y, px, py, rot);
 }
 
 export function getExternalDeviceBounds(
-  device: { x: number; y: number; moduleId: string },
+  device: { x: number; y: number; moduleId: string; properties?: Record<string, number | string> },
 ): { minX: number; minY: number; maxX: number; maxY: number } | null {
   const def = getModuleById(device.moduleId);
   if (!def) return null;
   const boxW = mmToPx(def.widthMm) * DEV_SCALE;
+  const isBar = isScrewBusbar(device.moduleId);
+  const h = isBar ? BAR_H : BOX_H;
   const portMargin = 8;
+  const rot = Number(device.properties?.rotationDeg) || 0;
+  const halfW = boxW / 2 + portMargin;
+  const halfH = h / 2 + portMargin;
+  const corners = [
+    [-halfW, -halfH],
+    [halfW, -halfH],
+    [halfW, halfH],
+    [-halfW, halfH],
+  ].map(([dx, dy]) => rotatePoint(device.x, device.y, device.x + dx, device.y + dy, rot));
+  const xs = corners.map((c) => c.x);
+  const ys = corners.map((c) => c.y);
   return {
-    minX: device.x - boxW / 2 - portMargin,
-    minY: device.y - BOX_H / 2 - portMargin,
-    maxX: device.x + boxW / 2 + portMargin,
-    maxY: device.y + BOX_H / 2 + portMargin,
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
   };
 }
 
@@ -164,10 +206,14 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
         const def = getModuleById(dev.moduleId);
         if (!def) return null;
 
+        const isBar = isScrewBusbar(dev.moduleId);
+        const boxH = isBar ? BAR_H : BOX_H;
         const boxW = mmToPx(def.widthMm) * DEV_SCALE;
         const bx = dev.x - boxW / 2;
-        const by = dev.y - BOX_H / 2;
+        const by = dev.y - boxH / 2;
         const isSelected = selectedDeviceIds.includes(dev.instanceId);
+        const rot = Number(dev.properties?.rotationDeg) || 0;
+        const transform = rot ? `rotate(${rot} ${dev.x} ${dev.y})` : undefined;
 
         const isConnected = (portId: string) => wires.some(
           (w) =>
@@ -178,6 +224,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
         return (
           <g
             key={dev.instanceId}
+            transform={transform}
             onClick={(e) => {
               e.stopPropagation();
               onSelectDevice(dev.instanceId, e.ctrlKey || e.metaKey || e.shiftKey);
@@ -204,7 +251,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
                 x={bx - 3}
                 y={by - 3}
                 width={boxW + 6}
-                height={BOX_H + 6}
+                height={boxH + 6}
                 rx={3}
                 fill="none"
                 stroke="#ffd600"
@@ -212,24 +259,26 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
               />
             )}
 
-            <rect
-              x={bx - 1}
-              y={by - 1}
-              width={boxW + 2}
-              height={BOX_H + 2}
-              rx={2}
-              fill="none"
-              stroke="#7b1fa2"
-              strokeWidth={0.5}
-              strokeDasharray="2,1"
-              opacity={0.5}
-            />
+            {!isBar && (
+              <rect
+                x={bx - 1}
+                y={by - 1}
+                width={boxW + 2}
+                height={boxH + 2}
+                rx={2}
+                fill="none"
+                stroke="#7b1fa2"
+                strokeWidth={0.5}
+                strokeDasharray="2,1"
+                opacity={0.5}
+              />
+            )}
 
             <rect
               x={bx}
               y={by}
               width={boxW}
-              height={BOX_H}
+              height={boxH}
               rx={1.5}
               fill={def.color}
               stroke={dragging === dev.instanceId ? '#ff9800' : isSelected ? '#ffd600' : '#555'}
@@ -237,7 +286,22 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
               onMouseDown={(e) => onMouseDown(e, dev.instanceId, dev.x, dev.y)}
             />
 
-            {def.category === 'switch' && (
+            {isBar && (
+              <text
+                x={bx + boxW / 2}
+                y={by + boxH / 2}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={3.2}
+                fontWeight={700}
+                fill="#fff"
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
+              >
+                {dev.label || def.name}
+              </text>
+            )}
+
+            {def.category === 'switch' && !isBar && (
               <g opacity={0.9} style={{ pointerEvents: 'none' }}>
                 <line x1={bx + boxW / 2} y1={by + 4} x2={bx + boxW / 2 + 3} y2={by + BOX_H - 4} stroke="white" strokeWidth={1} strokeLinecap="round" />
                 <circle cx={bx + boxW / 2} cy={by + 4} r={1} fill="white" />
@@ -259,27 +323,29 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
                 </g>
               );
             })()}
-            {def.category === 'button' && def.id !== 'led' && (
+            {def.category === 'button' && def.id !== 'led' && !isBar && (
               <g opacity={0.9} style={{ pointerEvents: 'none' }}>
                 <line x1={bx + boxW / 2 - 4} y1={by + BOX_H / 2} x2={bx + boxW / 2 + 4} y2={by + BOX_H / 2} stroke="white" strokeWidth={1} strokeLinecap="round" />
                 <line x1={bx + boxW / 2} y1={by + BOX_H / 2 - 2} x2={bx + boxW / 2} y2={by + BOX_H / 2} stroke="white" strokeWidth={1} strokeLinecap="round" />
               </g>
             )}
 
-            <text
-              x={bx + boxW / 2}
-              y={by + BOX_H + 5.5}
-              textAnchor="middle"
-              fontSize={3.5}
-              fontWeight={600}
-              fill="#333"
-              stroke="#fff"
-              strokeWidth={2.5}
-              paintOrder="stroke"
-              style={{ pointerEvents: 'none' }}
-            >
-              {dev.label || def.name}
-            </text>
+            {!isBar && (
+              <text
+                x={bx + boxW / 2}
+                y={by + boxH + 5.5}
+                textAnchor="middle"
+                fontSize={3.5}
+                fontWeight={600}
+                fill="#333"
+                stroke="#fff"
+                strokeWidth={2.5}
+                paintOrder="stroke"
+                style={{ pointerEvents: 'none' }}
+              >
+                {dev.label || def.name}
+              </text>
+            )}
 
             {(() => {
               const simState = simStates?.find((s) => s.instanceId === dev.instanceId);
@@ -309,9 +375,10 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
             })()}
 
             {def.ports.map((port) => {
+              const hasVertOffset = port.offsetYMm !== undefined;
               const px = bx + mmToPx(port.offsetXMm) * DEV_SCALE;
-              const py = port.side === 'top' ? by - 2 : by + BOX_H + 2;
-              const labelY = port.side === 'top' ? py - 4 : py + 5;
+              const py = hasVertOffset ? by + mmToPx(port.offsetYMm!) : (port.side === 'top' ? by - 2 : by + boxH + 2);
+              const labelY = hasVertOffset ? py + 5 : (port.side === 'top' ? py - 4 : py + 5);
               const connected = isConnected(port.id);
 
               return (
@@ -332,9 +399,11 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
                     onPointerEnter={() => onPortHover?.(dev.instanceId, port.id)}
                     onPointerLeave={() => onPortLeave?.()}
                   />
-                  <text x={px} y={labelY} textAnchor="middle" fontSize={3.2} fontWeight={600} fill="#444" stroke="#fff" strokeWidth={2} paintOrder="stroke" style={{ pointerEvents: 'none' }}>
-                    {port.label}
-                  </text>
+                  <g transform={rot ? `rotate(${-rot} ${px} ${labelY})` : undefined}>
+                    <text x={px} y={labelY} textAnchor="middle" fontSize={3.2} fontWeight={600} fill="#444" stroke="#fff" strokeWidth={2} paintOrder="stroke" style={{ pointerEvents: 'none' }}>
+                      {port.label}
+                    </text>
+                  </g>
                 </g>
               );
             })}

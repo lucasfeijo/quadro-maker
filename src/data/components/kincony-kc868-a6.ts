@@ -121,6 +121,8 @@ const component: ComponentSpec = {
     },
   ],
   defaultMode: 'idle',
+  din_mounted: true,
+  screw_mounted: false,
 };
 
 export default component;

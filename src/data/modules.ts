@@ -2,7 +2,7 @@ import type { ModuleDefinition } from '../types';
 import {
   allComponents,
   getComponentById,
-  isExternalComponent,
+  isScrewMounted,
   EXTERNAL_COMPONENT_IDS,
 } from './components';
 
@@ -15,5 +15,5 @@ export function getModuleById(id: string): ModuleDefinition | undefined {
 }
 
 export function isExternalModule(id: string): boolean {
-  return isExternalComponent(id);
+  return isScrewMounted(id);
 }

@@ -23,6 +23,8 @@ const component: ComponentSpec = {
   ],
   defaultMode: 'ok',
   nominalCurrentA: 40,
+  din_mounted: true,
+  screw_mounted: false,
 };
 
 export default component;

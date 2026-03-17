@@ -32,7 +32,15 @@ const component: ComponentSpec = {
   defaultMode: 'off',
   properties: [
     { key: 'ledColor', label: 'Cor do LED', type: 'color', options: LED_COLOR_OPTIONS, defaultValue: '#f44336' },
+    { key: 'rotationDeg', label: 'Rotação', type: 'select', options: [
+      { value: 0, label: 'Normal (0°)' },
+      { value: 90, label: '90°' },
+      { value: 180, label: '180°' },
+      { value: 270, label: '270°' },
+    ], defaultValue: 0 },
   ],
+  din_mounted: false,
+  screw_mounted: true,
   behavior: (ctx) => {
     if (ctx.isManualOverride) return;
     const energized = ctx.isPortEnergized('in-plus');

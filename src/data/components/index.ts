@@ -40,8 +40,16 @@ export const EXTERNAL_COMPONENT_IDS = new Set([
   'button-nc',
   'button-1p',
   'led',
+  'busbar-screw-8p-phase',
+  'busbar-screw-8p-neutral',
+  'busbar-screw-8p-ground',
 ]);
 
 export function isExternalComponent(id: string): boolean {
   return EXTERNAL_COMPONENT_IDS.has(id) || EXTERNAL_COMPONENT_IDS.has(LEGACY_ID_MAP[id] ?? '');
+}
+
+export function isScrewMounted(id: string): boolean {
+  const spec = byId.get(id) ?? byId.get(LEGACY_ID_MAP[id] ?? '');
+  return spec?.screw_mounted === true;
 }

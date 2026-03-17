@@ -24,6 +24,16 @@ const component: ComponentSpec = {
     { id: 'pos2', label: 'Posição 2', color: '#2196f3', routes: [{ from: 'in-COM', to: 'out-L2' }] },
   ],
   defaultMode: 'pos1',
+  din_mounted: false,
+  screw_mounted: true,
+  properties: [
+    { key: 'rotationDeg', label: 'Rotação', type: 'select', options: [
+      { value: 0, label: 'Normal (0°)' },
+      { value: 90, label: '90°' },
+      { value: 180, label: '180°' },
+      { value: 270, label: '270°' },
+    ], defaultValue: 0 },
+  ],
 };
 
 export default component;

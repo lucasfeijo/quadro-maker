@@ -37,6 +37,8 @@ const component: ComponentSpec = {
     { key: 'nominalCurrentA', label: 'Corrente nominal', type: 'select', options: NOMINAL_OPTIONS, defaultValue: 32 },
   ],
   behavior: overcurrentTripBehavior('Disjuntor'),
+  din_mounted: true,
+  screw_mounted: false,
 };
 
 export default component;

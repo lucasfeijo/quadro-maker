@@ -38,6 +38,8 @@ const component: ComponentSpec = {
     },
   ],
   defaultMode: 'on',
+  din_mounted: true,
+  screw_mounted: false,
 };
 
 export default component;

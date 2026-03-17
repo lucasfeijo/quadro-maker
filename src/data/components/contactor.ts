@@ -43,6 +43,8 @@ const component: ComponentSpec = {
   defaultMode: 'off',
   nominalCurrentA: 25,
   behavior: coilDrivenBehavior('coil-A1', 'on', 'off'),
+  din_mounted: true,
+  screw_mounted: false,
 };
 
 export default component;

@@ -203,7 +203,6 @@ export const App: React.FC = () => {
       wires: store.wires,
       panelIOs: store.panelIOs,
       externalDevices: store.externalDevices,
-      busbars: store.busbars,
       textAnnotations: store.textAnnotations,
     }),
     [
@@ -215,7 +214,6 @@ export const App: React.FC = () => {
       store.wires,
       store.panelIOs,
       store.externalDevices,
-      store.busbars,
       store.textAnnotations,
     ],
   );
@@ -353,8 +351,6 @@ export const App: React.FC = () => {
         setActiveModuleId(data.moduleId as string);
     } else if (data?.type === 'new-panel-io') {
       setActiveDragInfo({ type: 'panel-io', label: data.direction === 'input' ? 'Entrada' : 'Saída', color: '#546e7a' });
-    } else if (data?.type === 'new-busbar') {
-      setActiveDragInfo({ type: 'busbar', label: data.label as string, color: data.color as string });
     } else if (data?.type === 'new-text-annotation') {
       setActiveDragInfo({ type: 'annotation', label: 'Texto', color: '#546e7a' });
     }
@@ -497,14 +493,6 @@ export const App: React.FC = () => {
         return;
       }
 
-      if (data.type === 'new-busbar') {
-        const pos = computeExternalDevicePosition(event);
-        if (pos) {
-          store.addBusbar(data.busbarType as any, pos.x, pos.y);
-        }
-        return;
-      }
-
       if (data.type === 'new-text-annotation') {
         const pos = computeExternalDevicePosition(event);
         if (pos) {
@@ -596,7 +584,6 @@ export const App: React.FC = () => {
   );
 
   const handleSelectModule = useCallback((id: string | null, additive?: boolean) => {
-    store.selectBusbar(null);
     store.selectAnnotation(null);
     if (id === null) {
       setSelectedModules([]);
@@ -611,19 +598,10 @@ export const App: React.FC = () => {
     }
   }, [store]);
 
-  const handleSelectBusbar = useCallback((id: string) => {
-    setSelectedModules([]);
-    store.selectWire(null);
-    store.selectIO(null);
-    store.selectBusbar(id);
-    store.selectAnnotation(null);
-  }, [store]);
-
   const handleSelectAnnotation = useCallback((id: string) => {
     setSelectedModules([]);
     store.selectWire(null);
     store.selectIO(null);
-    store.selectBusbar(null);
     store.selectAnnotation(id);
   }, [store]);
 
@@ -648,7 +626,7 @@ export const App: React.FC = () => {
   }
 
   const singleSelected = selectedModules.length === 1 ? selectedModules[0] : null;
-  const showProperties = singleSelected || store.selectedWireId || store.selectedIOId || store.selectedBusbarId || store.selectedAnnotationId;
+  const showProperties = singleSelected || store.selectedWireId || store.selectedIOId || store.selectedAnnotationId;
   const showMultiInfo = selectedModules.length > 1;
 
   return (
@@ -688,8 +666,6 @@ export const App: React.FC = () => {
               onRedo={handleRedo}
               canUndo={canUndo}
               canRedo={canRedo}
-              onSelectBusbar={handleSelectBusbar}
-              selectedBusbarId={store.selectedBusbarId}
               onSelectAnnotation={handleSelectAnnotation}
               selectedAnnotationId={store.selectedAnnotationId}
             />

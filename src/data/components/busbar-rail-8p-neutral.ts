@@ -21,6 +21,8 @@ const component: ComponentSpec = {
     { id: 'on', label: 'Conectado', color: '#1565c0', routes: makeRoutesBusbar(LABELS) },
   ],
   defaultMode: 'on',
+  din_mounted: true,
+  screw_mounted: false,
 };
 
 export default component;

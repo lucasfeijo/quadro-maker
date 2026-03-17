@@ -44,6 +44,8 @@ const component: ComponentSpec = {
     { key: 'delaySeconds', label: 'Tempo (s)', type: 'number', defaultValue: 5 },
   ],
   behavior,
+  din_mounted: true,
+  screw_mounted: false,
 };
 
 export default component;
