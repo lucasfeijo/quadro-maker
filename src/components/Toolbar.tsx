@@ -3,7 +3,22 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { usePanelStore } from '../store/panelStore';
 import { saveProject, listProjects, loadProject, deleteProject, exportProject, exportCurrentState } from '../utils/storage';
 import { SavedProject } from '../types';
-import { DIN_MODULE_1P_MM } from '../data/enclosures';
+import { DIN_MODULE_1P_MM, getEnclosureById } from '../data/enclosures';
+
+function getExteriorDimensions(
+  enclosureId: string | null,
+  widthUnits: number,
+  rowCount: number
+): { widthMm: number; heightMm: number } {
+  if (enclosureId) {
+    const enc = getEnclosureById(enclosureId);
+    if (enc) return { widthMm: enc.exteriorWidthMm, heightMm: enc.exteriorHeightMm };
+  }
+  return {
+    widthMm: widthUnits * DIN_MODULE_1P_MM + 120,
+    heightMm: 110 + 130 * rowCount,
+  };
+}
 
 type OpenMenu = 'arquivo' | 'simular' | 'visualizar' | null;
 
@@ -31,6 +46,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [optWidth, setOptWidth] = useState(store.widthUnits);
   const [optRows, setOptRows] = useState(store.rowCount);
+  const [optWidthMm, setOptWidthMm] = useState(0);
+  const [optHeightMm, setOptHeightMm] = useState(0);
   const [optWireSnap, setOptWireSnap] = useState(store.wireSnapAlignment);
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [showSaveAsModal, setShowSaveAsModal] = useState(false);
@@ -172,6 +189,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const handleOpenOptions = () => {
     setOptWidth(store.widthUnits);
     setOptRows(store.rowCount);
+    const dims = getExteriorDimensions(store.enclosureId, store.widthUnits, store.rowCount);
+    setOptWidthMm(dims.widthMm);
+    setOptHeightMm(dims.heightMm);
     setOptWireSnap(store.wireSnapAlignment);
     setShowOptionsModal(true);
   };
@@ -317,9 +337,59 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 Quadro de caixa: redimensionar converte para personalizado.
               </p>
             )}
+            <div className="options-field" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <label>Dimensões do quadro (exterior):</label>
+              <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number"
+                    min={180}
+                    max={1800}
+                    step={10}
+                    value={optWidthMm}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (!Number.isFinite(v) || v <= 0) return;
+                      setOptWidthMm(v);
+                      const wu = Math.round((v - 120) / DIN_MODULE_1P_MM);
+                      setOptWidth(Math.max(6, Math.min(56, wu)));
+                    }}
+                    placeholder="Largura mm"
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ fontSize: 11, color: '#888' }}>mm ×</span>
+                </div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number"
+                    min={240}
+                    max={1000}
+                    step={10}
+                    value={optHeightMm}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (!Number.isFinite(v) || v <= 0) return;
+                      setOptHeightMm(v);
+                      const rc = Math.round((v - 110) / 130);
+                      setOptRows(Math.max(1, Math.min(6, rc)));
+                    }}
+                    placeholder="Altura mm"
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ fontSize: 11, color: '#888' }}>mm</span>
+                </div>
+              </div>
+            </div>
             <div className="options-field">
               <label>Largura (unipolares):</label>
-              <select value={optWidth} onChange={(e) => setOptWidth(Number(e.target.value))}>
+              <select
+                value={optWidth}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setOptWidth(n);
+                  setOptWidthMm(getExteriorDimensions(null, n, optRows).widthMm);
+                }}
+              >
                 {[6, 8, 10, 12, 16, 18, 20, 24, 30, 36, 44, 56].map((n) => (
                   <option key={n} value={n}>
                     {n} unidades ({n * DIN_MODULE_1P_MM}mm)
@@ -329,7 +399,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             </div>
             <div className="options-field">
               <label>Fileiras:</label>
-              <select value={optRows} onChange={(e) => setOptRows(Number(e.target.value))}>
+              <select
+                value={optRows}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setOptRows(n);
+                  setOptHeightMm(getExteriorDimensions(null, optWidth, n).heightMm);
+                }}
+              >
                 {[1, 2, 3, 4, 5, 6].map((n) => (
                   <option key={n} value={n}>
                     {n} fileira{n > 1 ? 's' : ''}

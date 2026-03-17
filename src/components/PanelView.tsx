@@ -222,9 +222,10 @@ export const PanelView: React.FC<PanelViewProps> = ({
     return targets;
   }, [state.wires, state.panelIOs, state.externalDevices, state.rows, layout.rails, svgWidth, svgHeight, intX, intY]);
 
+  const DIM_LABEL_MM = 8;
   const contentBounds = useMemo(() => {
-    let minX = 0;
-    let minY = 0;
+    let minX = -mmToPx(DIM_LABEL_MM);
+    let minY = -mmToPx(DIM_LABEL_MM);
     let maxX = svgWidth;
     let maxY = svgHeight;
 
@@ -672,6 +673,33 @@ export const PanelView: React.FC<PanelViewProps> = ({
           height={vb.h}
           fill="url(#grid-dots)"
         />
+
+        {/* Panel dimensions (top-left, same layout as din rail labels) */}
+        <g className="panel-dimension-labels">
+          <text
+            className="rail-length-label"
+            x={-mmToPx(7)}
+            y={mmToPx(6.5)}
+            textAnchor="start"
+            dominantBaseline="hanging"
+            fill="#607d8b"
+            fontSize={2.2}
+            transform={`rotate(-90, ${-mmToPx(3.5)}, ${mmToPx(8)})`}
+          >
+            {layout.exteriorHeightMm}mm
+          </text>
+          <text
+            className="rail-length-label"
+            x={mmToPx(3.5)}
+            y={-mmToPx(3.5)}
+            textAnchor="start"
+            dominantBaseline="auto"
+            fill="#607d8b"
+            fontSize={2.2}
+          >
+            {layout.exteriorWidthMm}mm
+          </text>
+        </g>
 
         {/* Exterior shell */}
         <rect

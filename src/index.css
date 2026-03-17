@@ -1119,7 +1119,8 @@ html, body, #root {
 }
 
 .options-field select,
-.options-field input[type="text"] {
+.options-field input[type="text"],
+.options-field input[type="number"] {
   flex: 1;
   max-width: 200px;
   padding: 6px 8px;
