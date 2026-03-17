@@ -121,7 +121,6 @@ function IOItem({ direction, type, defaultEdge, label, color, abbr }: typeof IO_
       </div>
       <div className="library-item-info">
         <span className="library-item-name">{label}</span>
-        <span className="library-item-size">Arraste para o painel</span>
       </div>
     </div>
   );
@@ -150,7 +149,7 @@ function IOGroupItem({ direction, types, defaultEdge, label, abbr, color }: type
       </div>
       <div className="library-item-info">
         <span className="library-item-name">{label}</span>
-        <span className="library-item-size">{types.length} pontos · Arraste para o painel</span>
+        <span className="library-item-size">{types.length} pontos</span>
       </div>
     </div>
   );
@@ -178,7 +177,6 @@ function TextAnnotationItem() {
       </div>
       <div className="library-item-info">
         <span className="library-item-name">Legenda / Texto</span>
-        <span className="library-item-size">Arraste para o painel</span>
       </div>
     </div>
   );
@@ -209,7 +207,9 @@ function ExternalDeviceItem({ moduleId, name, color }: { moduleId: string; name:
       <div className="library-item-info">
         <span className="library-item-name">{name}</span>
         <span className="library-item-meta">
-          <span className="library-item-size">{moduleId.startsWith('busbar-screw') ? 'Arraste para o painel' : 'Arraste para fora do quadro'}</span>
+          {!moduleId.startsWith('busbar-screw') && (
+            <span className="library-item-size">Fora do quadro</span>
+          )}
           <ScrewTag />
         </span>
       </div>

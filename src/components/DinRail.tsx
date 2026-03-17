@@ -13,6 +13,7 @@ interface Props {
   selectedModules: string[];
   onSelectModule: (instanceId: string, additive?: boolean) => void;
   ghostPreview: GhostPreview | null;
+  hideDropHighlight?: boolean;
   onPortClick?: (instanceId: string, portId: string) => void;
   onPortMouseDown?: (instanceId: string, portId: string) => void;
   onPortMouseUp?: (instanceId: string, portId: string) => void;
@@ -34,6 +35,7 @@ export const DinRail: React.FC<Props> = ({
   selectedModules,
   onSelectModule,
   ghostPreview,
+  hideDropHighlight = false,
   onPortClick,
   onPortMouseDown,
   onPortMouseUp,
@@ -167,7 +169,7 @@ export const DinRail: React.FC<Props> = ({
       )}
 
       {/* Drop zone highlight */}
-      {isOver && (
+      {isOver && !hideDropHighlight && (
         <rect
           x={usableOffsetXPx}
           y={railTopPx - mmToPx(35)}

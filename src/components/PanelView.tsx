@@ -11,7 +11,7 @@ import { ExternalDeviceLayer, getExternalDeviceBounds, getExternalDevicePortPosi
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { FitToWidthIcon, FitToContainerIcon } from './ZoomIcons';
 import { getIOPortPosition } from '../utils/panelIO';
-import type { GhostPreview, ComponentState } from '../types';
+import type { GhostPreview, ComponentState, PanelEdge } from '../types';
 
 const MARGIN = 15;
 const MODULE_HEIGHT_MM = 70;
@@ -63,6 +63,8 @@ function findFirstFit(
 
 interface PanelViewProps {
   ghostPreview: GhostPreview | null;
+  hideRailDropHighlight?: boolean;
+  panelEdgePreview?: { edge: PanelEdge; positionPercent: number } | null;
   selectedModules: string[];
   onSelectModule: (id: string | null, additive?: boolean) => void;
   onSetSelection: (ids: string[]) => void;
@@ -84,8 +86,47 @@ interface PanelViewProps {
   selectedAnnotationId?: string | null;
 }
 
+const EDGE_PREVIEW_IO_BOX_W = 20;
+const EDGE_PREVIEW_IO_BOX_H = 14;
+const WALL_PX = 35;
+
+function getEdgePreviewPosition(
+  edge: PanelEdge,
+  positionPercent: number,
+  svgWidth: number,
+  svgHeight: number,
+): { x: number; y: number; w: number; h: number } {
+  const frac = positionPercent / 100;
+  const w = EDGE_PREVIEW_IO_BOX_W;
+  const h = EDGE_PREVIEW_IO_BOX_H;
+  switch (edge) {
+    case 'top': {
+      const bx = frac * svgWidth - w / 2;
+      const by = (WALL_PX - h) / 2 + 4;
+      return { x: bx, y: by, w, h };
+    }
+    case 'bottom': {
+      const bx = frac * svgWidth - w / 2;
+      const by = svgHeight - (WALL_PX + h) / 2 - 4;
+      return { x: bx, y: by, w, h };
+    }
+    case 'left': {
+      const bx = (WALL_PX - w) / 2;
+      const by = frac * svgHeight - h / 2;
+      return { x: bx, y: by, w, h };
+    }
+    case 'right': {
+      const bx = svgWidth - (WALL_PX + w) / 2;
+      const by = frac * svgHeight - h / 2;
+      return { x: bx, y: by, w, h };
+    }
+  }
+}
+
 export const PanelView: React.FC<PanelViewProps> = ({
   ghostPreview,
+  hideRailDropHighlight = false,
+  panelEdgePreview,
   selectedModules,
   onSelectModule,
   onSetSelection,
@@ -755,6 +796,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
               ghostPreview={
                 ghostPreview?.rowId === row.id ? ghostPreview : null
               }
+              hideDropHighlight={hideRailDropHighlight}
               onPortClick={onPortClick}
               onPortMouseDown={onPortMouseDown}
               onPortMouseUp={onPortMouseUp}
@@ -765,6 +807,26 @@ export const PanelView: React.FC<PanelViewProps> = ({
             />
           );
         })}
+
+        {/* Panel edge snap preview (when dragging entradas/saídas) */}
+        {panelEdgePreview && (() => {
+          const pos = getEdgePreviewPosition(panelEdgePreview.edge, panelEdgePreview.positionPercent, svgWidth, svgHeight);
+          return (
+            <rect
+              key="edge-preview"
+              x={pos.x}
+              y={pos.y}
+              width={pos.w}
+              height={pos.h}
+              fill="#42a5f5"
+              opacity={0.45}
+              rx={2}
+              stroke="#1565c0"
+              strokeWidth={0.8}
+              style={{ pointerEvents: 'none' }}
+            />
+          );
+        })()}
 
         {/* Panel I/O */}
         <PanelIOLayer

@@ -56,6 +56,8 @@ export const EditorPage: React.FC = () => {
 
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
   const [activeDragInfo, setActiveDragInfo] = useState<{ type: string; label: string; color: string } | null>(null);
+  const [activeDragType, setActiveDragType] = useState<string | null>(null);
+  const [panelEdgePreview, setPanelEdgePreview] = useState<{ edge: import('../types').PanelEdge; positionPercent: number } | null>(null);
   const [activePlaced, setActivePlaced] = useState<{
     instanceId: string;
     moduleId: string;
@@ -370,6 +372,9 @@ export const EditorPage: React.FC = () => {
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
       const data = event.active.data.current;
+      const dtype = data?.type ?? null;
+      setActiveDragType(dtype);
+
       if (data?.type === 'new-module' || data?.type === 'new-external-device') {
         setActiveModuleId(data.moduleId as string);
       } else if (data?.type === 'placed-module') {
@@ -382,19 +387,53 @@ export const EditorPage: React.FC = () => {
           positionMm: mod?.positionMm ?? 0,
         });
         setActiveModuleId(data.moduleId as string);
-    } else if (data?.type === 'new-panel-io') {
-      setActiveDragInfo({ type: 'panel-io', label: data.direction === 'input' ? 'Entrada' : 'Saída', color: '#546e7a' });
-    } else if (data?.type === 'new-text-annotation') {
-      setActiveDragInfo({ type: 'annotation', label: 'Texto', color: '#546e7a' });
-    }
-  },
+      } else if (data?.type === 'new-panel-io') {
+        setActiveDragInfo({ type: 'panel-io', label: data.direction === 'input' ? 'Entrada' : 'Saída', color: '#546e7a' });
+      } else if (data?.type === 'new-panel-io-group') {
+        setActiveDragInfo({ type: 'panel-io-group', label: 'Entrada/Saída', color: '#546e7a' });
+      } else if (data?.type === 'new-text-annotation') {
+        setActiveDragInfo({ type: 'annotation', label: 'Texto', color: '#546e7a' });
+      } else if (data?.type === 'new-external-device') {
+        setActiveDragInfo({ type: 'external', label: 'Dispositivo', color: '#546e7a' });
+      }
+    },
     [store.rows],
   );
+
+  const computeDragPositionInSvg = useCallback((event: { activatorEvent: unknown; delta: { x: number; y: number } }): { x: number; y: number } | null => {
+    const svgEl = document.querySelector('.panel-view-container svg');
+    if (!svgEl) return null;
+    const svgRect = svgEl.getBoundingClientRect();
+    const svgViewBox = svgEl.getAttribute('viewBox')?.split(' ').map(Number);
+    if (!svgViewBox) return null;
+    const scaleX = svgViewBox[2] / svgRect.width;
+    const scaleY = svgViewBox[3] / svgRect.height;
+    const dropX = (event.activatorEvent as PointerEvent).clientX + event.delta.x - svgRect.left;
+    const dropY = (event.activatorEvent as PointerEvent).clientY + event.delta.y - svgRect.top;
+    const svgX = dropX * scaleX + svgViewBox[0];
+    const svgY = dropY * scaleY + svgViewBox[1];
+    return { x: svgX, y: svgY };
+  }, []);
 
   const handleDragMove = useCallback(
     (event: DragMoveEvent) => {
       const data = event.active.data.current;
       if (!data) return;
+
+      // Panel IOs snap to edges – show preview and update edge preview state
+      if (data.type === 'new-panel-io' || data.type === 'new-panel-io-group') {
+        const pos = computeDragPositionInSvg(event);
+        if (pos) {
+          const panelW = mmToPx(layout.exteriorWidthMm);
+          const panelH = mmToPx(layout.exteriorHeightMm);
+          const { edge, positionPercent } = closestEdge(pos.x, pos.y, panelW, panelH);
+          setPanelEdgePreview({ edge, positionPercent });
+        } else {
+          setPanelEdgePreview(null);
+        }
+        return;
+      }
+      setPanelEdgePreview(null);
 
       const isNew = data.type === 'new-module';
       const isPlaced = data.type === 'placed-module';
@@ -462,7 +501,7 @@ export const EditorPage: React.FC = () => {
         instanceId: isPlaced ? (data.instanceId as string) : undefined,
       });
     },
-    [store.rows, layout.rails, activePlaced, computeSnapPosition, computeSnapPositionFromDelta],
+    [store.rows, layout.rails, layout.exteriorWidthMm, layout.exteriorHeightMm, activePlaced, computeSnapPosition, computeSnapPositionFromDelta, computeDragPositionInSvg],
   );
 
   const clearDragState = useCallback(() => {
@@ -470,6 +509,8 @@ export const EditorPage: React.FC = () => {
     setActivePlaced(null);
     setGhostPreview(null);
     setActiveDragInfo(null);
+    setActiveDragType(null);
+    setPanelEdgePreview(null);
   }, []);
 
   const handleDragCancel = useCallback(
@@ -714,6 +755,8 @@ export const EditorPage: React.FC = () => {
           {viewMode === 'panel' && (
             <PanelView
               ghostPreview={ghostPreview}
+              hideRailDropHighlight={activeDragType !== null && activeDragType !== 'new-module' && activeDragType !== 'placed-module'}
+              panelEdgePreview={panelEdgePreview}
               selectedModules={selectedModules}
               onSelectModule={handleSelectModule}
               onSetSelection={handleSetSelection}
