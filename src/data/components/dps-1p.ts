@@ -4,14 +4,14 @@ const component: ComponentSpec = {
   id: 'dps-1p',
   name: 'DPS Unipolar',
   description: 'Dispositivo de Proteção contra Surtos. Desvia picos de tensão (raios, manobras) para o terra, protegendo os equipamentos. Não conduz em operação normal — é um dispositivo em paralelo (shunt).',
-  widthMm: 30,
+  widthMm: 18,
   category: 'dps',
   poles: 1,
   color: '#e65100',
   icon: 'dps',
   ports: [
-    { id: 'in-L1', label: 'L1', side: 'top', offsetXMm: 15, type: 'phase' },
-    { id: 'out-PE', label: 'PE', side: 'bottom', offsetXMm: 15, type: 'ground' },
+    { id: 'in-L1', label: 'L1', side: 'top', offsetXMm: 9, type: 'phase' },
+    { id: 'out-PE', label: 'PE', side: 'bottom', offsetXMm: 9, type: 'ground' },
   ],
   portDescriptions: {
     'in-L1': 'Conexão à fase (monitoramento de surtos)',

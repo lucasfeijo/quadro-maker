@@ -1,18 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePanelStore } from '../store/panelStore';
-import { saveProject, listProjects, loadProject, deleteProject, exportProject, exportCurrentState, importProject } from '../utils/storage';
+import { saveProject, listProjects, loadProject, deleteProject, exportProject, exportCurrentState } from '../utils/storage';
 import { SavedProject } from '../types';
 import { DIN_MODULE_1P_MM } from '../data/enclosures';
+
+type OpenMenu = 'arquivo' | 'simular' | 'visualizar' | null;
 
 interface ToolbarProps {
   viewMode: 'panel' | 'schematic';
   onViewModeChange: (mode: 'panel' | 'schematic') => void;
   simActive: boolean;
   onSimToggle: () => void;
+  onExportImage?: () => void;
 }
 
-export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, simActive, onSimToggle }) => {
+export const Toolbar: React.FC<ToolbarProps> = ({
+  viewMode,
+  onViewModeChange,
+  simActive,
+  onSimToggle,
+  onExportImage,
+}) => {
   const { id: projectIdFromUrl } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const store = usePanelStore();
@@ -23,6 +32,23 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
   const [optWidth, setOptWidth] = useState(store.widthUnits);
   const [optRows, setOptRows] = useState(store.rowCount);
   const [optWireSnap, setOptWireSnap] = useState(store.wireSnapAlignment);
+  const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
+  const [showSaveAsModal, setShowSaveAsModal] = useState(false);
+  const [saveAsName, setSaveAsName] = useState('');
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (openMenu === null) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenu]);
+
+  const closeMenu = () => setOpenMenu(null);
 
   const handleSave = () => {
     const id = saveProject(
@@ -41,11 +67,42 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
     );
     store.markAsSaved();
     navigate(`/project/${id}`, { replace: projectIdFromUrl === 'new' });
+    closeMenu();
+  };
+
+  const handleOpenSaveAs = () => {
+    setSaveAsName(store.name);
+    setShowSaveAsModal(true);
+    closeMenu();
+  };
+
+  const handleConfirmSaveAs = () => {
+    const name = saveAsName.trim();
+    if (!name) return;
+    const id = saveProject(
+      {
+        name,
+        enclosureId: store.enclosureId,
+        widthUnits: store.widthUnits,
+        rowCount: store.rowCount,
+        rows: store.rows,
+        wires: store.wires,
+        panelIOs: store.panelIOs,
+        externalDevices: store.externalDevices,
+        textAnnotations: store.textAnnotations,
+      },
+      undefined,
+    );
+    store.setName(name);
+    store.markAsSaved();
+    setShowSaveAsModal(false);
+    navigate(`/project/${id}`);
   };
 
   const handleOpenLoad = () => {
     setSavedProjects(listProjects());
     setShowLoadModal(true);
+    closeMenu();
   };
 
   const handleLoad = (id: string) => {
@@ -71,7 +128,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
     }
   };
 
-  const handleExportCurrent = () => {
+  const handleExportJson = () => {
     exportCurrentState({
       name: store.name,
       enclosureId: store.enclosureId,
@@ -83,26 +140,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
       externalDevices: store.externalDevices,
       textAnnotations: store.textAnnotations,
     });
+    closeMenu();
   };
 
-  const handleImport = async () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json,.quadro.json';
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const entry = await importProject(file);
-      if (entry) {
-        store.loadState(entry.state);
-        store.markAsSaved();
-        navigate(`/project/${entry.id}`);
-        setShowLoadModal(false);
-      } else {
-        alert('Arquivo inválido.');
-      }
-    };
-    input.click();
+  const handleExportImage = () => {
+    onExportImage?.();
+    closeMenu();
+  };
+
+  const handleExportPdf = () => {
+    // no-op: placeholder para implementação futura
+    closeMenu();
   };
 
   const handleOpenOptions = () => {
@@ -118,10 +166,20 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
     setShowOptionsModal(false);
   };
 
+  const handleSimToggle = () => {
+    onSimToggle();
+    closeMenu();
+  };
+
+  const handleViewChange = (mode: 'panel' | 'schematic') => {
+    onViewModeChange(mode);
+    closeMenu();
+  };
+
   return (
-    <div className="toolbar">
+    <div className="toolbar" ref={menuRef}>
       <button className="toolbar-btn back-btn" onClick={() => { store.goToSetup(); navigate('/'); }}>
-        ← Voltar
+        ← Menu
       </button>
       <input
         className="toolbar-name"
@@ -129,52 +187,110 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
         onChange={(e) => store.setName(e.target.value)}
       />
       <div className="toolbar-actions">
-        <button
-          className="toolbar-btn"
-          onClick={() =>
-            store.setDisplayMode(store.displayMode === 'icon' ? 'image' : 'icon')
-          }
-          title="Alternar entre ícones esquemáticos e fotos"
-        >
-          {store.displayMode === 'icon' ? '🔧 Ícones' : '📷 Fotos'}
-        </button>
-        <div className="toolbar-view-toggle">
+        <div className="toolbar-dropdown">
           <button
-            className={`toolbar-btn ${viewMode === 'panel' ? 'toolbar-btn-active' : ''}`}
-            onClick={() => onViewModeChange('panel')}
+            className="toolbar-btn"
+            onClick={() => setOpenMenu(openMenu === 'arquivo' ? null : 'arquivo')}
           >
-            Painel
+            Projeto
           </button>
-          <button
-            className={`toolbar-btn ${viewMode === 'schematic' ? 'toolbar-btn-active' : ''}`}
-            onClick={() => onViewModeChange('schematic')}
-          >
-            Unifilar
-          </button>
+          {openMenu === 'arquivo' && (
+            <div className="toolbar-dropdown-menu">
+              <button className="toolbar-dropdown-item" onClick={handleOpenLoad}>
+                Carregar
+              </button>
+              <button className="toolbar-dropdown-item" onClick={handleSave}>
+                Salvar
+              </button>
+              <button className="toolbar-dropdown-item" onClick={handleOpenSaveAs}>
+                Salvar como
+              </button>
+              <div className="toolbar-dropdown-divider" />
+              <button className="toolbar-dropdown-item" onClick={handleExportJson}>
+                Exportar JSON
+              </button>
+              <button className="toolbar-dropdown-item" onClick={handleExportImage} disabled={!onExportImage}>
+                Exportar imagem
+              </button>
+              <button className="toolbar-dropdown-item" onClick={handleExportPdf} title="Em breve">
+                Exportar PDF
+              </button>
+            </div>
+          )}
         </div>
-        <button
-          className={`toolbar-btn ${simActive ? 'toolbar-btn-sim-active' : ''}`}
-          onClick={onSimToggle}
-          title="Ligar/desligar simulação"
-        >
-          {simActive ? '⚡ Simulando' : '⚡ Simular'}
-        </button>
+
+        <div className="toolbar-dropdown">
+          <button
+            className={`toolbar-btn ${simActive ? 'toolbar-btn-sim-active' : ''}`}
+            onClick={() => setOpenMenu(openMenu === 'simular' ? null : 'simular')}
+          >
+            {simActive ? 'Simulando' : 'Simular'}
+          </button>
+          {openMenu === 'simular' && (
+            <div className="toolbar-dropdown-menu">
+              <button className="toolbar-dropdown-item" onClick={handleSimToggle}>
+                {simActive ? 'Parar simulação' : 'Começar simulação'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="toolbar-dropdown">
+          <button
+            className="toolbar-btn"
+            onClick={() => setOpenMenu(openMenu === 'visualizar' ? null : 'visualizar')}
+          >
+            Visualizar
+          </button>
+          {openMenu === 'visualizar' && (
+            <div className="toolbar-dropdown-menu">
+              <button
+                className={`toolbar-dropdown-item ${viewMode === 'panel' ? 'toolbar-dropdown-item-active' : ''}`}
+                onClick={() => handleViewChange('panel')}
+              >
+                Painel
+              </button>
+              <button
+                className={`toolbar-dropdown-item ${viewMode === 'schematic' ? 'toolbar-dropdown-item-active' : ''}`}
+                onClick={() => handleViewChange('schematic')}
+              >
+                Unifilar
+              </button>
+            </div>
+          )}
+        </div>
+
         <button className="toolbar-btn" onClick={handleOpenOptions} title="Opções do quadro">
           Opções
         </button>
-        <button className="toolbar-btn" onClick={handleSave}>
-          Salvar
-        </button>
-        <button className="toolbar-btn" onClick={handleOpenLoad}>
-          Carregar
-        </button>
-        <button className="toolbar-btn" onClick={handleExportCurrent} title="Exportar projeto atual como arquivo">
-          Exportar
-        </button>
-        <button className="toolbar-btn" onClick={handleImport} title="Importar projeto de arquivo">
-          Importar
-        </button>
       </div>
+
+      {showSaveAsModal && (
+        <div className="modal-overlay" onClick={() => setShowSaveAsModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Salvar como</h3>
+            <div className="options-field">
+              <label>Nome do projeto:</label>
+              <input
+                type="text"
+                value={saveAsName}
+                onChange={(e) => setSaveAsName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleConfirmSaveAs()}
+                placeholder="Nome do projeto"
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button className="toolbar-btn" style={{ flex: 1 }} onClick={handleConfirmSaveAs} disabled={!saveAsName.trim()}>
+                Salvar
+              </button>
+              <button className="toolbar-btn" style={{ flex: 1 }} onClick={() => setShowSaveAsModal(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showOptionsModal && (
         <div className="modal-overlay" onClick={() => setShowOptionsModal(false)}>

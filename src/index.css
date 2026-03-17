@@ -490,6 +490,58 @@ html, body, #root {
   margin-right: 4px;
 }
 
+.toolbar-dropdown {
+  position: relative;
+}
+
+.toolbar-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 180px;
+  padding: 6px 0;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--toolbar-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+}
+
+.toolbar-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--sidebar-text);
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.toolbar-dropdown-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.toolbar-dropdown-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-dropdown-item-active {
+  background: rgba(137, 180, 250, 0.15);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.toolbar-dropdown-divider {
+  height: 1px;
+  margin: 6px 12px;
+  background: var(--toolbar-border);
+}
+
 .editor-body {
   display: flex;
   flex: 1;
@@ -1002,7 +1054,8 @@ html, body, #root {
   white-space: nowrap;
 }
 
-.options-field select {
+.options-field select,
+.options-field input[type="text"] {
   flex: 1;
   max-width: 200px;
   padding: 6px 8px;
@@ -1011,6 +1064,10 @@ html, body, #root {
   background: var(--bg);
   color: var(--sidebar-text);
   font-size: 0.85rem;
+}
+
+.options-field input[type="text"] {
+  max-width: 320px;
 }
 
 /* ===== Toolbar View Toggle ===== */

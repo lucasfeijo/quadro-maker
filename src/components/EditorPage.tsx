@@ -11,6 +11,7 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { useParams, useNavigate } from 'react-router-dom';
+import html2canvas from 'html2canvas';
 import { usePanelStore } from '../store/panelStore';
 import { loadProject } from '../utils/storage';
 import { ModuleLibrary } from './ModuleLibrary';
@@ -646,6 +647,25 @@ export const EditorPage: React.FC = () => {
     return () => window.removeEventListener('beforeunload', handler);
   }, [store]);
 
+  const handleExportImage = useCallback(async () => {
+    const el = document.querySelector('.panel-view-container') as HTMLElement | null;
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        backgroundColor: '#1e1e2e',
+        scale: 2,
+        useCORS: true,
+      });
+      const url = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${store.name.replace(/[^a-zA-Z0-9À-ú _-]/g, '')}.png`;
+      a.click();
+    } catch {
+      console.error('Falha ao exportar imagem');
+    }
+  }, [store.name]);
+
   const singleSelected = selectedModules.length === 1 ? selectedModules[0] : null;
   const showProperties = singleSelected || store.selectedWireId || store.selectedIOId || store.selectedAnnotationId;
   const showMultiInfo = selectedModules.length > 1;
@@ -664,6 +684,7 @@ export const EditorPage: React.FC = () => {
           onViewModeChange={setViewMode}
           simActive={simActive}
           onSimToggle={() => setSimActive((v) => !v)}
+          onExportImage={viewMode === 'panel' ? handleExportImage : undefined}
         />
         <div className="editor-body">
           {viewMode === 'panel' && <ModuleLibrary />}

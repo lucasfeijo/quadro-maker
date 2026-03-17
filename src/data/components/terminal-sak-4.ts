@@ -1,17 +1,17 @@
 import type { ComponentSpec } from './_spec';
 
 const component: ComponentSpec = {
-  id: 'terminal',
-  name: 'Borne SAK 2.5',
-  description: 'Ponto de conexão passivo. Liga o fio de entrada ao de saída sem interrupção. Usado para organizar e distribuir conexões dentro do quadro.',
-  widthMm: 6,
+  id: 'terminal-sak-4',
+  name: 'Borne SAK 4',
+  description: 'Borne de conexão para cabos até 4mm². Ponto de conexão passivo para organizar e distribuir conexões dentro do quadro.',
+  widthMm: 8,
   category: 'terminal',
   poles: 1,
   color: '#78909c',
   icon: 'terminal',
   ports: [
-    { id: 'in-top', label: 'Ent', side: 'top', offsetXMm: 3, type: 'any' },
-    { id: 'out-bottom', label: 'Saí', side: 'bottom', offsetXMm: 3, type: 'any' },
+    { id: 'in-top', label: 'Ent', side: 'top', offsetXMm: 4, type: 'any' },
+    { id: 'out-bottom', label: 'Saí', side: 'bottom', offsetXMm: 4, type: 'any' },
   ],
   portDescriptions: {
     'in-top': 'Entrada — conexão superior',
