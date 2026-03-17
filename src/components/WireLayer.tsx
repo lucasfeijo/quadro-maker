@@ -63,6 +63,7 @@ interface Segment {
 interface CrossingOnSegment {
   point: Point;
   t: number;
+  otherWireIndex: number;
 }
 
 interface DimensionLine {
@@ -575,7 +576,7 @@ function segmentIntersection(s1: Segment, s2: Segment): Point | null {
 
 function findCrossingsForWire(
   wireSegments: Segment[],
-  laterWireSegments: Segment[][],
+  laterWireSegments: Array<{ segments: Segment[]; otherIndex: number }>,
 ): Map<number, CrossingOnSegment[]> {
   const result = new Map<number, CrossingOnSegment[]>();
 
@@ -586,12 +587,12 @@ function findCrossingsForWire(
 
     const crossings: CrossingOnSegment[] = [];
 
-    for (const otherSegs of laterWireSegments) {
+    for (const { segments: otherSegs, otherIndex } of laterWireSegments) {
       for (const otherSeg of otherSegs) {
         const pt = segmentIntersection(seg, otherSeg);
         if (pt) {
           const dist = Math.sqrt((pt.x - seg.x1) ** 2 + (pt.y - seg.y1) ** 2);
-          crossings.push({ point: pt, t: dist / segLen });
+          crossings.push({ point: pt, t: dist / segLen, otherWireIndex: otherIndex });
         }
       }
     }
@@ -605,9 +606,19 @@ function findCrossingsForWire(
   return result;
 }
 
+/** Style key for bridge logic: only draw curvy crossover when wires have same color + dash. */
+function getWireStyleKey(
+  wire: { wireColor?: string },
+  src: { type: string },
+  tgt: { type: string },
+): string {
+  const color = wire.wireColor ?? WIRE_COLORS[src.type] ?? '#333';
+  const isGround = src.type === 'ground' || tgt.type === 'ground';
+  return `${color}:${isGround}`;
+}
+
 // --- Bridge rendering ---
-// Sempre desenha o arco em cruzamentos. Quando o cruzamento está perto de curva/extremo,
-// insere L extra no path para criar espaço reto antes do arco (não pula o arco).
+// Draws arc at crossings. Skip arc when crossing wires have different styles (color/dash).
 
 function buildPathWithBridges(
   points: Point[],
@@ -1100,19 +1111,38 @@ export const WireLayer: React.FC<Props> = ({
   // ---- Crossing detection ----
 
   const allSegments = computedWires.map(cw => pointsToSegments(cw.points));
+  const wireStyleKeys = computedWires.map(cw =>
+    getWireStyleKey(cw.wire, cw.src, cw.tgt),
+  );
 
   const allCrossings = computedWires.map((_, i) => {
-    const laterSegments = allSegments.slice(i + 1);
+    const laterSegments = allSegments.slice(i + 1).map((segments, j) => ({
+      segments,
+      otherIndex: i + 1 + j,
+    }));
     return findCrossingsForWire(allSegments[i], laterSegments);
   });
 
   // ---- Build render data ----
 
-  const renderData = computedWires.map((cw, i) => ({
-    ...cw,
-    displayPath: buildPathWithBridges(cw.points, allCrossings[i]),
-    hitPath: pointsToPathString(cw.points),
-  }));
+  const renderData = computedWires.map((cw, i) => {
+    const crossings = allCrossings[i];
+    const styleKey = wireStyleKeys[i];
+    const filteredCrossings = new Map<number, CrossingOnSegment[]>();
+    crossings.forEach((crossingList, segIdx) => {
+      const sameStyleOnly = crossingList.filter(
+        c => wireStyleKeys[c.otherWireIndex] === styleKey,
+      );
+      if (sameStyleOnly.length > 0) {
+        filteredCrossings.set(segIdx, sameStyleOnly);
+      }
+    });
+    return {
+      ...cw,
+      displayPath: buildPathWithBridges(cw.points, filteredCrossings),
+      hitPath: pointsToPathString(cw.points),
+    };
+  });
 
   const isDragging = draggingWp || draggingSegment || pendingSegmentDrag;
 

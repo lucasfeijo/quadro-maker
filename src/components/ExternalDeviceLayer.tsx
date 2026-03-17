@@ -1,9 +1,11 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
-import { getModuleById } from '../data/modules';
+import { getModuleById, isDualMount } from '../data/modules';
 import { mmToPx } from '../utils/geometry';
 import { getModeInfo, getNextMode, SIM_MODES } from '../engine/circuit';
 import type { ComponentState } from '../types';
+import { ModuleIcon } from './ModuleIcon';
+import { PortDot } from './PortDot';
 
 interface Props {
   selectedDeviceIds: string[];
@@ -20,6 +22,7 @@ interface Props {
 const DEV_SCALE = 1;
 const BOX_H = 18 * DEV_SCALE;
 const BAR_H = 8;
+const MODULE_HEIGHT_MM = 70;
 
 function isScrewBusbar(moduleId: string): boolean {
   return moduleId.startsWith('busbar-screw-8p-');
@@ -47,7 +50,8 @@ export function getExternalDevicePortPosition(
 
   const boxW = mmToPx(def.widthMm) * DEV_SCALE;
   const isBar = isScrewBusbar(device.moduleId);
-  const h = isBar ? BAR_H : BOX_H;
+  const isDual = isDualMount(device.moduleId);
+  const h = isBar ? BAR_H : isDual ? mmToPx(MODULE_HEIGHT_MM) * DEV_SCALE : BOX_H;
   const bx = device.x - boxW / 2;
   const by = device.y - h / 2;
 
@@ -75,7 +79,8 @@ export function getExternalDeviceBounds(
   if (!def) return null;
   const boxW = mmToPx(def.widthMm) * DEV_SCALE;
   const isBar = isScrewBusbar(device.moduleId);
-  const h = isBar ? BAR_H : BOX_H;
+  const isDual = isDualMount(device.moduleId);
+  const h = isBar ? BAR_H : isDual ? mmToPx(MODULE_HEIGHT_MM) * DEV_SCALE : BOX_H;
   const portMargin = 8;
   const rot = Number(device.properties?.rotationDeg) || 0;
   const halfW = boxW / 2 + portMargin;
@@ -108,6 +113,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
   onSimModeChange,
 }) => {
   const devices = usePanelStore((s) => s.externalDevices);
+  const displayMode = usePanelStore((s) => s.displayMode);
   const moveDevice = usePanelStore((s) => s.moveExternalDevice);
   const moveDevices = usePanelStore((s) => s.moveExternalDevices);
   const removeDevice = usePanelStore((s) => s.removeExternalDevice);
@@ -207,7 +213,8 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
         if (!def) return null;
 
         const isBar = isScrewBusbar(dev.moduleId);
-        const boxH = isBar ? BAR_H : BOX_H;
+        const isDual = isDualMount(dev.moduleId);
+        const boxH = isBar ? BAR_H : isDual ? mmToPx(MODULE_HEIGHT_MM) * DEV_SCALE : BOX_H;
         const boxW = mmToPx(def.widthMm) * DEV_SCALE;
         const bx = dev.x - boxW / 2;
         const by = dev.y - boxH / 2;
@@ -259,7 +266,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
               />
             )}
 
-            {!isBar && (
+            {!isBar && !isDual && (
               <rect
                 x={bx - 1}
                 y={by - 1}
@@ -279,12 +286,86 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
               y={by}
               width={boxW}
               height={boxH}
-              rx={1.5}
+              rx={isDual ? 1 : 1.5}
               fill={def.color}
-              stroke={dragging === dev.instanceId ? '#ff9800' : isSelected ? '#ffd600' : '#555'}
-              strokeWidth={dragging === dev.instanceId ? 1 : isSelected ? 0.8 : 0.5}
+              stroke={dragging === dev.instanceId ? '#ff9800' : isSelected ? '#ffd600' : isDual ? '#222' : '#555'}
+              strokeWidth={dragging === dev.instanceId ? 1 : isSelected ? (isDual ? 1.5 : 0.8) : (isDual ? 0.5 : 0.5)}
+              opacity={isDual ? 0.92 : 1}
               onMouseDown={(e) => onMouseDown(e, dev.instanceId, dev.x, dev.y)}
             />
+
+            {isDual && (() => {
+              const iconSize = Math.min(boxW * 0.6, boxH * 0.35);
+              return (
+              <>
+                <ModuleIcon
+                  icon={def.icon}
+                  imageUrl={def.imageUrl}
+                  displayMode={displayMode}
+                  size={iconSize}
+                  color="#fff"
+                  inline
+                  x={bx + (boxW - iconSize) / 2}
+                  y={by + boxH * 0.08}
+                />
+                {def.widthMm >= 30 ? (
+                  <>
+                    <text
+                      x={bx + boxW / 2}
+                      y={dev.label ? by + boxH * 0.62 : by + boxH * 0.7}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill="#fff"
+                      fontSize={Math.min(3.2, boxW * 0.35)}
+                      fontWeight={600}
+                      style={{ pointerEvents: 'none', userSelect: 'none' }}
+                    >
+                      {def.name}
+                    </text>
+                    {dev.label && (
+                      <text
+                        x={bx + boxW / 2}
+                        y={by + boxH * 0.8}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fill="rgba(255,255,255,0.85)"
+                        fontSize={Math.min(2.8, boxW * 0.3)}
+                        fontWeight={500}
+                        style={{ pointerEvents: 'none', userSelect: 'none' }}
+                      >
+                        {dev.label}
+                      </text>
+                    )}
+                  </>
+                ) : dev.label ? (
+                  <text
+                    x={bx + boxW / 2}
+                    y={by + boxH * 0.7}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="rgba(255,255,255,0.9)"
+                    fontSize={Math.min(2.5, boxW * 0.6)}
+                    fontWeight={600}
+                    style={{ pointerEvents: 'none', userSelect: 'none' }}
+                    transform={`rotate(-90, ${bx + boxW / 2}, ${by + boxH * 0.7})`}
+                  >
+                    {dev.label}
+                  </text>
+                ) : null}
+                <text
+                  x={bx + boxW / 2}
+                  y={by + boxH * 0.92}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill="rgba(255,255,255,0.55)"
+                  fontSize={2}
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {def.widthMm}mm
+                </text>
+              </>
+            );
+            })()}
 
             {isBar && (
               <text
@@ -301,14 +382,14 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
               </text>
             )}
 
-            {def.category === 'switch' && !isBar && (
+            {def.category === 'switch' && !isBar && !isDual && (
               <g opacity={0.9} style={{ pointerEvents: 'none' }}>
                 <line x1={bx + boxW / 2} y1={by + 4} x2={bx + boxW / 2 + 3} y2={by + BOX_H - 4} stroke="white" strokeWidth={1} strokeLinecap="round" />
                 <circle cx={bx + boxW / 2} cy={by + 4} r={1} fill="white" />
                 <circle cx={bx + boxW / 2} cy={by + BOX_H - 4} r={1} fill="white" />
               </g>
             )}
-            {def.id === 'led' && (() => {
+            {def.id === 'led' && !isDual && (() => {
               const ledColor = (dev.properties?.ledColor as string) || '#f44336';
               const simState = simStates?.find((s) => s.instanceId === dev.instanceId);
               const isOn = simState?.mode === 'on';
@@ -323,14 +404,14 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
                 </g>
               );
             })()}
-            {def.category === 'button' && def.id !== 'led' && !isBar && (
+            {def.category === 'button' && def.id !== 'led' && !isBar && !isDual && (
               <g opacity={0.9} style={{ pointerEvents: 'none' }}>
                 <line x1={bx + boxW / 2 - 4} y1={by + BOX_H / 2} x2={bx + boxW / 2 + 4} y2={by + BOX_H / 2} stroke="white" strokeWidth={1} strokeLinecap="round" />
                 <line x1={bx + boxW / 2} y1={by + BOX_H / 2 - 2} x2={bx + boxW / 2} y2={by + BOX_H / 2} stroke="white" strokeWidth={1} strokeLinecap="round" />
               </g>
             )}
 
-            {!isBar && (
+            {!isBar && !isDual && (
               <text
                 x={bx + boxW / 2}
                 y={by + boxH + 5.5}
@@ -374,39 +455,57 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
               );
             })()}
 
-            {def.ports.map((port) => {
-              const hasVertOffset = port.offsetYMm !== undefined;
-              const px = bx + mmToPx(port.offsetXMm) * DEV_SCALE;
-              const py = hasVertOffset ? by + mmToPx(port.offsetYMm!) : (port.side === 'top' ? by - 2 : by + boxH + 2);
-              const labelY = hasVertOffset ? py + 5 : (port.side === 'top' ? py - 4 : py + 5);
-              const connected = isConnected(port.id);
-
-              return (
-                <g key={port.id}>
-                  <circle
-                    data-wire-instance-id={dev.instanceId}
-                    data-wire-port-id={port.id}
-                    cx={px}
-                    cy={py}
-                    r={2}
-                    fill={wiringFrom ? '#ff9800' : connected ? '#1976d2' : '#90caf9'}
-                    stroke="white"
-                    strokeWidth={0.6}
-                    cursor="pointer"
-                    onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onPortMouseDown?.(dev.instanceId, port.id); }}
-                    onPointerUp={(e) => { e.stopPropagation(); onPortMouseUp?.(dev.instanceId, port.id); }}
-                    onClick={(e) => { e.stopPropagation(); onPortClick?.(dev.instanceId, port.id); }}
-                    onPointerEnter={() => onPortHover?.(dev.instanceId, port.id)}
-                    onPointerLeave={() => onPortLeave?.()}
+            {isDual
+              ? def.ports.map((port) => (
+                  <PortDot
+                    key={port.id}
+                    port={port}
+                    moduleX={bx}
+                    moduleY={by}
+                    moduleH={boxH}
+                    instanceId={dev.instanceId}
+                    isWiringSource={wiringFrom?.instanceId === dev.instanceId && wiringFrom?.portId === port.id}
+                    isConnected={isConnected(port.id)}
+                    onPortClick={onPortClick ?? (() => {})}
+                    onPortMouseDown={onPortMouseDown}
+                    onPortMouseUp={onPortMouseUp}
+                    onPortHover={onPortHover ?? (() => {})}
+                    onPortLeave={onPortLeave ?? (() => {})}
                   />
-                  <g transform={rot ? `rotate(${-rot} ${px} ${labelY})` : undefined}>
-                    <text x={px} y={labelY} textAnchor="middle" fontSize={3.2} fontWeight={600} fill="#444" stroke="#fff" strokeWidth={2} paintOrder="stroke" style={{ pointerEvents: 'none' }}>
-                      {port.label}
-                    </text>
-                  </g>
-                </g>
-              );
-            })}
+                ))
+              : def.ports.map((port) => {
+                  const hasVertOffset = port.offsetYMm !== undefined;
+                  const px = bx + mmToPx(port.offsetXMm) * DEV_SCALE;
+                  const py = hasVertOffset ? by + mmToPx(port.offsetYMm!) : (port.side === 'top' ? by - 2 : by + boxH + 2);
+                  const labelY = hasVertOffset ? py + 5 : (port.side === 'top' ? py - 4 : py + 5);
+                  const connected = isConnected(port.id);
+
+                  return (
+                    <g key={port.id}>
+                      <circle
+                        data-wire-instance-id={dev.instanceId}
+                        data-wire-port-id={port.id}
+                        cx={px}
+                        cy={py}
+                        r={2}
+                        fill={wiringFrom ? '#ff9800' : connected ? '#1976d2' : '#90caf9'}
+                        stroke="white"
+                        strokeWidth={0.6}
+                        cursor="pointer"
+                        onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onPortMouseDown?.(dev.instanceId, port.id); }}
+                        onPointerUp={(e) => { e.stopPropagation(); onPortMouseUp?.(dev.instanceId, port.id); }}
+                        onClick={(e) => { e.stopPropagation(); onPortClick?.(dev.instanceId, port.id); }}
+                        onPointerEnter={() => onPortHover?.(dev.instanceId, port.id)}
+                        onPointerLeave={() => onPortLeave?.()}
+                      />
+                      <g transform={rot ? `rotate(${-rot} ${px} ${labelY})` : undefined}>
+                        <text x={px} y={labelY} textAnchor="middle" fontSize={3.2} fontWeight={600} fill="#444" stroke="#fff" strokeWidth={2} paintOrder="stroke" style={{ pointerEvents: 'none' }}>
+                          {port.label}
+                        </text>
+                      </g>
+                    </g>
+                  );
+                })}
           </g>
         );
       })}

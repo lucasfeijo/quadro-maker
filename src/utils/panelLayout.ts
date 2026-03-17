@@ -2,7 +2,6 @@ import type { ResolvedLayout } from '../types';
 
 type LayoutInput = Pick<import('../types').PanelState, 'enclosureId' | 'widthUnits' | 'rowCount' | 'rows'>;
 import { getEnclosureById, DIN_MODULE_1P_MM } from '../data/enclosures';
-import { getModuleById } from '../data/modules';
 
 const ROW_HEIGHT_MM = 100;
 const ROW_SPACING_MM = 30;
@@ -11,25 +10,9 @@ const DEFAULT_FIXING_MARGIN_MM = 30;
 const VERTICAL_PADDING_MM = 40;
 
 export function resolveLayout(state: LayoutInput): ResolvedLayout {
-  const result = state.enclosureId
+  return state.enclosureId
     ? resolveEnclosureLayout(state.enclosureId)
     : resolveCustomLayout(state.widthUnits, state.rowCount);
-  // #region agent log
-  const rail0 = result.rails[0];
-  if (rail0) {
-    let occupiedMm = 0;
-    const moduleIds: string[] = [];
-    for (const row of state.rows) {
-      for (const mod of row.modules) {
-        moduleIds.push(mod.moduleId);
-        const def = getModuleById(mod.moduleId);
-        if (def) occupiedMm += def.widthMm;
-      }
-    }
-    fetch('http://127.0.0.1:7933/ingest/9df62cad-4dbe-44e5-9845-8a9dc613936c',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9770de'},body:JSON.stringify({sessionId:'9770de',location:'panelLayout.ts:resolveLayout',message:'Layout resolved',data:{enclosureId:state.enclosureId,widthUnits:state.widthUnits,railUsableWidthMm:rail0.usableWidthMm,occupiedMm,totalModules:moduleIds.length,moduleIds,leftoverMm:rail0.usableWidthMm-occupiedMm},timestamp:Date.now(),hypothesisId:'H1-H2'})}).catch(()=>{});
-  }
-  // #endregion
-  return result;
 }
 
 function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {

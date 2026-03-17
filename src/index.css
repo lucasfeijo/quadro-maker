@@ -552,10 +552,12 @@ html, body, #root {
 /* ===== Module Library Sidebar ===== */
 
 .module-library {
-  width: 220px;
+  width: 240px;
+  min-width: 0;
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px 12px;
   flex-shrink: 0;
   border-right: 1px solid var(--toolbar-border);
@@ -598,6 +600,45 @@ html, body, #root {
 
 .library-filter-input:focus {
   border-color: var(--accent);
+}
+
+.library-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.library-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.library-tab {
+  flex: 1 1 0;
+  min-width: 60px;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.7);
+  transition: background 0.15s, color 0.15s;
+}
+
+.library-tab:hover {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+
+.library-tab.active {
+  color: #fff;
 }
 
 .library-group {
@@ -668,9 +709,32 @@ html, body, #root {
   text-overflow: ellipsis;
 }
 
+.library-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .library-item-size {
   font-size: 0.7rem;
   opacity: 0.5;
+}
+
+.library-item-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  padding: 1px 5px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.9);
+  background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.08) 100%);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 4px;
 }
 
 /* ===== Properties Panel (Right Sidebar) ===== */

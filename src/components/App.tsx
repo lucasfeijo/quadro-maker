@@ -19,7 +19,7 @@ import { PropertiesPanel } from './PropertiesPanel';
 import { DragOverlayContent } from './DragOverlayContent';
 import { SchematicView } from './SchematicView';
 import { SimulationOverlay } from './SimulationView';
-import { getModuleById } from '../data/modules';
+import { getModuleById, isDualMount } from '../data/modules';
 import type { ComponentState, PanelState } from '../types';
 import { snapToMm, pxToMm, mmToPx, canPlace, clampToNeighbors } from '../utils/geometry';
 import { resolveLayout } from '../utils/panelLayout';
@@ -548,9 +548,14 @@ export const App: React.FC = () => {
 
       if (data.type !== 'new-module') return;
 
-      if (!over) return;
-      const overData = over.data.current as { rowId: string; rail: ResolvedRail } | undefined;
-      if (!overData?.rowId) return;
+      const overData = over?.data.current as { rowId: string; rail: ResolvedRail } | undefined;
+      if (!over || !overData?.rowId) {
+        if (isDualMount(moduleId)) {
+          const pos = computeExternalDevicePosition(event);
+          if (pos) store.addExternalDevice(moduleId, pos.x, pos.y);
+        }
+        return;
+      }
       const rail = overData.rail;
       const row = store.rows.find((r) => r.id === overData.rowId);
       if (!row) return;

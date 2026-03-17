@@ -1,35 +1,14 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { MODULE_DEFINITIONS, getModuleById, isExternalModule } from '../data/modules';
-import { ModuleCategory, PanelIODirection, PanelIOType, PanelEdge } from '../types';
+import { getModuleById, isExternalModule, isDualMount } from '../data/modules';
+import { LIBRARY_GROUPS, IO_ITEM_MAP, IO_GROUP_MAP } from '../data/libraryConfig';
+import { PanelIODirection, PanelEdge } from '../types';
 import { useDraggable } from '@dnd-kit/core';
 import { usePanelStore } from '../store/panelStore';
 import { ModuleIcon } from './ModuleIcon';
 
-const CATEGORY_LABELS: Partial<Record<ModuleCategory, string>> = {
-  breaker: 'Disjuntores',
-  dr: 'DRs',
-  dps: 'DPS',
-  contactor: 'Contatores',
-  relay: 'Relés',
-  timer: 'Temporizadores',
-  terminal: 'Bornes',
-  ats: 'Switches ATS',
-};
-
-const CATEGORY_ORDER: ModuleCategory[] = [
-  'breaker',
-  'dr',
-  'dps',
-  'ats',
-  'contactor',
-  'relay',
-  'timer',
-  'terminal',
-];
-
 const IO_ITEMS: {
   direction: PanelIODirection;
-  type: PanelIOType;
+  type: 'phase' | 'neutral' | 'ground' | 'dc_pos' | 'dc_neg' | 'signal';
   defaultEdge: PanelEdge;
   label: string;
   color: string;
@@ -51,7 +30,7 @@ const IO_ITEMS: {
 
 const IO_GROUP_ITEMS: {
   direction: PanelIODirection;
-  types: PanelIOType[];
+  types: ('phase' | 'neutral' | 'ground')[];
   defaultEdge: PanelEdge;
   label: string;
   abbr: string;
@@ -63,6 +42,22 @@ const IO_GROUP_ITEMS: {
   { direction: 'output', types: ['phase', 'neutral'], defaultEdge: 'bottom', label: 'Saída F+N', abbr: 'F+N', color: '#37474f' },
 ];
 
+function DinTag() {
+  return (
+    <span className="library-item-tag" title="Montagem em trilho DIN: encaixa no trilho do quadro.">
+      DIN
+    </span>
+  );
+}
+
+function ScrewTag() {
+  return (
+    <span className="library-item-tag" title="Montagem por parafuso: posicionamento livre no painel ou fora do quadro.">
+      🔩
+    </span>
+  );
+}
+
 function DraggableModule({ moduleId, name, color, widthMm, icon, imageUrl }: {
   moduleId: string;
   name: string;
@@ -71,6 +66,7 @@ function DraggableModule({ moduleId, name, color, widthMm, icon, imageUrl }: {
   icon?: string;
   imageUrl?: string;
 }) {
+  const dualMount = isDualMount(moduleId);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `library-${moduleId}`,
     data: { type: 'new-module', moduleId },
@@ -93,7 +89,11 @@ function DraggableModule({ moduleId, name, color, widthMm, icon, imageUrl }: {
       </div>
       <div className="library-item-info">
         <span className="library-item-name">{name}</span>
-        <span className="library-item-size">{widthMm}mm</span>
+        <span className="library-item-meta">
+          <span className="library-item-size">{widthMm}mm</span>
+          <DinTag />
+          {dualMount && <ScrewTag />}
+        </span>
       </div>
     </div>
   );
@@ -156,12 +156,6 @@ function IOGroupItem({ direction, types, defaultEdge, label, abbr, color }: type
   );
 }
 
-const EXTERNAL_MODULES = MODULE_DEFINITIONS.filter((m) => isExternalModule(m.id));
-
-const BUSBAR_RAIL_IDS = ['busbar-rail-8p-phase', 'busbar-rail-8p-neutral', 'busbar-rail-8p-ground'];
-const BUSBAR_SCREW_IDS = ['busbar-screw-8p-phase', 'busbar-screw-8p-neutral', 'busbar-screw-8p-ground'];
-const BUSBAR_MODULE_IDS = [...BUSBAR_RAIL_IDS, ...BUSBAR_SCREW_IDS];
-
 function TextAnnotationItem() {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: 'library-text-annotation',
@@ -214,7 +208,10 @@ function ExternalDeviceItem({ moduleId, name, color }: { moduleId: string; name:
       </div>
       <div className="library-item-info">
         <span className="library-item-name">{name}</span>
-        <span className="library-item-size">{moduleId.startsWith('busbar-screw') ? 'Arraste para o painel' : 'Arraste para fora do quadro'}</span>
+        <span className="library-item-meta">
+          <span className="library-item-size">{moduleId.startsWith('busbar-screw') ? 'Arraste para o painel' : 'Arraste para fora do quadro'}</span>
+          <ScrewTag />
+        </span>
       </div>
     </div>
   );
@@ -257,8 +254,20 @@ function normalize(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 
+function getIOItem(direction: PanelIODirection, type: string) {
+  return IO_ITEMS.find((i) => i.direction === direction && i.type === type);
+}
+
+function getIOGroupItem(direction: PanelIODirection, types: string[]) {
+  const typesKey = types.join(',');
+  return IO_GROUP_ITEMS.find(
+    (g) => g.direction === direction && g.types.join(',') === typesKey,
+  );
+}
+
 export const ModuleLibrary: React.FC = () => {
   const [filter, setFilter] = useState('');
+  const [activeTab, setActiveTab] = useState(0);
   const q = normalize(filter.trim());
 
   const matchesFilter = useCallback((text: string) => {
@@ -266,53 +275,43 @@ export const ModuleLibrary: React.FC = () => {
     return normalize(text).includes(q);
   }, [q]);
 
-  const grouped = useMemo(() =>
-    CATEGORY_ORDER.map((cat) => {
-      const label = CATEGORY_LABELS[cat] ?? cat;
-      const modules = MODULE_DEFINITIONS.filter(
-        (m) => m.category === cat && !isExternalModule(m.id) && !BUSBAR_MODULE_IDS.includes(m.id),
-      );
-      const filtered = q
-        ? modules.filter((m) => matchesFilter(m.name) || matchesFilter(label))
-        : modules;
-      return { category: cat, label, modules: filtered };
-    }).filter((g) => g.modules.length > 0),
-    [q, matchesFilter],
-  );
+  type ResolvedItem =
+    | { type: 'io'; item: (typeof IO_ITEMS)[number] }
+    | { type: 'io-group'; item: (typeof IO_GROUP_ITEMS)[number] }
+    | { type: 'module'; mod: NonNullable<ReturnType<typeof getModuleById>> };
 
-  const filteredInputIO = useMemo(
-    () => IO_ITEMS.filter((i) => i.direction === 'input' && matchesFilter(i.label)),
-    [matchesFilter],
-  );
-  const filteredOutputIO = useMemo(
-    () => IO_ITEMS.filter((i) => i.direction === 'output' && matchesFilter(i.label)),
-    [matchesFilter],
-  );
-  const filteredInputGroups = useMemo(
-    () => IO_GROUP_ITEMS.filter((g) => g.direction === 'input' && matchesFilter(g.label)),
-    [matchesFilter],
-  );
-  const filteredOutputGroups = useMemo(
-    () => IO_GROUP_ITEMS.filter((g) => g.direction === 'output' && matchesFilter(g.label)),
-    [matchesFilter],
-  );
-  const filteredExternal = useMemo(
-    () => EXTERNAL_MODULES.filter((m) => matchesFilter(m.name) && !BUSBAR_SCREW_IDS.includes(m.id)),
-    [matchesFilter],
-  );
+  const activeGroup = LIBRARY_GROUPS[activeTab];
+  const filteredSubgroups = useMemo(() => {
+    if (!activeGroup) return [] as Array<{ id: string; label: string; resolved: ResolvedItem[] }>;
+    return activeGroup.subgroups
+      .map((sg) => {
+        const resolved: ResolvedItem[] = [];
+        for (const modId of sg.modules) {
+          const ioSpec = IO_ITEM_MAP[modId];
+          const ioGroupSpec = IO_GROUP_MAP[modId];
+          const mod = getModuleById(modId);
 
-  const filteredBusbarRail = useMemo(
-    () => BUSBAR_RAIL_IDS.map((id) => getModuleById(id)).filter(Boolean).filter((m) => matchesFilter(m!.name)),
-    [matchesFilter],
-  );
-  const filteredBusbarScrew = useMemo(
-    () => BUSBAR_SCREW_IDS.map((id) => getModuleById(id)).filter(Boolean).filter((m) => matchesFilter(m!.name)),
-    [matchesFilter],
-  );
-  const hasBusbars = filteredBusbarRail.length > 0 || filteredBusbarScrew.length > 0;
+          if (ioSpec) {
+            const item = getIOItem(ioSpec.direction, ioSpec.type);
+            if (item && matchesFilter(item.label)) resolved.push({ type: 'io', item });
+            continue;
+          }
+          if (ioGroupSpec) {
+            const item = getIOGroupItem(ioGroupSpec.direction, ioGroupSpec.types);
+            if (item && matchesFilter(item.label)) resolved.push({ type: 'io-group', item });
+            continue;
+          }
+          if (mod && (matchesFilter(mod.name) || matchesFilter(sg.label))) {
+            resolved.push({ type: 'module', mod });
+          }
+        }
+        return { ...sg, resolved };
+      })
+      .filter((sg) => sg.resolved.length > 0);
+  }, [activeGroup, q, matchesFilter]);
 
-  const hasIO = filteredInputIO.length > 0 || filteredOutputIO.length > 0 || filteredInputGroups.length > 0 || filteredOutputGroups.length > 0;
-  const hasExternal = filteredExternal.length > 0;
+  const showAnnotations = !q || ['legenda', 'texto', 'anotação', 'annotation', 'label'].some((w) => q.includes(normalize(w)));
+  const hasAnnotations = activeGroup?.id === 'connection_interface' && showAnnotations;
 
   return (
     <div className="module-library">
@@ -324,81 +323,64 @@ export const ModuleLibrary: React.FC = () => {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
+        <div className="library-tabs">
+          {LIBRARY_GROUPS.map((g, i) => (
+            <button
+              key={g.id}
+              type="button"
+              className={`library-tab ${activeTab === i ? 'active' : ''}`}
+              onClick={() => setActiveTab(i)}
+              style={
+                activeTab === i
+                  ? { background: g.color, color: '#fff' }
+                  : undefined
+              }
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {grouped.length > 0 && <h3 style={{ marginTop: 4 }}>Módulos</h3>}
-      {grouped.map((group) => (
-        <CollapsibleGroup key={group.category} label={group.label} visible defaultOpen>
-          {group.modules.map((mod) => (
-            <DraggableModule
-              key={mod.id}
-              moduleId={mod.id}
-              name={mod.name}
-              color={mod.color}
-              widthMm={mod.widthMm}
-              icon={mod.icon}
-              imageUrl={mod.imageUrl}
-            />
-          ))}
+      {filteredSubgroups.map((sg) => (
+        <CollapsibleGroup key={sg.id} label={sg.label} visible defaultOpen>
+          {sg.resolved.map((r) => {
+            if (r.type === 'io') {
+              return <IOItem key={`io-${r.item.direction}-${r.item.type}`} {...r.item} />;
+            }
+            if (r.type === 'io-group') {
+              return <IOGroupItem key={`iog-${r.item.direction}-${r.item.types.join('-')}`} {...r.item} />;
+            }
+            if (r.type === 'module') {
+              const mod = r.mod;
+              if (isExternalModule(mod.id)) {
+                return <ExternalDeviceItem key={mod.id} moduleId={mod.id} name={mod.name} color={mod.color} />;
+              }
+              /* Dual-mount e DIN: usa DraggableModule (new-module) para permitir drop no trilho ou como externo */
+              return (
+                <DraggableModule
+                  key={mod.id}
+                  moduleId={mod.id}
+                  name={mod.name}
+                  color={mod.color}
+                  widthMm={mod.widthMm}
+                  icon={mod.icon}
+                  imageUrl={mod.imageUrl}
+                />
+              );
+            }
+            return null;
+          })}
         </CollapsibleGroup>
       ))}
 
-      {hasIO && <h3 style={{ marginTop: 20 }}>Entradas & Saídas</h3>}
-      <CollapsibleGroup label="Entradas" visible={filteredInputIO.length > 0 || filteredInputGroups.length > 0} defaultOpen>
-        {filteredInputGroups.map((item) => (
-          <IOGroupItem key={`${item.direction}-${item.types.join('-')}`} {...item} />
-        ))}
-        {filteredInputIO.map((item) => (
-          <IOItem key={`${item.direction}-${item.type}`} {...item} />
-        ))}
-      </CollapsibleGroup>
-      <CollapsibleGroup label="Saídas" visible={filteredOutputIO.length > 0 || filteredOutputGroups.length > 0} defaultOpen>
-        {filteredOutputGroups.map((item) => (
-          <IOGroupItem key={`${item.direction}-${item.types.join('-')}`} {...item} />
-        ))}
-        {filteredOutputIO.map((item) => (
-          <IOItem key={`${item.direction}-${item.type}`} {...item} />
-        ))}
-      </CollapsibleGroup>
+      {hasAnnotations && (
+        <CollapsibleGroup label="Anotações" visible defaultOpen>
+          <TextAnnotationItem />
+        </CollapsibleGroup>
+      )}
 
-      {hasBusbars && <h3 style={{ marginTop: 20 }}>Barramentos</h3>}
-      <CollapsibleGroup label="Barramentos" visible={hasBusbars} defaultOpen>
-        {filteredBusbarRail.map((mod) => (
-          <DraggableModule
-            key={mod!.id}
-            moduleId={mod!.id}
-            name={mod!.name}
-            color={mod!.color}
-            widthMm={mod!.widthMm}
-            icon={mod!.icon}
-            imageUrl={mod!.imageUrl}
-          />
-        ))}
-        {filteredBusbarScrew.map((mod) => (
-          <ExternalDeviceItem key={mod!.id} moduleId={mod!.id} name={mod!.name} color={mod!.color} />
-        ))}
-      </CollapsibleGroup>
-
-      {hasExternal && <h3 style={{ marginTop: 20 }}>Dispositivos Externos</h3>}
-      <CollapsibleGroup label="Dispositivos" visible={hasExternal} defaultOpen>
-        {filteredExternal.map((mod) => (
-          <ExternalDeviceItem key={mod.id} moduleId={mod.id} name={mod.name} color={mod.color} />
-        ))}
-      </CollapsibleGroup>
-
-      {(() => {
-        const showAnnotations = !q || 'legenda texto anotação annotation label'.toLowerCase().includes(q.toLowerCase()) || 'legenda'.includes(q.toLowerCase()) || 'texto'.includes(q.toLowerCase()) || 'anotação'.includes(q.toLowerCase());
-        return showAnnotations ? (
-          <>
-            <h3 style={{ marginTop: 20 }}>Anotações</h3>
-            <CollapsibleGroup label="Anotações" visible defaultOpen>
-              <TextAnnotationItem />
-            </CollapsibleGroup>
-          </>
-        ) : null;
-      })()}
-
-      {q && grouped.length === 0 && !hasIO && !hasExternal && !hasBusbars && (
+      {filteredSubgroups.length === 0 && !hasAnnotations && (
         <div style={{ color: '#888', fontSize: 12, textAlign: 'center', marginTop: 24 }}>
           Nenhum componente encontrado.
         </div>

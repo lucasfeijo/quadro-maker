@@ -53,3 +53,9 @@ export function isScrewMounted(id: string): boolean {
   const spec = byId.get(id) ?? byId.get(LEGACY_ID_MAP[id] ?? '');
   return spec?.screw_mounted === true;
 }
+
+/** Módulo que pode ser montado tanto em trilho DIN quanto por parafuso. */
+export function isDualMount(id: string): boolean {
+  const spec = byId.get(id) ?? byId.get(LEGACY_ID_MAP[id] ?? '');
+  return spec?.din_mounted === true && spec?.screw_mounted === true;
+}
