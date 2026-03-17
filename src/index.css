@@ -240,7 +240,109 @@ html, body, #root {
 .load-list {
   background: rgba(255,255,255,0.05);
   border-radius: 12px;
-  padding: 20px;
+  padding: 24px;
+}
+
+.import-json-section {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.import-json-section h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--accent);
+}
+
+.import-desc {
+  font-size: 0.8rem;
+  opacity: 0.75;
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+
+.import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.import-actions .start-btn.small,
+.import-actions .secondary-btn.small {
+  margin: 0;
+}
+
+.secondary-btn {
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sidebar-text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.secondary-btn.small {
+  padding: 8px 16px;
+  font-size: 0.85rem;
+}
+
+.import-paste {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.import-paste textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--sidebar-text);
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.import-paste textarea::placeholder {
+  color: rgba(205, 214, 244, 0.35);
+}
+
+.import-paste textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.import-error {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--danger);
+}
+
+.projects-list-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--accent);
 }
 
 .project-list {

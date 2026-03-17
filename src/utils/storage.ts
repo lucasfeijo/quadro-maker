@@ -81,24 +81,32 @@ export function exportCurrentState(state: PanelState) {
   URL.revokeObjectURL(url);
 }
 
+function parseAndSaveProject(jsonString: string): SavedProject | null {
+  try {
+    const data = JSON.parse(jsonString) as SavedProject;
+    if (!data.state || !data.name) return null;
+    const id = nanoid();
+    const entry: SavedProject = { ...data, id, updatedAt: Date.now() };
+    const projects = readAll();
+    projects.push(entry);
+    writeAll(projects);
+    return entry;
+  } catch {
+    return null;
+  }
+}
+
 export function importProject(file: File): Promise<SavedProject | null> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result as string) as SavedProject;
-        if (!data.state || !data.name) { resolve(null); return; }
-        const id = nanoid();
-        const entry: SavedProject = { ...data, id, updatedAt: Date.now() };
-        const projects = readAll();
-        projects.push(entry);
-        writeAll(projects);
-        resolve(entry);
-      } catch {
-        resolve(null);
-      }
+      resolve(parseAndSaveProject(reader.result as string));
     };
     reader.onerror = () => resolve(null);
     reader.readAsText(file);
   });
+}
+
+export function importFromJsonString(jsonString: string): SavedProject | null {
+  return parseAndSaveProject(jsonString);
 }

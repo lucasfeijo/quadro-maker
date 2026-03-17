@@ -111,8 +111,9 @@ function ComponentInfoSection({ spec }: { spec: ComponentSpec }) {
 
       {spec.modes.length > 1 && (
         <div className="prop-section" style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>Estados</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div style={{ padding: '12px 14px' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>Estados</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {spec.modes.map((mode) => (
               <div key={mode.id} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{
@@ -131,6 +132,7 @@ function ComponentInfoSection({ spec }: { spec: ComponentSpec }) {
                 </span>
               </div>
             ))}
+          </div>
           </div>
         </div>
       )}
@@ -153,8 +155,9 @@ function PropertyEditorSection({
 
   return (
     <div className="prop-section" style={{ marginTop: 8 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>Configurações</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ padding: '12px 14px' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>Configurações</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {spec.properties.map((prop) => {
           const currentValue = instanceProps?.[prop.key] ?? prop.defaultValue;
           return (
@@ -214,6 +217,7 @@ function PropertyEditorSection({
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

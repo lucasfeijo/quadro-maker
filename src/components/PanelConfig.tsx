@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePanelStore } from '../store/panelStore';
 import { EnclosureSelector } from './EnclosureSelector';
-import { listProjects, loadProject, deleteProject } from '../utils/storage';
+import { listProjects, loadProject, deleteProject, importProject, importFromJsonString } from '../utils/storage';
 import { SavedProject } from '../types';
 import { DIN_MODULE_1P_MM } from '../data/enclosures';
 
@@ -13,6 +13,9 @@ export const PanelConfig: React.FC = () => {
   const [widthUnits, setWidthUnits] = useState(12);
   const [rowCount, setRowCount] = useState(1);
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
+  const [pasteJson, setPasteJson] = useState('');
+  const [importError, setImportError] = useState<string | null>(null);
+  const [pasteCollapsed, setPasteCollapsed] = useState(true);
 
   const handleCustomStart = () => {
     store.configureCustom(widthUnits, rowCount);
@@ -47,6 +50,46 @@ export const PanelConfig: React.FC = () => {
       setSavedProjects(listProjects());
     } else {
       setConfirmDeleteId(id);
+    }
+  };
+
+  const handleImportFile = async () => {
+    setImportError(null);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,.quadro.json';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const entry = await importProject(file);
+      if (entry) {
+        setSavedProjects(listProjects());
+        store.loadState(entry.state);
+        store.markAsSaved();
+        navigate(`/project/${entry.id}`);
+      } else {
+        setImportError('Arquivo inválido. Verifique o formato do JSON.');
+      }
+    };
+    input.click();
+  };
+
+  const handleImportPaste = () => {
+    setImportError(null);
+    const trimmed = pasteJson.trim();
+    if (!trimmed) {
+      setImportError('Cole o JSON do projeto na área acima.');
+      return;
+    }
+    const entry = importFromJsonString(trimmed);
+    if (entry) {
+      setSavedProjects(listProjects());
+      setPasteJson('');
+      store.loadState(entry.state);
+      store.markAsSaved();
+      navigate(`/project/${entry.id}`);
+    } else {
+      setImportError('JSON inválido. Verifique o formato do projeto.');
     }
   };
 
@@ -126,6 +169,33 @@ export const PanelConfig: React.FC = () => {
 
         {tab === 'load' && (
           <div className="load-list">
+            <div className="import-json-section">
+              <h3>Importar Projeto</h3>
+              <p className="import-desc">Importe um projeto a partir de um arquivo ou cole o JSON abaixo.</p>
+              <div className="import-actions">
+                <button type="button" className="start-btn small" onClick={handleImportFile}>
+                  Selecionar arquivo
+                </button>
+                <button type="button" className="secondary-btn small" onClick={() => setPasteCollapsed((c) => !c)}>
+                  {pasteCollapsed ? 'Colar JSON' : 'Colapsar'}
+                </button>
+              </div>
+              {!pasteCollapsed && (
+              <div className="import-paste">
+                <textarea
+                  placeholder='Cole o JSON do projeto aqui (ex.: {"name":"Meu Projeto","state":{...}})'
+                  value={pasteJson}
+                  onChange={(e) => setPasteJson(e.target.value)}
+                  rows={4}
+                />
+                <button type="button" className="start-btn small" onClick={handleImportPaste}>
+                  Importar do texto
+                </button>
+              </div>
+              )}
+              {importError && <p className="import-error">{importError}</p>}
+            </div>
+            <h3 className="projects-list-title">Projetos salvos</h3>
             {savedProjects.length === 0 ? (
               <p className="empty-msg">Nenhum projeto salvo.</p>
             ) : (
