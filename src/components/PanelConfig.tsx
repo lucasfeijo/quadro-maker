@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { usePanelStore } from '../store/panelStore';
 import { EnclosureSelector } from './EnclosureSelector';
 import { listProjects, loadProject, deleteProject } from '../utils/storage';
@@ -6,6 +7,7 @@ import { SavedProject } from '../types';
 import { DIN_MODULE_1P_MM } from '../data/enclosures';
 
 export const PanelConfig: React.FC = () => {
+  const navigate = useNavigate();
   const store = usePanelStore();
   const [tab, setTab] = useState<'custom' | 'enclosure' | 'load'>('enclosure');
   const [widthUnits, setWidthUnits] = useState(12);
@@ -14,10 +16,12 @@ export const PanelConfig: React.FC = () => {
 
   const handleCustomStart = () => {
     store.configureCustom(widthUnits, rowCount);
+    navigate('/project/new');
   };
 
   const handleEnclosureSelect = (enclosureId: string) => {
     store.configureFromEnclosure(enclosureId);
+    navigate('/project/new');
   };
 
   const handleLoadTab = () => {
@@ -29,7 +33,11 @@ export const PanelConfig: React.FC = () => {
 
   const handleLoad = (id: string) => {
     const state = loadProject(id);
-    if (state) store.loadState(state);
+    if (state) {
+      store.loadState(state);
+      store.markAsSaved();
+      navigate(`/project/${id}`);
+    }
   };
 
   const handleDelete = (id: string) => {

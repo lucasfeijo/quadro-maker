@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { usePanelStore } from '../store/panelStore';
 import { saveProject, listProjects, loadProject, deleteProject, exportProject, exportCurrentState, importProject } from '../utils/storage';
 import { SavedProject } from '../types';
@@ -12,8 +13,10 @@ interface ToolbarProps {
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, simActive, onSimToggle }) => {
+  const { id: projectIdFromUrl } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const store = usePanelStore();
-  const [projectId, setProjectId] = useState<string | null>(null);
+  const projectId = projectIdFromUrl && projectIdFromUrl !== 'new' ? projectIdFromUrl : null;
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
@@ -36,8 +39,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
       },
       projectId ?? undefined,
     );
-    setProjectId(id);
     store.markAsSaved();
+    navigate(`/project/${id}`, { replace: projectIdFromUrl === 'new' });
   };
 
   const handleOpenLoad = () => {
@@ -49,8 +52,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
     const state = loadProject(id);
     if (state) {
       store.loadState(state);
-      setProjectId(id);
       store.markAsSaved();
+      navigate(`/project/${id}`);
     }
     setShowLoadModal(false);
   };
@@ -61,7 +64,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
     if (confirmDeleteId === id) {
       deleteProject(id);
       setConfirmDeleteId(null);
-      if (projectId === id) setProjectId(null);
+      if (projectId === id) navigate('/');
       setSavedProjects(listProjects());
     } else {
       setConfirmDeleteId(id);
@@ -92,8 +95,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
       const entry = await importProject(file);
       if (entry) {
         store.loadState(entry.state);
-        setProjectId(entry.id);
         store.markAsSaved();
+        navigate(`/project/${entry.id}`);
         setShowLoadModal(false);
       } else {
         alert('Arquivo inválido.');
@@ -117,7 +120,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ viewMode, onViewModeChange, si
 
   return (
     <div className="toolbar">
-      <button className="toolbar-btn back-btn" onClick={store.goToSetup}>
+      <button className="toolbar-btn back-btn" onClick={() => { store.goToSetup(); navigate('/'); }}>
         ← Voltar
       </button>
       <input
