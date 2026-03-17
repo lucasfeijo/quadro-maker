@@ -230,8 +230,10 @@ export const EditorPage: React.FC = () => {
         widthUnits: store.widthUnits,
         rowCount: store.rowCount,
         rows: store.rows,
+        exteriorWidthMm: store.exteriorWidthMm,
+        exteriorHeightMm: store.exteriorHeightMm,
       }),
-    [store.enclosureId, store.widthUnits, store.rowCount, store.rows],
+    [store.enclosureId, store.widthUnits, store.rowCount, store.rows, store.exteriorWidthMm, store.exteriorHeightMm],
   );
 
   const panelStateSnapshot = useMemo<PanelState>(

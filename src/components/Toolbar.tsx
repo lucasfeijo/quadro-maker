@@ -90,6 +90,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         enclosureId: store.enclosureId,
         widthUnits: store.widthUnits,
         rowCount: store.rowCount,
+        exteriorWidthMm: store.exteriorWidthMm,
+        exteriorHeightMm: store.exteriorHeightMm,
         rows: store.rows,
         wires: store.wires,
         panelIOs: store.panelIOs,
@@ -118,6 +120,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         enclosureId: store.enclosureId,
         widthUnits: store.widthUnits,
         rowCount: store.rowCount,
+        exteriorWidthMm: store.exteriorWidthMm,
+        exteriorHeightMm: store.exteriorHeightMm,
         rows: store.rows,
         wires: store.wires,
         panelIOs: store.panelIOs,
@@ -167,6 +171,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       enclosureId: store.enclosureId,
       widthUnits: store.widthUnits,
       rowCount: store.rowCount,
+      exteriorWidthMm: store.exteriorWidthMm,
+      exteriorHeightMm: store.exteriorHeightMm,
       rows: store.rows,
       wires: store.wires,
       panelIOs: store.panelIOs,
@@ -190,14 +196,15 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     setOptWidth(store.widthUnits);
     setOptRows(store.rowCount);
     const dims = getExteriorDimensions(store.enclosureId, store.widthUnits, store.rowCount);
-    setOptWidthMm(dims.widthMm);
-    setOptHeightMm(dims.heightMm);
+    setOptWidthMm(store.exteriorWidthMm ?? dims.widthMm);
+    setOptHeightMm(store.exteriorHeightMm ?? dims.heightMm);
     setOptWireSnap(store.wireSnapAlignment);
     setShowOptionsModal(true);
   };
 
   const handleApplyOptions = () => {
     store.resizePanel(optWidth, optRows);
+    store.setPanelDimensions(optWidthMm, optHeightMm);
     store.setWireSnapAlignment(optWireSnap);
     setShowOptionsModal(false);
   };
@@ -351,8 +358,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                       const v = Number(e.target.value);
                       if (!Number.isFinite(v) || v <= 0) return;
                       setOptWidthMm(v);
-                      const wu = Math.round((v - 120) / DIN_MODULE_1P_MM);
-                      setOptWidth(Math.max(6, Math.min(56, wu)));
                     }}
                     placeholder="Largura mm"
                     style={{ flex: 1 }}
@@ -370,8 +375,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                       const v = Number(e.target.value);
                       if (!Number.isFinite(v) || v <= 0) return;
                       setOptHeightMm(v);
-                      const rc = Math.round((v - 110) / 130);
-                      setOptRows(Math.max(1, Math.min(6, rc)));
                     }}
                     placeholder="Altura mm"
                     style={{ flex: 1 }}
@@ -384,13 +387,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               <label>Largura (unipolares):</label>
               <select
                 value={optWidth}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  setOptWidth(n);
-                  setOptWidthMm(getExteriorDimensions(null, n, optRows).widthMm);
-                }}
+                onChange={(e) => setOptWidth(Number(e.target.value))}
               >
-                {[6, 8, 10, 12, 16, 18, 20, 24, 30, 36, 44, 56].map((n) => (
+                {[6, 8, 10, 12, 14, 16, 18, 20, 24, 30, 36, 44, 56].map((n) => (
                   <option key={n} value={n}>
                     {n} unidades ({n * DIN_MODULE_1P_MM}mm)
                   </option>
@@ -401,11 +400,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               <label>Fileiras:</label>
               <select
                 value={optRows}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  setOptRows(n);
-                  setOptHeightMm(getExteriorDimensions(null, optWidth, n).heightMm);
-                }}
+                onChange={(e) => setOptRows(Number(e.target.value))}
               >
                 {[1, 2, 3, 4, 5, 6].map((n) => (
                   <option key={n} value={n}>

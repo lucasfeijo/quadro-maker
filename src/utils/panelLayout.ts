@@ -1,18 +1,23 @@
 import type { ResolvedLayout } from '../types';
 
-type LayoutInput = Pick<import('../types').PanelState, 'enclosureId' | 'widthUnits' | 'rowCount' | 'rows'>;
+type LayoutInput = Pick<import('../types').PanelState, 'enclosureId' | 'widthUnits' | 'rowCount' | 'rows' | 'exteriorWidthMm' | 'exteriorHeightMm'>;
 import { getEnclosureById, DIN_MODULE_1P_MM } from '../data/enclosures';
 
 const ROW_HEIGHT_MM = 100;
 const ROW_SPACING_MM = 30;
-const WALL_THICKNESS_MM = 30;
+const WALL_THICKNESS_MM = 2;
 const DEFAULT_FIXING_MARGIN_MM = 30;
 const VERTICAL_PADDING_MM = 40;
 
 export function resolveLayout(state: LayoutInput): ResolvedLayout {
   return state.enclosureId
     ? resolveEnclosureLayout(state.enclosureId)
-    : resolveCustomLayout(state.widthUnits, state.rowCount);
+    : resolveCustomLayout(
+        state.widthUnits,
+        state.rowCount,
+        state.exteriorWidthMm,
+        state.exteriorHeightMm,
+      );
 }
 
 function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
@@ -48,21 +53,55 @@ function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
 function resolveCustomLayout(
   widthUnits: number,
   rowCount: number,
+  exteriorWidthMm?: number,
+  exteriorHeightMm?: number,
 ): ResolvedLayout {
   const usableWidth = widthUnits * DIN_MODULE_1P_MM;
-  const interiorWidth = usableWidth + DEFAULT_FIXING_MARGIN_MM * 2;
-  const interiorHeight =
-    VERTICAL_PADDING_MM * 2 + rowCount * ROW_HEIGHT_MM + (rowCount - 1) * ROW_SPACING_MM;
-  const exteriorWidth = interiorWidth + WALL_THICKNESS_MM * 2;
-  const exteriorHeight = interiorHeight + WALL_THICKNESS_MM * 2;
+  const contentHeight = rowCount * ROW_HEIGHT_MM + (rowCount - 1) * ROW_SPACING_MM;
+
+  let exteriorWidth: number;
+  let exteriorHeight: number;
+  let interiorWidth: number;
+  let interiorHeight: number;
+  let interiorOffsetXMm: number;
+  let interiorOffsetYMm: number;
+  let railFixingMarginMm: number;
+  let railStartYMm: number;
+
+  if (
+    exteriorWidthMm != null &&
+    exteriorHeightMm != null &&
+    exteriorWidthMm > 0 &&
+    exteriorHeightMm > 0
+  ) {
+    exteriorWidth = exteriorWidthMm;
+    exteriorHeight = exteriorHeightMm;
+    interiorWidth = exteriorWidth - WALL_THICKNESS_MM * 2;
+    interiorHeight = exteriorHeight - WALL_THICKNESS_MM * 2;
+    interiorOffsetXMm = WALL_THICKNESS_MM;
+    interiorOffsetYMm = WALL_THICKNESS_MM;
+    railFixingMarginMm = Math.max(0, (interiorWidth - usableWidth) / 2);
+    railStartYMm = Math.max(0, (interiorHeight - contentHeight) / 2);
+  } else {
+    const baseInteriorWidth = usableWidth + DEFAULT_FIXING_MARGIN_MM * 2;
+    const baseInteriorHeight = VERTICAL_PADDING_MM * 2 + contentHeight;
+    exteriorWidth = baseInteriorWidth + WALL_THICKNESS_MM * 2;
+    exteriorHeight = baseInteriorHeight + WALL_THICKNESS_MM * 2;
+    interiorWidth = baseInteriorWidth;
+    interiorHeight = baseInteriorHeight;
+    interiorOffsetXMm = WALL_THICKNESS_MM;
+    interiorOffsetYMm = WALL_THICKNESS_MM;
+    railFixingMarginMm = DEFAULT_FIXING_MARGIN_MM;
+    railStartYMm = VERTICAL_PADDING_MM;
+  }
 
   const rails = Array.from({ length: rowCount }, (_, i) => ({
     id: `row-${i}`,
     xMm: 0,
-    yMm: VERTICAL_PADDING_MM + i * (ROW_HEIGHT_MM + ROW_SPACING_MM) + ROW_HEIGHT_MM / 2 - 5,
+    yMm: railStartYMm + i * (ROW_HEIGHT_MM + ROW_SPACING_MM) + ROW_HEIGHT_MM / 2 - 5,
     widthMm: interiorWidth,
-    usableWidthMm: interiorWidth - DEFAULT_FIXING_MARGIN_MM * 2,
-    fixingMarginMm: DEFAULT_FIXING_MARGIN_MM,
+    usableWidthMm: usableWidth,
+    fixingMarginMm: railFixingMarginMm,
   }));
 
   return {
@@ -70,8 +109,8 @@ function resolveCustomLayout(
     exteriorHeightMm: exteriorHeight,
     interiorWidthMm: interiorWidth,
     interiorHeightMm: interiorHeight,
-    interiorOffsetXMm: WALL_THICKNESS_MM,
-    interiorOffsetYMm: WALL_THICKNESS_MM,
+    interiorOffsetXMm,
+    interiorOffsetYMm,
     rails,
     mountingHoles: [],
     isEnclosure: false,

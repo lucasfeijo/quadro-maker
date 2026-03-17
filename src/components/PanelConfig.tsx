@@ -130,7 +130,7 @@ export const PanelConfig: React.FC = () => {
                 value={widthUnits}
                 onChange={(e) => setWidthUnits(Number(e.target.value))}
               >
-                {[6, 8, 10, 12, 16, 18, 20, 24, 30, 36].map((n) => (
+                {[6, 8, 10, 12, 14, 16, 18, 20, 24, 30, 36].map((n) => (
                   <option key={n} value={n}>
                     {n} unidades ({n * DIN_MODULE_1P_MM}mm)
                   </option>

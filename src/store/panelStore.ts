@@ -80,6 +80,7 @@ interface PanelStore extends PanelState {
   setName: (name: string) => void;
   loadState: (state: PanelState) => void;
   resizePanel: (widthUnits: number, rowCount: number) => void;
+  setPanelDimensions: (widthMm: number, heightMm: number) => void;
 
   markAsSaved: () => void;
   getIsDirty: () => boolean;
@@ -91,6 +92,8 @@ function getSavableSnapshot(s: PanelStore): string {
     enclosureId: s.enclosureId,
     widthUnits: s.widthUnits,
     rowCount: s.rowCount,
+    exteriorWidthMm: s.exteriorWidthMm,
+    exteriorHeightMm: s.exteriorHeightMm,
     rows: s.rows,
     wires: s.wires,
     panelIOs: s.panelIOs,
@@ -605,6 +608,9 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       });
       return { widthUnits, rowCount, rows, enclosureId: null };
     }),
+
+  setPanelDimensions: (widthMm, heightMm) =>
+    set({ exteriorWidthMm: widthMm, exteriorHeightMm: heightMm, enclosureId: null }),
 
   markAsSaved: () => {
     lastSavedSnapshot = getSavableSnapshot(get());
