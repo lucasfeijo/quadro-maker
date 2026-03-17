@@ -4,6 +4,7 @@ import { getModuleById } from '../data/modules';
 import { getComponentById } from '../data/components';
 import type { ComponentSpec } from '../data/components';
 import type { PlacedModule, PanelIOType } from '../types';
+import { getIOTypes } from '../utils/panelIO';
 import { FONT_OPTIONS } from './TextAnnotationLayer';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -470,6 +471,9 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
       (w) => w.sourceInstanceId === ioInstanceId || w.targetInstanceId === ioInstanceId,
     );
     const isInput = selectedIO.direction === 'input';
+    const ioTypes = getIOTypes(selectedIO);
+    const isMultiType = ioTypes.length > 1;
+    const primaryType = ioTypes[0];
     return (
       <div className="properties-panel">
         <h3>{isInput ? 'Entrada' : 'Saída'} do Quadro</h3>
@@ -484,15 +488,21 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
           </div>
           <div className="prop-row">
             <span className="prop-label">Tipo</span>
-            <select
-              className="prop-select"
-              value={selectedIO.type}
-              onChange={(e) => updatePanelIO(selectedIO.id, { type: e.target.value as PanelIOType, customColor: undefined })}
-            >
-              {IO_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+            {isMultiType ? (
+              <span className="prop-value">
+                {ioTypes.map((t) => IO_TYPE_OPTIONS.find((o) => o.value === t)?.label ?? t).join(' + ')}
+              </span>
+            ) : (
+              <select
+                className="prop-select"
+                value={primaryType}
+                onChange={(e) => updatePanelIO(selectedIO.id, { types: [e.target.value as PanelIOType], customColor: undefined })}
+              >
+                {IO_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="prop-row">
             <span className="prop-label">Cor</span>
@@ -500,11 +510,15 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
               <select
                 className="prop-select"
                 style={{ flex: 1 }}
-                value={selectedIO.customColor ? '__custom__' : selectedIO.type}
+                value={
+                  selectedIO.customColor
+                    ? (IO_TYPE_OPTIONS.find((o) => IO_TYPE_COLORS[o.value] === selectedIO.customColor)?.value ?? '__custom__')
+                    : primaryType
+                }
                 onChange={(e) => {
                   const v = e.target.value;
                   if (v === '__custom__') return;
-                  updatePanelIO(selectedIO.id, { customColor: undefined });
+                  updatePanelIO(selectedIO.id, { customColor: IO_TYPE_COLORS[v as PanelIOType] });
                 }}
               >
                 {IO_TYPE_OPTIONS.map((o) => (
@@ -516,7 +530,7 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
               </select>
               <input
                 type="color"
-                value={selectedIO.customColor ?? IO_TYPE_COLORS[selectedIO.type]}
+                value={selectedIO.customColor ?? IO_TYPE_COLORS[primaryType]}
                 onChange={(e) => updatePanelIO(selectedIO.id, { customColor: e.target.value })}
                 style={{ width: 28, height: 28, padding: 0, border: '1px solid #555', borderRadius: 4, cursor: 'pointer', background: 'none' }}
                 title="Cor personalizada"

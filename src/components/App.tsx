@@ -493,6 +493,18 @@ export const App: React.FC = () => {
         return;
       }
 
+      if (data.type === 'new-panel-io-group') {
+        const pos = computeExternalDevicePosition(event);
+        if (pos && data.ioTypes?.length) {
+          const layout = resolveLayout(store);
+          const panelW = mmToPx(layout.exteriorWidthMm);
+          const panelH = mmToPx(layout.exteriorHeightMm);
+          const { edge, positionPercent } = closestEdge(pos.x, pos.y, panelW, panelH);
+          store.addPanelIOGroup(data.direction, data.ioTypes, edge, positionPercent, data.defaultColor);
+        }
+        return;
+      }
+
       if (data.type === 'new-text-annotation') {
         const pos = computeExternalDevicePosition(event);
         if (pos) {

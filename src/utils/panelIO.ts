@@ -1,16 +1,25 @@
-import type { PanelIO, PanelEdge } from '../types';
+import type { PanelIO, PanelEdge, PanelIOType } from '../types';
 
 const WALL_PX = 35;
 const IO_BOX_W = 20;
 const IO_BOX_H = 14;
+
+export function getIOTypes(io: PanelIO): PanelIOType[] {
+  return io.types ?? (io.type != null ? [io.type] : ['phase']);
+}
+
+export interface IOPortPosition {
+  portId: string;
+  x: number;
+  y: number;
+}
 
 export interface IOBoxPosition {
   boxX: number;
   boxY: number;
   boxW: number;
   boxH: number;
-  portX: number;
-  portY: number;
+  ports: IOPortPosition[];
 }
 
 export function getIOPosition(
@@ -18,39 +27,71 @@ export function getIOPosition(
   svgWidth: number,
   svgHeight: number,
 ): IOBoxPosition {
+  const types = getIOTypes(io);
+  const n = types.length;
+  const boxW = IO_BOX_W; // mesma largura para 1, 2 ou 3 fios
   const frac = io.positionPercent / 100;
 
   switch (io.edge) {
     case 'top': {
-      const bx = frac * svgWidth - IO_BOX_W / 2;
+      const bx = frac * svgWidth - boxW / 2;
       const by = (WALL_PX - IO_BOX_H) / 2 + 4;
-      return { boxX: bx, boxY: by, boxW: IO_BOX_W, boxH: IO_BOX_H, portX: bx + IO_BOX_W / 2, portY: WALL_PX + 3 };
+      const portY = WALL_PX + 3;
+      const ports = types.map((t, i) => ({
+        portId: t,
+        x: n <= 1 ? bx + boxW / 2 : bx + 4 + (n > 1 ? (boxW - 8) * (i / (n - 1)) : 0),
+        y: portY,
+      }));
+      return { boxX: bx, boxY: by, boxW, boxH: IO_BOX_H, ports };
     }
     case 'bottom': {
-      const bx = frac * svgWidth - IO_BOX_W / 2;
+      const bx = frac * svgWidth - boxW / 2;
       const by = svgHeight - (WALL_PX + IO_BOX_H) / 2 - 4;
-      return { boxX: bx, boxY: by, boxW: IO_BOX_W, boxH: IO_BOX_H, portX: bx + IO_BOX_W / 2, portY: svgHeight - WALL_PX - 3 };
+      const portY = svgHeight - WALL_PX - 3;
+      const ports = types.map((t, i) => ({
+        portId: t,
+        x: n <= 1 ? bx + boxW / 2 : bx + 4 + (n > 1 ? (boxW - 8) * (i / (n - 1)) : 0),
+        y: portY,
+      }));
+      return { boxX: bx, boxY: by, boxW, boxH: IO_BOX_H, ports };
     }
     case 'left': {
-      const bx = (WALL_PX - IO_BOX_W) / 2;
+      const bx = (WALL_PX - boxW) / 2;
       const by = frac * svgHeight - IO_BOX_H / 2;
-      return { boxX: bx, boxY: by, boxW: IO_BOX_W, boxH: IO_BOX_H, portX: WALL_PX + 3, portY: by + IO_BOX_H / 2 };
+      const portX = WALL_PX + 3;
+      const ports = types.map((t, i) => ({
+        portId: t,
+        x: portX,
+        y: n <= 1 ? by + IO_BOX_H / 2 : by + 4 + (n > 1 ? (IO_BOX_H - 8) * (i / (n - 1)) : 0),
+      }));
+      return { boxX: bx, boxY: by, boxW, boxH: IO_BOX_H, ports };
     }
     case 'right': {
-      const bx = svgWidth - (WALL_PX + IO_BOX_W) / 2;
+      const bx = svgWidth - (WALL_PX + boxW) / 2;
       const by = frac * svgHeight - IO_BOX_H / 2;
-      return { boxX: bx, boxY: by, boxW: IO_BOX_W, boxH: IO_BOX_H, portX: svgWidth - WALL_PX - 3, portY: by + IO_BOX_H / 2 };
+      const portX = svgWidth - WALL_PX - 3;
+      const ports = types.map((t, i) => ({
+        portId: t,
+        x: portX,
+        y: n <= 1 ? by + IO_BOX_H / 2 : by + 4 + (n > 1 ? (IO_BOX_H - 8) * (i / (n - 1)) : 0),
+      }));
+      return { boxX: bx, boxY: by, boxW, boxH: IO_BOX_H, ports };
     }
   }
 }
 
 export function getIOPortPosition(
   io: PanelIO,
+  portId: string,
   svgWidth: number,
   svgHeight: number,
-): { x: number; y: number; type: string } {
+): { x: number; y: number; type: string } | null {
   const pos = getIOPosition(io, svgWidth, svgHeight);
-  return { x: pos.portX, y: pos.portY, type: io.type };
+  const types = getIOTypes(io);
+  const pid = portId === 'port' && types.length > 0 ? types[0] : portId;
+  const p = pos.ports.find((x) => x.portId === pid);
+  if (!p) return null;
+  return { x: p.x, y: p.y, type: p.portId };
 }
 
 export function closestEdge(

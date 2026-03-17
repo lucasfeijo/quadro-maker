@@ -736,7 +736,8 @@ export const WireLayer: React.FC<Props> = ({
       const ioId = instanceId.replace('panel-io:', '');
       const io = panelIOs.find((i) => i.id === ioId);
       if (!io) return null;
-      const pos = getIOPortPosition(io, panelWidth, panelHeight);
+      const pos = getIOPortPosition(io, portId, panelWidth, panelHeight);
+      if (!pos) return null;
       const edgeSide: PortPosition['side'] =
         io.edge === 'top' ? 'bottom'
         : io.edge === 'bottom' ? 'top'

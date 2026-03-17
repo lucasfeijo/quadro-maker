@@ -99,7 +99,10 @@ export type PanelIO = {
   id: string;
   label: string;
   direction: PanelIODirection;
-  type: PanelIOType;
+  /** @deprecated Use types. Kept for backward compat. */
+  type?: PanelIOType;
+  /** Connection types - one per port. Single IO = [type], group = [phase, neutral, ground] etc. */
+  types: PanelIOType[];
   edge: PanelEdge;
   positionPercent: number;
   voltageV?: number;

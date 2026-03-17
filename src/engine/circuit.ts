@@ -1,4 +1,5 @@
 import { PlacedModule, Wire, PanelIO, ExternalDevice, ComponentState } from '../types';
+import { getIOTypes } from '../utils/panelIO';
 import { getComponentById, allComponents } from '../data/components';
 import type { ComponentSpec, ModeSpec, InternalRoute, BehaviorContext } from '../data/components';
 
@@ -281,7 +282,7 @@ export function simulate(
         if (!state.on) return;
         const ioId = instanceId.replace('panel-io:', '');
         const io = panelIOs.find((p) => p.id === ioId);
-        const portIds = io ? [`in-${io.label}`, `out-${io.label}`, io.id, 'port'] : ['port'];
+        const portIds = io ? [...getIOTypes(io), 'port'] : ['port'];
         const allPortIds = [entryPortId, ...portIds];
         for (const pid of allPortIds) {
           const edges = graph.wiresByPort.get(portKey(instanceId, pid));
@@ -345,9 +346,14 @@ export function simulate(
 
     for (const rootId of roots) {
       const rootIO = panelIOs.find((io) => `panel-io:${io.id}` === rootId);
-      const voltage = rootIO?.voltageV ?? (rootIO?.type === 'dc_pos' || rootIO?.type === 'dc_neg' ? 24 : DEFAULT_VOLTAGE);
+      const types = rootIO ? getIOTypes(rootIO) : ['phase'];
+      const firstType = types[0];
+      const voltage = rootIO?.voltageV ?? (firstType === 'dc_pos' || firstType === 'dc_neg' ? 24 : DEFAULT_VOLTAGE);
       const maxCurrent = rootIO?.maxCurrentA ?? totalLoad;
-      propagateFromPort(rootId, 'port', voltage, Math.min(totalLoad, maxCurrent));
+      const curPerPort = Math.min(totalLoad, maxCurrent) / types.length;
+      for (const t of types) {
+        propagateFromPort(rootId, t, voltage, curPerPort);
+      }
     }
 
     // ---------- Run behavior functions ----------
@@ -423,7 +429,7 @@ export function simulate(
     }
   }
 
-  const hasGroundIO = panelIOs.some((io) => io.type === 'ground');
+  const hasGroundIO = panelIOs.some((io) => getIOTypes(io).includes('ground'));
   if (!hasGroundIO && allModules.length > 0) {
     alerts.push({ type: 'info', instanceId: '', message: 'Nenhum terra definido no quadro' });
   }

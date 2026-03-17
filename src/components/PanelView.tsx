@@ -10,7 +10,7 @@ import { PanelIOLayer } from './PanelIOLayer';
 import { ExternalDeviceLayer, getExternalDeviceBounds, getExternalDevicePortPosition } from './ExternalDeviceLayer';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { FitToWidthIcon, FitToContainerIcon } from './ZoomIcons';
-import { getIOPosition } from '../utils/panelIO';
+import { getIOPortPosition } from '../utils/panelIO';
 import type { GhostPreview, ComponentState } from '../types';
 
 const MARGIN = 15;
@@ -177,8 +177,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
         const ioId = instanceId.replace('panel-io:', '');
         const io = state.panelIOs.find((p) => p.id === ioId);
         if (!io) return null;
-        const pos = getIOPosition(io, svgWidth, svgHeight);
-        return { x: pos.portX, y: pos.portY };
+        const ppos = getIOPortPosition(io, portId, svgWidth, svgHeight);
+        return ppos ? { x: ppos.x, y: ppos.y } : null;
       }
       const extDev = state.externalDevices.find((d) => d.instanceId === instanceId);
       if (extDev) return getExternalDevicePortPosition(extDev, portId);

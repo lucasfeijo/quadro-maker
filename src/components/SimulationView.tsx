@@ -166,7 +166,8 @@ export const SimulationOverlay: React.FC<SimulationOverlayProps> = ({ onEnergize
               const ioId = state.instanceId.replace('panel-io:', '');
               const io = panelIOs.find((i) => i.id === ioId);
               if (!io) return null;
-              const color = IO_COLORS[io.type] ?? '#999';
+              const types = io.types ?? (io.type != null ? [io.type] : ['phase']);
+              const color = IO_COLORS[types[0]] ?? '#999';
               const energized = state.voltageV > 0;
               return (
                 <div
@@ -178,7 +179,7 @@ export const SimulationOverlay: React.FC<SimulationOverlayProps> = ({ onEnergize
                 >
                   <span className="sim-item-color" style={{ background: state.on ? color : '#555' }} />
                   <span className="sim-item-name">
-                    {io.label || `${io.direction === 'input' ? 'E' : 'S'} ${IO_TYPE_LABELS[io.type] ?? io.type}`}
+                    {io.label || `${io.direction === 'input' ? 'E' : 'S'} ${types.map((t) => IO_TYPE_LABELS[t] ?? t).join('+')}`}
                   </span>
                   <span className="sim-item-status">
                     {state.on ? (energized ? `${state.voltageV.toFixed(0)}V` : 'ON') : 'OFF'}

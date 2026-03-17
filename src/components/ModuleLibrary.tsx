@@ -49,6 +49,20 @@ const IO_ITEMS: {
   { direction: 'output', type: 'signal', defaultEdge: 'right', label: 'Saída Sinal', color: '#f57c00', abbr: 'SIG' },
 ];
 
+const IO_GROUP_ITEMS: {
+  direction: PanelIODirection;
+  types: PanelIOType[];
+  defaultEdge: PanelEdge;
+  label: string;
+  abbr: string;
+  color: string;
+}[] = [
+  { direction: 'input', types: ['phase', 'neutral', 'ground'], defaultEdge: 'top', label: 'Entrada F+N+T', abbr: 'F+N+PE', color: '#5d4037' },
+  { direction: 'input', types: ['phase', 'neutral'], defaultEdge: 'top', label: 'Entrada F+N', abbr: 'F+N', color: '#37474f' },
+  { direction: 'output', types: ['phase', 'neutral', 'ground'], defaultEdge: 'bottom', label: 'Saída F+N+T', abbr: 'F+N+PE', color: '#5d4037' },
+  { direction: 'output', types: ['phase', 'neutral'], defaultEdge: 'bottom', label: 'Saída F+N', abbr: 'F+N', color: '#37474f' },
+];
+
 function DraggableModule({ moduleId, name, color, widthMm, icon, imageUrl }: {
   moduleId: string;
   name: string;
@@ -108,6 +122,35 @@ function IOItem({ direction, type, defaultEdge, label, color, abbr }: typeof IO_
       <div className="library-item-info">
         <span className="library-item-name">{label}</span>
         <span className="library-item-size">Arraste para o painel</span>
+      </div>
+    </div>
+  );
+}
+
+function IOGroupItem({ direction, types, defaultEdge, label, abbr, color }: typeof IO_GROUP_ITEMS[number]) {
+  const groupId = `library-io-group-${direction}-${types.join('-')}`;
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: groupId,
+    data: { type: 'new-panel-io-group', direction, ioTypes: types, defaultEdge, defaultColor: color },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className="library-item io-item"
+      style={{ borderLeftColor: color, opacity: isDragging ? 0.4 : 1 }}
+    >
+      <div
+        className="library-item-icon"
+        style={{ background: color, borderRadius: 4, width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 700 }}
+      >
+        {abbr}
+      </div>
+      <div className="library-item-info">
+        <span className="library-item-name">{label}</span>
+        <span className="library-item-size">{types.length} pontos · Arraste para o painel</span>
       </div>
     </div>
   );
@@ -245,6 +288,14 @@ export const ModuleLibrary: React.FC = () => {
     () => IO_ITEMS.filter((i) => i.direction === 'output' && matchesFilter(i.label)),
     [matchesFilter],
   );
+  const filteredInputGroups = useMemo(
+    () => IO_GROUP_ITEMS.filter((g) => g.direction === 'input' && matchesFilter(g.label)),
+    [matchesFilter],
+  );
+  const filteredOutputGroups = useMemo(
+    () => IO_GROUP_ITEMS.filter((g) => g.direction === 'output' && matchesFilter(g.label)),
+    [matchesFilter],
+  );
   const filteredExternal = useMemo(
     () => EXTERNAL_MODULES.filter((m) => matchesFilter(m.name) && !BUSBAR_SCREW_IDS.includes(m.id)),
     [matchesFilter],
@@ -260,7 +311,7 @@ export const ModuleLibrary: React.FC = () => {
   );
   const hasBusbars = filteredBusbarRail.length > 0 || filteredBusbarScrew.length > 0;
 
-  const hasIO = filteredInputIO.length > 0 || filteredOutputIO.length > 0;
+  const hasIO = filteredInputIO.length > 0 || filteredOutputIO.length > 0 || filteredInputGroups.length > 0 || filteredOutputGroups.length > 0;
   const hasExternal = filteredExternal.length > 0;
 
   return (
@@ -293,12 +344,18 @@ export const ModuleLibrary: React.FC = () => {
       ))}
 
       {hasIO && <h3 style={{ marginTop: 20 }}>Entradas & Saídas</h3>}
-      <CollapsibleGroup label="Entradas" visible={filteredInputIO.length > 0} defaultOpen>
+      <CollapsibleGroup label="Entradas" visible={filteredInputIO.length > 0 || filteredInputGroups.length > 0} defaultOpen>
+        {filteredInputGroups.map((item) => (
+          <IOGroupItem key={`${item.direction}-${item.types.join('-')}`} {...item} />
+        ))}
         {filteredInputIO.map((item) => (
           <IOItem key={`${item.direction}-${item.type}`} {...item} />
         ))}
       </CollapsibleGroup>
-      <CollapsibleGroup label="Saídas" visible={filteredOutputIO.length > 0} defaultOpen>
+      <CollapsibleGroup label="Saídas" visible={filteredOutputIO.length > 0 || filteredOutputGroups.length > 0} defaultOpen>
+        {filteredOutputGroups.map((item) => (
+          <IOGroupItem key={`${item.direction}-${item.types.join('-')}`} {...item} />
+        ))}
         {filteredOutputIO.map((item) => (
           <IOItem key={`${item.direction}-${item.type}`} {...item} />
         ))}

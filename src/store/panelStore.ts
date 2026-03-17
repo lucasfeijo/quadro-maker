@@ -54,8 +54,9 @@ interface PanelStore extends PanelState {
 
   // Panel I/O
   addPanelIO: (direction: PanelIODirection, type: PanelIOType, edge: PanelEdge, positionPercent: number, label?: string) => void;
+  addPanelIOGroup: (direction: PanelIODirection, types: PanelIOType[], edge: PanelEdge, basePositionPercent: number, defaultColor?: string) => void;
   removePanelIO: (ioId: string) => void;
-  updatePanelIO: (ioId: string, props: Partial<Pick<PanelIO, 'label' | 'type' | 'voltageV' | 'maxCurrentA' | 'consumptionA' | 'customColor'>>) => void;
+  updatePanelIO: (ioId: string, props: Partial<Pick<PanelIO, 'label' | 'type' | 'types' | 'voltageV' | 'maxCurrentA' | 'consumptionA' | 'customColor'>>) => void;
   movePanelIO: (ioId: string, edge: PanelEdge, positionPercent: number) => void;
   selectIO: (ioId: string | null) => void;
 
@@ -339,9 +340,33 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         id: nanoid(),
         label: autoLabel,
         direction,
-        type,
+        types: [type],
         edge,
         positionPercent,
+        ...(direction === 'input'
+          ? { voltageV: defaultVoltage, maxCurrentA: 63 }
+          : { consumptionA: 0 }),
+      };
+      return { panelIOs: [...s.panelIOs, newIO] };
+    }),
+
+  addPanelIOGroup: (direction, types, edge, basePositionPercent, defaultColor) =>
+    set((s) => {
+      const sameDir = s.panelIOs.filter((io) => io.direction === direction);
+      const nextIndex = sameDir.length;
+      const typesLabel = types.map((t) => IO_TYPE_LABELS[t] ?? t).join('+');
+      const autoLabel = `${direction === 'input' ? 'E' : 'S'}${nextIndex + 1} ${typesLabel}`;
+      const firstType = types[0];
+      const isDC = firstType === 'dc_pos' || firstType === 'dc_neg';
+      const defaultVoltage = isDC ? 24 : 220;
+      const newIO: PanelIO = {
+        id: nanoid(),
+        label: autoLabel,
+        direction,
+        types,
+        edge,
+        positionPercent: basePositionPercent,
+        ...(defaultColor ? { customColor: defaultColor } : {}),
         ...(direction === 'input'
           ? { voltageV: defaultVoltage, maxCurrentA: 63 }
           : { consumptionA: 0 }),
@@ -551,11 +576,16 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         !w.sourceInstanceId?.startsWith('busbar:') && !w.targetInstanceId?.startsWith('busbar:'),
     );
 
+    // Migrate PanelIO: ensure types[] exists (legacy had type only)
+    const migratedPanelIOs = (state.panelIOs ?? []).map((io: any) =>
+      io.types ? io : { ...io, types: io.type != null ? [io.type] : ['phase'] },
+    );
+
     const normalized = {
       ...state,
       rows: migratedRows,
       wires: wiresFiltered,
-      panelIOs: state.panelIOs ?? [],
+      panelIOs: migratedPanelIOs,
       externalDevices: normalizedExtDevices,
       textAnnotations: state.textAnnotations ?? [],
     };

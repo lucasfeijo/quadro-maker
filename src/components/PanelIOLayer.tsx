@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePanelStore } from '../store/panelStore';
-import { getIOPosition, closestEdge } from '../utils/panelIO';
+import { getIOPosition, getIOTypes, closestEdge } from '../utils/panelIO';
 
 const IO_COLORS: Record<string, string> = {
   phase: '#d32f2f',
@@ -228,16 +228,11 @@ export const PanelIOLayer: React.FC<Props> = ({
       )}
       {panelIOs.map((io) => {
         const pos = getIOPosition(io, svgWidth, svgHeight);
-        const color = io.customColor ?? IO_COLORS[io.type] ?? '#999';
+        const types = getIOTypes(io);
+        const primaryColor = io.customColor ?? IO_COLORS[types[0]] ?? '#999';
         const isSelected = io.id === selectedIOId;
         const instanceId = `panel-io:${io.id}`;
-        const portId = 'port';
-        const isWiringSource = wiringFrom?.instanceId === instanceId && wiringFrom?.portId === portId;
-        const isConnected = wires.some(
-          (w) =>
-            (w.sourceInstanceId === instanceId && w.sourcePortId === portId) ||
-            (w.targetInstanceId === instanceId && w.targetPortId === portId),
-        );
+        const typeLabel = types.map((t) => IO_LABELS[t] ?? t).join('+');
 
         return (
           <g key={io.id}>
@@ -248,7 +243,7 @@ export const PanelIOLayer: React.FC<Props> = ({
               width={pos.boxW}
               height={pos.boxH}
               rx={2}
-              fill={color}
+              fill={primaryColor}
               opacity={0.92}
               stroke={isSelected ? '#ffd600' : '#fff'}
               strokeWidth={isSelected ? 1.5 : 0.5}
@@ -262,12 +257,12 @@ export const PanelIOLayer: React.FC<Props> = ({
               y={pos.boxY + pos.boxH / 2 - 1.5}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={5}
+              fontSize={types.length > 1 ? 4 : 5}
               fill="#fff"
               fontWeight={700}
               style={{ pointerEvents: 'none', userSelect: 'none' }}
             >
-              {IO_LABELS[io.type] ?? io.type}
+              {typeLabel}
             </text>
             {/* Direction arrow */}
             <text
@@ -327,43 +322,45 @@ export const PanelIOLayer: React.FC<Props> = ({
               );
             })()}
 
-            {/* Port dot for wiring */}
-            <g
-              data-wire-instance-id={instanceId}
-              data-wire-port-id={portId}
-              style={{ cursor: 'pointer' }}
-              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onPortMouseDown?.(instanceId, portId); }}
-              onPointerUp={(e) => { e.stopPropagation(); onPortMouseUp?.(instanceId, portId); }}
-              onClick={(e) => { e.stopPropagation(); onPortClick?.(instanceId, portId); }}
-              onPointerEnter={() => onPortHover?.(instanceId, portId)}
-              onPointerLeave={() => onPortLeave?.()}
-            >
-              {isWiringSource && (
-                <circle cx={pos.portX} cy={pos.portY} r={DOT_R + 1.5} fill="none" stroke="#ffd600" strokeWidth={0.5} opacity={0.8}>
-                  <animate attributeName="r" values={`${DOT_R + 1};${DOT_R + 2.5};${DOT_R + 1}`} dur="1s" repeatCount="indefinite" />
-                </circle>
-              )}
-              <circle
-                cx={pos.portX}
-                cy={pos.portY}
-                r={DOT_R}
-                fill={isConnected ? color : '#fff'}
-                stroke={color}
-                strokeWidth={0.5}
-              />
-            </g>
+            {/* Port dots for wiring - one per type */}
+            {pos.ports.map((port) => {
+              const portColor = IO_COLORS[port.portId] ?? '#999'; // sempre da cor do tipo (fase/neutro/terra)
+              const isWiringSource = wiringFrom?.instanceId === instanceId && wiringFrom?.portId === port.portId;
+              const isConnected = wires.some(
+                (w) =>
+                  (w.sourceInstanceId === instanceId && w.sourcePortId === port.portId) ||
+                  (w.targetInstanceId === instanceId && w.targetPortId === port.portId),
+              );
+              const lineX1 = (io.edge === 'left' || io.edge === 'right')
+                ? (io.edge === 'left' ? pos.boxX + pos.boxW : pos.boxX)
+                : port.x;
+              const lineY1 = (io.edge === 'top' || io.edge === 'bottom')
+                ? (io.edge === 'top' ? pos.boxY + pos.boxH : pos.boxY)
+                : port.y;
 
-            {/* Connection line from box to port */}
-            <line
-              x1={pos.boxX + pos.boxW / 2}
-              y1={io.edge === 'top' ? pos.boxY + pos.boxH : io.edge === 'bottom' ? pos.boxY : io.edge === 'left' ? pos.boxY + pos.boxH / 2 : pos.boxY + pos.boxH / 2}
-              x2={pos.portX}
-              y2={pos.portY}
-              stroke={color}
-              strokeWidth={0.6}
-              opacity={0.6}
-              style={{ pointerEvents: 'none' }}
-            />
+              return (
+                <g key={port.portId}>
+                  <line x1={lineX1} y1={lineY1} x2={port.x} y2={port.y} stroke={portColor} strokeWidth={0.6} opacity={0.6} style={{ pointerEvents: 'none' }} />
+                  <g
+                    data-wire-instance-id={instanceId}
+                    data-wire-port-id={port.portId}
+                    style={{ cursor: 'pointer' }}
+                    onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onPortMouseDown?.(instanceId, port.portId); }}
+                    onPointerUp={(e) => { e.stopPropagation(); onPortMouseUp?.(instanceId, port.portId); }}
+                    onClick={(e) => { e.stopPropagation(); onPortClick?.(instanceId, port.portId); }}
+                    onPointerEnter={() => onPortHover?.(instanceId, port.portId)}
+                    onPointerLeave={() => onPortLeave?.()}
+                  >
+                    {isWiringSource && (
+                      <circle cx={port.x} cy={port.y} r={DOT_R + 1.5} fill="none" stroke="#ffd600" strokeWidth={0.5} opacity={0.8}>
+                        <animate attributeName="r" values={`${DOT_R + 1};${DOT_R + 2.5};${DOT_R + 1}`} dur="1s" repeatCount="indefinite" />
+                      </circle>
+                    )}
+                    <circle cx={port.x} cy={port.y} r={DOT_R} fill={isConnected ? portColor : '#fff'} stroke={portColor} strokeWidth={0.5} />
+                  </g>
+                </g>
+              );
+            })}
           </g>
         );
       })}
