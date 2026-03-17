@@ -65,15 +65,18 @@ function ComponentInfoSection({ spec }: { spec: ComponentSpec }) {
     <>
       {spec.description && (
         <div className="prop-section" style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>Funcionamento</div>
-          <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>{spec.description}</div>
+          <div style={{ padding: '12px 14px' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>Funcionamento</div>
+            <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>{spec.description}</div>
+          </div>
         </div>
       )}
 
       {spec.ports.length > 0 && (
         <div className="prop-section" style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>Portas</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div style={{ padding: '12px 14px' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 4 }}>Portas</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {spec.ports.map((port) => {
               const desc = spec.portDescriptions?.[port.id];
               return (
@@ -101,6 +104,7 @@ function ComponentInfoSection({ spec }: { spec: ComponentSpec }) {
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
       )}
