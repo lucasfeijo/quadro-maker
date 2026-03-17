@@ -966,7 +966,10 @@ html, body, #root {
 }
 
 .editor-body:has(> .properties-panel) .panel-view-inner {
+  /* Evita que o content box encolha (border-box): compensar o padding extra
+     para manter a área central do canvas estável e impedir que o SVG se desloque */
   padding-right: 280px;
+  min-width: calc(100% + 260px); /* 260 = delta do padding-right (280 - 20) */
 }
 
 .editor-body:has(> .properties-panel) .zoom-controls {
