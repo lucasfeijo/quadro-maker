@@ -35,7 +35,23 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [showSaveAsModal, setShowSaveAsModal] = useState(false);
   const [saveAsName, setSaveAsName] = useState('');
+  const [showLeaveConfirmModal, setShowLeaveConfirmModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const handleBackToMenu = () => {
+    if (store.getIsDirty()) {
+      setShowLeaveConfirmModal(true);
+    } else {
+      store.goToSetup();
+      navigate('/');
+    }
+  };
+
+  const confirmLeaveToMenu = () => {
+    store.goToSetup();
+    navigate('/');
+    setShowLeaveConfirmModal(false);
+  };
 
   useEffect(() => {
     if (openMenu === null) return;
@@ -178,7 +194,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
   return (
     <div className="toolbar" ref={menuRef}>
-      <button className="toolbar-btn back-btn" onClick={() => { store.goToSetup(); navigate('/'); }}>
+      <button className="toolbar-btn back-btn" onClick={handleBackToMenu}>
         ← Menu
       </button>
       <input
@@ -337,6 +353,23 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 Aplicar
               </button>
               <button className="toolbar-btn" style={{ flex: 1 }} onClick={() => setShowOptionsModal(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLeaveConfirmModal && (
+        <div className="modal-overlay" onClick={() => setShowLeaveConfirmModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Alterações não salvas</h3>
+            <p>Você tem alterações que não foram salvas. Deseja sair e descartar o progresso?</p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button className="toolbar-btn" style={{ flex: 1 }} onClick={confirmLeaveToMenu}>
+                Sair sem salvar
+              </button>
+              <button className="toolbar-btn" style={{ flex: 1 }} onClick={() => setShowLeaveConfirmModal(false)}>
                 Cancelar
               </button>
             </div>

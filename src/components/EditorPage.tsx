@@ -82,15 +82,19 @@ export const EditorPage: React.FC = () => {
   const hoverPortRef = useRef<{ instanceId: string; portId: string } | null>(null);
 
   useEffect(() => {
-    if (projectId && projectId !== 'new') {
-      const state = loadProject(projectId);
-      if (!state) {
-        navigate('/');
-        return;
-      }
-      store.loadState(state);
+    if (!projectId) return;
+    if (projectId === 'new') {
+      // Projeto novo: marca estado inicial como baseline (sem alterações ainda)
       store.markAsSaved();
+      return;
     }
+    const state = loadProject(projectId);
+    if (!state) {
+      navigate('/');
+      return;
+    }
+    store.loadState(state);
+    store.markAsSaved();
     // store omitted from deps - it triggers re-renders when updated, causing infinite loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, navigate]);
