@@ -126,34 +126,61 @@ export const ModuleBlock: React.FC<Props> = ({
         y={y + h * 0.08}
       />
       {def.widthMm >= 30 ? (
-        <>
-          <text
-            x={x + w / 2}
-            y={mod.label ? y + h * 0.62 : y + h * 0.7}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fill="#fff"
-            fontSize={Math.min(3.2, w * 0.35)}
-            fontWeight={600}
-            style={{ pointerEvents: 'none', userSelect: 'none' }}
-          >
-            {def.name}
-          </text>
-          {mod.label && (
-            <text
-              x={x + w / 2}
-              y={y + h * 0.8}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill="rgba(255,255,255,0.85)"
-              fontSize={Math.min(2.8, w * 0.3)}
-              fontWeight={500}
-              style={{ pointerEvents: 'none', userSelect: 'none' }}
-            >
-              {mod.label}
-            </text>
-          )}
-        </>
+        (() => {
+          const nominalA = mod.properties?.nominalCurrentA;
+          const ampLabel = nominalA != null ? `${nominalA}A` : null;
+          const hasLabel = !!mod.label;
+          const hasAmp = !!ampLabel;
+          const nameY = hasLabel
+            ? (hasAmp ? y + h * 0.58 : y + h * 0.62)
+            : (hasAmp ? y + h * 0.62 : y + h * 0.7);
+          const labelY = hasAmp ? y + h * 0.70 : y + h * 0.8;
+          const ampY = hasLabel ? y + h * 0.80 : y + h * 0.78;
+          return (
+            <>
+              <text
+                x={x + w / 2}
+                y={nameY}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="#fff"
+                fontSize={Math.min(3.2, w * 0.35)}
+                fontWeight={600}
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
+              >
+                {def.name}
+              </text>
+              {hasLabel && (
+                <text
+                  x={x + w / 2}
+                  y={labelY}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill="rgba(255,255,255,0.85)"
+                  fontSize={Math.min(2.8, w * 0.3)}
+                  fontWeight={500}
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {mod.label}
+                </text>
+              )}
+              {hasAmp && (
+                <text
+                  x={x + w / 2}
+                  y={ampY}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill="rgba(255,255,255,0.7)"
+                  fontSize={Math.min(2.8, w * 0.3)}
+                  fontWeight={600}
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {ampLabel}
+                </text>
+              )}
+            </>
+          );
+        })()
       ) : mod.label ? (
         <text
           x={x + w / 2}

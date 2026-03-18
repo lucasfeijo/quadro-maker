@@ -309,34 +309,61 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
                   y={by + boxH * 0.08}
                 />
                 {def.widthMm >= 30 ? (
-                  <>
-                    <text
-                      x={bx + boxW / 2}
-                      y={dev.label ? by + boxH * 0.62 : by + boxH * 0.7}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fill="#fff"
-                      fontSize={Math.min(3.2, boxW * 0.35)}
-                      fontWeight={600}
-                      style={{ pointerEvents: 'none', userSelect: 'none' }}
-                    >
-                      {def.name}
-                    </text>
-                    {dev.label && (
-                      <text
-                        x={bx + boxW / 2}
-                        y={by + boxH * 0.8}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fill="rgba(255,255,255,0.85)"
-                        fontSize={Math.min(2.8, boxW * 0.3)}
-                        fontWeight={500}
-                        style={{ pointerEvents: 'none', userSelect: 'none' }}
-                      >
-                        {dev.label}
-                      </text>
-                    )}
-                  </>
+                  (() => {
+                    const nominalA = dev.properties?.nominalCurrentA;
+                    const ampLabel = nominalA != null ? `${nominalA}A` : null;
+                    const hasLabel = !!dev.label;
+                    const hasAmp = !!ampLabel;
+                    const nameY = hasLabel
+                      ? (hasAmp ? by + boxH * 0.58 : by + boxH * 0.62)
+                      : (hasAmp ? by + boxH * 0.62 : by + boxH * 0.7);
+                    const labelY = hasAmp ? by + boxH * 0.70 : by + boxH * 0.8;
+                    const ampY = hasLabel ? by + boxH * 0.80 : by + boxH * 0.78;
+                    return (
+                      <>
+                        <text
+                          x={bx + boxW / 2}
+                          y={nameY}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fill="#fff"
+                          fontSize={Math.min(3.2, boxW * 0.35)}
+                          fontWeight={600}
+                          style={{ pointerEvents: 'none', userSelect: 'none' }}
+                        >
+                          {def.name}
+                        </text>
+                        {hasLabel && (
+                          <text
+                            x={bx + boxW / 2}
+                            y={labelY}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            fill="rgba(255,255,255,0.85)"
+                            fontSize={Math.min(2.8, boxW * 0.3)}
+                            fontWeight={500}
+                            style={{ pointerEvents: 'none', userSelect: 'none' }}
+                          >
+                            {dev.label}
+                          </text>
+                        )}
+                        {hasAmp && (
+                          <text
+                            x={bx + boxW / 2}
+                            y={ampY}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            fill="rgba(255,255,255,0.7)"
+                            fontSize={Math.min(2.8, boxW * 0.3)}
+                            fontWeight={600}
+                            style={{ pointerEvents: 'none', userSelect: 'none' }}
+                          >
+                            {ampLabel}
+                          </text>
+                        )}
+                      </>
+                    );
+                  })()
                 ) : dev.label ? (
                   <text
                     x={bx + boxW / 2}
@@ -367,20 +394,6 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
             );
             })()}
 
-            {isBar && (
-              <text
-                x={bx + boxW / 2}
-                y={by + boxH / 2}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={3.2}
-                fontWeight={700}
-                fill="#fff"
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
-              >
-                {dev.label || def.name}
-              </text>
-            )}
 
             {def.category === 'switch' && !isBar && !isDual && (
               <g opacity={0.9} style={{ pointerEvents: 'none' }}>
