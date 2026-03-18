@@ -926,33 +926,6 @@ export const PanelView: React.FC<PanelViewProps> = ({
           fill="url(#grid-dots)"
         />
 
-        {/* Panel dimensions (top-left, same layout as din rail labels) */}
-        <g className="panel-dimension-labels">
-          <text
-            className="rail-length-label"
-            x={-mmToPx(7)}
-            y={mmToPx(6.5)}
-            textAnchor="start"
-            dominantBaseline="hanging"
-            fill="#607d8b"
-            fontSize={2.2}
-            transform={`rotate(-90, ${-mmToPx(3.5)}, ${mmToPx(8)})`}
-          >
-            {layout.exteriorHeightMm}mm
-          </text>
-          <text
-            className="rail-length-label"
-            x={mmToPx(3.5)}
-            y={-mmToPx(3.5)}
-            textAnchor="start"
-            dominantBaseline="auto"
-            fill="#607d8b"
-            fontSize={2.2}
-          >
-            {layout.exteriorWidthMm}mm
-          </text>
-        </g>
-
         {/* Exterior shell */}
         <rect
           x={0}
@@ -975,6 +948,33 @@ export const PanelView: React.FC<PanelViewProps> = ({
           stroke="#bbb"
           strokeWidth={0.3}
         />
+
+        {/* Panel dimensions (outer edge of inner wall) */}
+        <g className="panel-dimension-labels">
+          <text
+            className="rail-length-label"
+            x={intX - 3}
+            y={intY + 5}
+            textAnchor="end"
+            dominantBaseline="hanging"
+            fill="#607d8b"
+            fontSize={2.2}
+            transform={`rotate(-90, ${intX - 3}, ${intY + 5})`}
+          >
+            {layout.exteriorHeightMm}mm
+          </text>
+          <text
+            className="rail-length-label"
+            x={intX + 3}
+            y={intY - 1.5}
+            textAnchor="start"
+            dominantBaseline="auto"
+            fill="#607d8b"
+            fontSize={2.2}
+          >
+            {layout.exteriorWidthMm}mm
+          </text>
+        </g>
 
         {/* Mounting holes */}
         {layout.mountingHoles.map((hole, i) => (
