@@ -276,30 +276,78 @@ export const PanelIOLayer: React.FC<Props> = ({
             >
               {DIR_ARROWS[io.direction]}
             </text>
-            {/* Label outside the box */}
-            {io.label && (
-              <text
-                x={pos.boxX + pos.boxW / 2}
-                y={io.edge === 'bottom' ? pos.boxY + pos.boxH + 5.5 : pos.boxY - 3.5}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize={3.8}
-                fill="#333"
-                fontWeight={600}
-                stroke="#fff"
-                strokeWidth={2.5}
-                paintOrder="stroke"
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
-              >
-                {io.label}
-              </text>
-            )}
+            {/* Label outside the box (on the outer side of the panel) */}
+            {io.label && (() => {
+              const isSide = io.edge === 'left' || io.edge === 'right';
+              if (isSide) {
+                const lx = io.edge === 'left' ? pos.boxX - 3.5 : pos.boxX + pos.boxW + 3.5;
+                const ly = pos.boxY + pos.boxH / 2;
+                const anchor = io.edge === 'left' ? 'end' : 'start';
+                return (
+                  <text
+                    x={lx}
+                    y={ly}
+                    textAnchor={anchor}
+                    dominantBaseline="middle"
+                    fontSize={3.8}
+                    fill="#333"
+                    fontWeight={600}
+                    stroke="#fff"
+                    strokeWidth={2.5}
+                    paintOrder="stroke"
+                    style={{ pointerEvents: 'none', userSelect: 'none' }}
+                  >
+                    {io.label}
+                  </text>
+                );
+              }
+              return (
+                <text
+                  x={pos.boxX + pos.boxW / 2}
+                  y={io.edge === 'bottom' ? pos.boxY + pos.boxH + 5.5 : pos.boxY - 3.5}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize={3.8}
+                  fill="#333"
+                  fontWeight={600}
+                  stroke="#fff"
+                  strokeWidth={2.5}
+                  paintOrder="stroke"
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {io.label}
+                </text>
+              );
+            })()}
             {/* Specs line */}
             {(() => {
               const specs = io.direction === 'input'
                 ? `${io.voltageV ?? 220}V / ${io.maxCurrentA ?? 63}A`
                 : (io.consumptionA ? `${io.consumptionA}A` : '');
               if (!specs) return null;
+              const isSide = io.edge === 'left' || io.edge === 'right';
+              if (isSide) {
+                const sx = io.edge === 'left' ? pos.boxX - 3.5 : pos.boxX + pos.boxW + 3.5;
+                const sy = pos.boxY + pos.boxH / 2 + (io.label ? 5 : 0);
+                const anchor = io.edge === 'left' ? 'end' : 'start';
+                return (
+                  <text
+                    x={sx}
+                    y={sy}
+                    textAnchor={anchor}
+                    dominantBaseline="middle"
+                    fontSize={3}
+                    fill="#666"
+                    fontWeight={600}
+                    stroke="#fff"
+                    strokeWidth={2}
+                    paintOrder="stroke"
+                    style={{ pointerEvents: 'none', userSelect: 'none' }}
+                  >
+                    {specs}
+                  </text>
+                );
+              }
               const specY = io.edge === 'bottom'
                 ? pos.boxY + pos.boxH + (io.label ? 10 : 5.5)
                 : pos.boxY - (io.label ? 8 : 3.5);
