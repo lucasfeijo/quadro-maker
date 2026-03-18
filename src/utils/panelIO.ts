@@ -1,6 +1,5 @@
 import type { PanelIO, PanelEdge, PanelIOType } from '../types';
 
-const WALL_PX = 35;
 const IO_BOX_W = 20;
 const IO_BOX_H = 14;
 // Half the wire length: box sticks this far outside the external wall,
