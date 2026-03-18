@@ -86,6 +86,8 @@ interface Props {
   hoverTarget?: { instanceId: string; portId: string } | null;
   energizedWires?: Set<string>;
   onSegmentDragChange?: (dragging: boolean) => void;
+  onWaypointHoverChange?: (hovering: boolean) => void;
+  onWaypointDragChange?: (dragging: boolean) => void;
   dragGhost?: GhostPreview;
   wiringMousePos?: { x: number; y: number } | null;
   altHeld?: boolean;
@@ -706,6 +708,8 @@ export const WireLayer: React.FC<Props> = ({
   hoverTarget,
   energizedWires,
   onSegmentDragChange,
+  onWaypointHoverChange,
+  onWaypointDragChange,
   dragGhost,
   wiringMousePos,
   altHeld,
@@ -746,6 +750,10 @@ export const WireLayer: React.FC<Props> = ({
   useEffect(() => {
     onSegmentDragChange?.(draggingSegment != null);
   }, [draggingSegment, onSegmentDragChange]);
+
+  useEffect(() => {
+    onWaypointDragChange?.(draggingWp != null);
+  }, [draggingWp, onWaypointDragChange]);
 
   const getPos = (instanceId: string, portId: string): PortPosition | null => {
     if (instanceId.startsWith('panel-io:')) {
@@ -1195,6 +1203,9 @@ export const WireLayer: React.FC<Props> = ({
               points.slice(0, -1).map((p, i) => {
                 const next = points[i + 1];
                 const segPath = `M ${p.x} ${p.y} L ${next.x} ${next.y}`;
+                const segCursor = isSelected
+                  ? (draggingSegment?.wireId === wire.id && draggingSegment?.segmentIndex === i ? 'grabbing' : 'grab')
+                  : 'pointer';
                 return (
                   <path
                     key={`seg-hit-${i}`}
@@ -1202,7 +1213,7 @@ export const WireLayer: React.FC<Props> = ({
                     fill="none"
                     stroke="transparent"
                     strokeWidth={HIT_WIDTH}
-                    style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
+                    style={{ cursor: segCursor, pointerEvents: 'stroke' }}
                     onClick={(e) => { e.stopPropagation(); onSelectWire(wire.id); }}
                     onMouseDown={
                       isSelected
@@ -1221,7 +1232,7 @@ export const WireLayer: React.FC<Props> = ({
                 fill="none"
                 stroke="transparent"
                 strokeWidth={HIT_WIDTH}
-                style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
+                style={{ cursor: isSelected ? (draggingSegment ? 'grabbing' : 'grab') : 'pointer', pointerEvents: 'stroke' }}
                 onClick={(e) => { e.stopPropagation(); onSelectWire(wire.id); }}
                 onMouseDown={
                   isSelected
@@ -1284,6 +1295,8 @@ export const WireLayer: React.FC<Props> = ({
                 style={{ cursor: 'grab', pointerEvents: 'all' }}
                 onMouseDown={(e) => handleWpMouseDown(e, wire.id, i)}
                 onContextMenu={(e) => handleWpRightClick(e, wire.id, i)}
+                onMouseEnter={() => onWaypointHoverChange?.(true)}
+                onMouseLeave={() => onWaypointHoverChange?.(false)}
               />
             ))}
           </g>
