@@ -15,7 +15,7 @@ function makeRails(
   return Array.from({ length: count }, (_, i) => ({
     id: `rail-${i}`,
     xMm,
-    yMm: startYMm + i * spacingYMm,
+    yMm: startYMm + i * spacingYMm - 12.5,
     widthMm: railWidthMm,
     usableWidthMm,
     fixingMarginMm,

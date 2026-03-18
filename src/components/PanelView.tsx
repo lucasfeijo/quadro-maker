@@ -243,7 +243,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
         if (!def || !port || !rail) return null;
         const railLeft = intX + mmToPx(rail.xMm);
         const usableX = railLeft + mmToPx(rail.fixingMarginMm);
-        const railCY = intY + mmToPx(rail.yMm) + mmToPx(10) / 2;
+        const railCY = intY + mmToPx(rail.yMm) + mmToPx(35) / 2;
         const mx = usableX + mmToPx(mod.positionMm);
         const my = railCY - mmToPx(MODULE_H_MM / 2);
         const mh = mmToPx(MODULE_H_MM);
@@ -285,7 +285,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
       if (!rail) continue;
       const railLeft = intX + mmToPx(rail.xMm);
       const usableX = railLeft + mmToPx(rail.fixingMarginMm);
-      const railCY = intY + mmToPx(rail.yMm) + mmToPx(10) / 2;
+      const railCY = intY + mmToPx(rail.yMm) + mmToPx(35) / 2;
 
       for (const mod of state.rows[ri].modules) {
         const def = getModuleById(mod.moduleId);
@@ -436,7 +436,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
       const fixingPx = mmToPx(rail.fixingMarginMm);
       const usableOffsetXPx = railLeftPx + fixingPx;
       const railTopPx = intY + mmToPx(rail.yMm);
-      const railHeightPx = mmToPx(10);
+      const railHeightPx = mmToPx(35);
       const railCenterY = railTopPx + railHeightPx / 2;
 
       for (const mod of row.modules) {
@@ -507,7 +507,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
       if (!def || !port || !rail) return null;
       const railLeft = intX + mmToPx(rail.xMm);
       const usableX = railLeft + mmToPx(rail.fixingMarginMm);
-      const railCY = intY + mmToPx(rail.yMm) + mmToPx(10) / 2;
+      const railCY = intY + mmToPx(rail.yMm) + mmToPx(35) / 2;
       const mx = usableX + mmToPx(mod.positionMm);
       const my = railCY - mmToPx(70 / 2);
       const mh = mmToPx(70);
@@ -967,6 +967,16 @@ export const PanelView: React.FC<PanelViewProps> = ({
           <pattern id="grid-dots" width="10" height="10" patternUnits="userSpaceOnUse">
             <circle cx="5" cy="5" r="0.3" fill="#ccc" />
           </pattern>
+          {/* DIN rail top lip shadow (downward fade) */}
+          <linearGradient id="rail-top-shadow" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#000" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="#000" stopOpacity="0" />
+          </linearGradient>
+          {/* DIN rail bottom lip glare (upward shine) */}
+          <linearGradient id="rail-bottom-glare" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stopColor="#fff" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+          </linearGradient>
         </defs>
 
         {/* Workspace background with dot grid */}

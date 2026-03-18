@@ -126,7 +126,7 @@ function getPortAbsolutePosition(
   const fixingPx = mmToPx(rail.fixingMarginMm);
   const usableOffsetXPx = railLeftPx + fixingPx;
   const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
-  const railHeightPx = mmToPx(10);
+  const railHeightPx = mmToPx(35);
   const railCenterY = railTopPx + railHeightPx / 2;
 
   const moduleX = usableOffsetXPx + mmToPx(mod.positionMm);
@@ -160,7 +160,7 @@ function getModuleBounds(
     const fixingPx = mmToPx(rail.fixingMarginMm);
     const usableOffsetXPx = railLeftPx + fixingPx;
     const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
-    const railHeightPx = mmToPx(10);
+    const railHeightPx = mmToPx(35);
     const railCenterY = railTopPx + railHeightPx / 2;
 
     for (const mod of rows[i].modules) {
@@ -192,7 +192,7 @@ function getPortObstacles(
     const fixingPx = mmToPx(rail.fixingMarginMm);
     const usableOffsetXPx = railLeftPx + fixingPx;
     const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
-    const railHeightPx = mmToPx(10);
+    const railHeightPx = mmToPx(35);
     const railCenterY = railTopPx + railHeightPx / 2;
 
     for (const mod of rows[i].modules) {

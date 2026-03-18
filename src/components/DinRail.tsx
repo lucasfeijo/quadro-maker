@@ -23,7 +23,7 @@ interface Props {
   onSimModeChange?: (instanceId: string, newMode: string) => void;
 }
 
-const RAIL_HEIGHT_MM = 10;
+const RAIL_HEIGHT_MM = 35;
 const MODULE_HEIGHT_MM = 70;
 const RAIL_BAR_END_INSET_MM = 15;
 
@@ -152,21 +152,62 @@ export const DinRail: React.FC<Props> = ({
         stroke="#78909c"
         strokeWidth={0.3}
       />
-      {/* Rail perforations */}
-      {Array.from(
-        { length: Math.floor(railBarWidthPx / mmToPx(20)) },
-        (_, i) => (
-          <rect
-            key={i}
-            x={railBarLeftPx + mmToPx(5) + i * mmToPx(20)}
-            y={railTopPx + mmToPx(2)}
-            width={mmToPx(10)}
-            height={mmToPx(6)}
-            rx={0.2}
-            fill="#90a4ae"
-          />
-        ),
-      )}
+
+      {/* Top lip shadow (top 5mm casts shadow below) */}
+      <rect
+        x={railBarLeftPx}
+        y={railTopPx + mmToPx(5)}
+        width={railBarWidthPx}
+        height={mmToPx(3)}
+        fill="url(#rail-top-shadow)"
+        style={{ pointerEvents: 'none' }}
+      />
+
+      {/* Bottom lip glare (bottom 5mm, glare on top edge) */}
+      <rect
+        x={railBarLeftPx}
+        y={railTopPx + railHeightPx - mmToPx(5) - mmToPx(2)}
+        width={railBarWidthPx}
+        height={mmToPx(2)}
+        fill="url(#rail-bottom-glare)"
+        style={{ pointerEvents: 'none' }}
+      />
+
+      {/* Rail slots (hot-dog shaped, 18mm × 6mm, spaced 25mm center-to-center, starting at -9mm) */}
+      {(() => {
+        const slotW = mmToPx(18);
+        const slotH = mmToPx(6);
+        const slotSpacing = mmToPx(18 + 7); // 18mm slot + 7mm gap = 25mm pitch
+        const slotStartX = railBarLeftPx + mmToPx(-9);
+        const slotY = railTopPx + (railHeightPx - slotH) / 2;
+        const slotRx = slotH / 2; // full round ends
+        const count = Math.ceil((railBarWidthPx + mmToPx(9)) / slotSpacing) + 1;
+        return (
+          <g>
+            <clipPath id={`rail-clip-${rail.id}`}>
+              <rect x={railBarLeftPx + 0.3} y={railTopPx + 0.3} width={railBarWidthPx - 0.6} height={railHeightPx - 0.6} rx={0.3} />
+            </clipPath>
+            <g clipPath={`url(#rail-clip-${rail.id})`}>
+              {Array.from({ length: count }, (_, i) => {
+                const sx = slotStartX + i * slotSpacing;
+                return (
+                  <rect
+                    key={i}
+                    x={sx}
+                    y={slotY}
+                    width={slotW}
+                    height={slotH}
+                    rx={slotRx}
+                    fill="#90a4ae"
+                    stroke="#7d949e"
+                    strokeWidth={0.2}
+                  />
+                );
+              })}
+            </g>
+          </g>
+        );
+      })()}
 
       {/* Drop zone highlight */}
       {isOver && !hideDropHighlight && (

@@ -98,7 +98,7 @@ function resolveCustomLayout(
   const rails = Array.from({ length: rowCount }, (_, i) => ({
     id: `row-${i}`,
     xMm: 0,
-    yMm: railStartYMm + i * (ROW_HEIGHT_MM + ROW_SPACING_MM) + ROW_HEIGHT_MM / 2 - 5,
+    yMm: railStartYMm + i * (ROW_HEIGHT_MM + ROW_SPACING_MM) + ROW_HEIGHT_MM / 2 - 17.5,
     widthMm: interiorWidth,
     usableWidthMm: usableWidth,
     fixingMarginMm: railFixingMarginMm,
