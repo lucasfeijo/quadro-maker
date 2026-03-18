@@ -1020,6 +1020,11 @@ export const PanelView: React.FC<PanelViewProps> = ({
             <stop offset="0%" stopColor="#fff" stopOpacity="0.35" />
             <stop offset="100%" stopColor="#fff" stopOpacity="0" />
           </linearGradient>
+          {/* Enclosure top border shadow (downward fade) */}
+          <linearGradient id="enclosure-top-shadow" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#000" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="#000" stopOpacity="0" />
+          </linearGradient>
         </defs>
 
         {/* Workspace background with dot grid */}
@@ -1067,7 +1072,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
           rx={2}
           fill={layout.isEnclosure ? '#e0e0e0' : '#f5f5f5'}
           stroke="#999"
-          strokeWidth={0.5}
+          strokeWidth={2}
         />
 
         {/* Interior area */}
@@ -1077,8 +1082,16 @@ export const PanelView: React.FC<PanelViewProps> = ({
           width={intW}
           height={intH}
           fill="#fafafa"
-          stroke="#bbb"
-          strokeWidth={0.3}
+        />
+
+        {/* Top border outer shadow */}
+        <rect
+          x={0}
+          y={0}
+          width={svgWidth}
+          height={mmToPx(12)}
+          fill="url(#enclosure-top-shadow)"
+          style={{ pointerEvents: 'none' }}
         />
 
         {/* Mounting holes */}

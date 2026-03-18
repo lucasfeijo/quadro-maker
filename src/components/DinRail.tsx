@@ -102,25 +102,6 @@ export const DinRail: React.FC<Props> = ({
         {rail.usableWidthMm}mm
       </text>
 
-      {/* Fixing margin left - hatched */}
-      <rect
-        x={railLeftPx}
-        y={railTopPx - mmToPx(35)}
-        width={fixingPx}
-        height={mmToPx(80)}
-        fill="url(#hatch)"
-        opacity={0.25}
-      />
-      {/* Fixing margin right - hatched */}
-      <rect
-        x={railLeftPx + fixingPx + usablePx}
-        y={railTopPx - mmToPx(35)}
-        width={fixingPx}
-        height={mmToPx(80)}
-        fill="url(#hatch)"
-        opacity={0.25}
-      />
-
       {/* Grid: linhas menores a cada 1P, maiores a cada 3P */}
       {Array.from(
         { length: Math.floor(rail.usableWidthMm / DIN_MODULE_1P_MM) + 1 },
