@@ -215,11 +215,14 @@ export const EditorPage: React.FC = () => {
 
   const handlePortHover = useCallback(
     (instanceId: string, portId: string) => {
+      const wf = store.wiringFrom;
+      // Don't show hover preview on the source port itself
+      if (wf && wf.instanceId === instanceId && wf.portId === portId) return;
       const target = { instanceId, portId };
       hoverPortRef.current = target;
       setHoverTarget(target);
     },
-    [],
+    [store],
   );
 
   const handlePortLeave = useCallback(() => {
