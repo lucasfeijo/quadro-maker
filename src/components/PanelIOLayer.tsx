@@ -20,10 +20,22 @@ const IO_LABELS: Record<string, string> = {
   signal: 'SIG',
 };
 
-const DIR_ARROWS: Record<string, string> = {
-  input: '▼',
-  output: '▲',
-};
+/** Return an arrow pointing inward (input) or outward (output) relative to the panel edge */
+function getDirectionArrow(direction: string, edge: string): string {
+  const inward: Record<string, string> = {
+    top: '▼',
+    bottom: '▲',
+    left: '▶',
+    right: '◀',
+  };
+  const outward: Record<string, string> = {
+    top: '▲',
+    bottom: '▼',
+    left: '◀',
+    right: '▶',
+  };
+  return direction === 'input' ? (inward[edge] ?? '▼') : (outward[edge] ?? '▲');
+}
 
 const DOT_R = 2.5;
 const IO_SNAP_TOLERANCE = 2;
@@ -274,7 +286,7 @@ export const PanelIOLayer: React.FC<Props> = ({
               fill="rgba(255,255,255,0.7)"
               style={{ pointerEvents: 'none', userSelect: 'none' }}
             >
-              {DIR_ARROWS[io.direction]}
+              {getDirectionArrow(io.direction, io.edge)}
             </text>
             {/* Label outside the box (on the outer side of the panel) */}
             {io.label && (() => {
