@@ -10,7 +10,7 @@ import { PanelIOLayer } from './PanelIOLayer';
 import { ExternalDeviceLayer, getExternalDeviceBounds, getExternalDevicePortPosition } from './ExternalDeviceLayer';
 import { TextAnnotationLayer } from './TextAnnotationLayer';
 import { FitToWidthIcon, FitToContainerIcon } from './ZoomIcons';
-import { getIOPortPosition } from '../utils/panelIO';
+import { getIOPortPosition, getIOPosition } from '../utils/panelIO';
 import type { GhostPreview, ComponentState, PanelEdge } from '../types';
 
 const MARGIN = 15;
@@ -345,13 +345,21 @@ export const PanelView: React.FC<PanelViewProps> = ({
       }
     }
 
+    for (const io of state.panelIOs) {
+      const pos = getIOPosition(io, svgWidth, svgHeight);
+      minX = Math.min(minX, pos.boxX);
+      minY = Math.min(minY, pos.boxY);
+      maxX = Math.max(maxX, pos.boxX + pos.boxW);
+      maxY = Math.max(maxY, pos.boxY + pos.boxH);
+    }
+
     return {
       x: minX - MARGIN,
       y: minY - MARGIN,
       w: maxX - minX + MARGIN * 2,
       h: maxY - minY + MARGIN * 2,
     };
-  }, [svgWidth, svgHeight, state.externalDevices]);
+  }, [svgWidth, svgHeight, state.externalDevices, state.panelIOs]);
 
   const contentBoundsRef = useRef(contentBounds);
   contentBoundsRef.current = contentBounds;

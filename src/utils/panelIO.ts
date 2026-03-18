@@ -3,6 +3,9 @@ import type { PanelIO, PanelEdge, PanelIOType } from '../types';
 const WALL_PX = 35;
 const IO_BOX_W = 20;
 const IO_BOX_H = 14;
+// Half the wire length: box sticks this far outside the external wall,
+// port dot is this far inside it. Wire midpoint lands exactly on the wall.
+const IO_WALL_OFFSET = 8;
 
 export function getIOTypes(io: PanelIO): PanelIOType[] {
   return io.types ?? (io.type != null ? [io.type] : ['phase']);
@@ -35,8 +38,8 @@ export function getIOPosition(
   switch (io.edge) {
     case 'top': {
       const bx = frac * svgWidth - boxW / 2;
-      const by = (WALL_PX - IO_BOX_H) / 2 + 4;
-      const portY = WALL_PX + 3;
+      const portY = IO_WALL_OFFSET;
+      const by = -(IO_WALL_OFFSET + IO_BOX_H);
       const ports = types.map((t, i) => ({
         portId: t,
         x: n <= 1 ? bx + boxW / 2 : bx + 4 + (n > 1 ? (boxW - 8) * (i / (n - 1)) : 0),
@@ -46,8 +49,8 @@ export function getIOPosition(
     }
     case 'bottom': {
       const bx = frac * svgWidth - boxW / 2;
-      const by = svgHeight - (WALL_PX + IO_BOX_H) / 2 - 4;
-      const portY = svgHeight - WALL_PX - 3;
+      const portY = svgHeight - IO_WALL_OFFSET;
+      const by = svgHeight + IO_WALL_OFFSET;
       const ports = types.map((t, i) => ({
         portId: t,
         x: n <= 1 ? bx + boxW / 2 : bx + 4 + (n > 1 ? (boxW - 8) * (i / (n - 1)) : 0),
@@ -56,9 +59,9 @@ export function getIOPosition(
       return { boxX: bx, boxY: by, boxW, boxH: IO_BOX_H, ports };
     }
     case 'left': {
-      const bx = (WALL_PX - boxW) / 2;
+      const portX = IO_WALL_OFFSET;
+      const bx = -(IO_WALL_OFFSET + boxW);
       const by = frac * svgHeight - IO_BOX_H / 2;
-      const portX = WALL_PX + 3;
       const ports = types.map((t, i) => ({
         portId: t,
         x: portX,
@@ -67,9 +70,9 @@ export function getIOPosition(
       return { boxX: bx, boxY: by, boxW, boxH: IO_BOX_H, ports };
     }
     case 'right': {
-      const bx = svgWidth - (WALL_PX + boxW) / 2;
+      const portX = svgWidth - IO_WALL_OFFSET;
+      const bx = svgWidth + IO_WALL_OFFSET;
       const by = frac * svgHeight - IO_BOX_H / 2;
-      const portX = svgWidth - WALL_PX - 3;
       const ports = types.map((t, i) => ({
         portId: t,
         x: portX,

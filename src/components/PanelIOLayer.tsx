@@ -136,11 +136,11 @@ export const PanelIOLayer: React.FC<Props> = ({
             const snappedFrac = finalPercent / 100;
             if (isHEdge) {
               const portX = snappedFrac * svgWidth;
-              const portY = edge === 'top' ? 38 : svgHeight - 38;
+              const portY = edge === 'top' ? 8 : svgHeight - 8;
               newAlignGuide = { x1: portX, y1: portY, x2: bestWireTarget.x, y2: bestWireTarget.y };
             } else {
               const portY = snappedFrac * svgHeight;
-              const portX = edge === 'left' ? 38 : svgWidth - 38;
+              const portX = edge === 'left' ? 8 : svgWidth - 8;
               newAlignGuide = { x1: portX, y1: portY, x2: bestWireTarget.x, y2: bestWireTarget.y };
             }
           }
