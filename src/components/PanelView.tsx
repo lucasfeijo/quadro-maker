@@ -161,6 +161,10 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const [isDraggingSegment, setIsDraggingSegment] = useState(false);
   const [isDraggingIO, setIsDraggingIO] = useState(false);
   const [wiringMousePos, setWiringMousePos] = useState<{ x: number; y: number } | null>(null);
+  const [measureActive, setMeasureActive] = useState(false);
+  const [measureLines, setMeasureLines] = useState<Array<{ ax: number; ay: number; bx: number; by: number }>>([]);
+  const [measurePending, setMeasurePending] = useState<{ x: number; y: number } | null>(null);
+  const [measureMouse, setMeasureMouse] = useState<{ x: number; y: number } | null>(null);
   const clipboardRef = useRef<{ data: ClipboardData; pasteCount: number } | null>(null);
   const clampZoom = useCallback((value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value)), []);
 
@@ -543,6 +547,30 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const handleSvgMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     if (e.button !== 0) return;
 
+    // Measuring tool click handling
+    if (measureActive) {
+      e.stopPropagation();
+      e.preventDefault();
+      const raw = screenToSvg(e.clientX, e.clientY);
+      if (!measurePending) {
+        setMeasurePending(raw);
+      } else {
+        let bx = raw.x;
+        let by = raw.y;
+        // Constrain to H/V unless Shift is held
+        if (!e.shiftKey) {
+          const dx = Math.abs(bx - measurePending.x);
+          const dy = Math.abs(by - measurePending.y);
+          if (dx >= dy) by = measurePending.y;
+          else bx = measurePending.x;
+        }
+        setMeasureLines((prev) => [...prev, { ax: measurePending.x, ay: measurePending.y, bx, by }]);
+        setMeasurePending(null);
+        setMeasureMouse(null);
+      }
+      return;
+    }
+
     // Alt+click during wiring: add waypoint(s) with Manhattan routing
     if (state.wiringFrom && e.altKey) {
       e.stopPropagation();
@@ -613,9 +641,26 @@ export const PanelView: React.FC<PanelViewProps> = ({
     marqueeRef.current = rect;
     didMarqueeRef.current = false;
     setMarquee(rect);
-  }, [screenToSvg, state, snapWiringPoint, resolvePortPos]);
+  }, [screenToSvg, state, snapWiringPoint, resolvePortPos, measureActive, measurePending]);
 
   const handleSvgMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    // Track mouse for measuring tool
+    if (measureActive) {
+      const pt = screenToSvg(e.clientX, e.clientY);
+      if (measurePending) {
+        let mx = pt.x;
+        let my = pt.y;
+        if (!e.shiftKey) {
+          const dx = Math.abs(mx - measurePending.x);
+          const dy = Math.abs(my - measurePending.y);
+          if (dx >= dy) my = measurePending.y;
+          else mx = measurePending.x;
+        }
+        setMeasureMouse({ x: mx, y: my });
+      } else {
+        setMeasureMouse(pt);
+      }
+    }
     // Track mouse position during wiring for preview
     if (state.wiringFrom) {
       const pt = screenToSvg(e.clientX, e.clientY);
@@ -633,7 +678,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
     setMarquee(updated);
     const r = marqueeToRect(updated);
     if (r.w > 2 || r.h > 2) didMarqueeRef.current = true;
-  }, [screenToSvg, state.wiringFrom, state.wireSnapAlignment, snapWiringPoint]);
+  }, [screenToSvg, state.wiringFrom, state.wireSnapAlignment, snapWiringPoint, measureActive, measurePending]);
 
   const handleSvgMouseUp = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     if (e.button !== 0) return;
@@ -645,6 +690,11 @@ export const PanelView: React.FC<PanelViewProps> = ({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (measureActive) {
+          if (measurePending) { setMeasurePending(null); setMeasureMouse(null); }
+          else { setMeasureActive(false); setMeasureLines([]); setMeasurePending(null); setMeasureMouse(null); }
+          return;
+        }
         if (state.wiringFrom) { state.cancelWiring(); return; }
         if (state.selectedWireId) { state.selectWire(null); return; }
         if (state.selectedIOId) { state.selectIO(null); return; }
@@ -897,7 +947,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
         height={vb.h * zoom}
         viewBox={viewBox}
         xmlns="http://www.w3.org/2000/svg"
-        style={{ display: 'block', flexShrink: 0 }}
+        style={{ display: 'block', flexShrink: 0, cursor: measureActive ? 'crosshair' : undefined }}
         onMouseDown={handleSvgMouseDown}
         onMouseMove={handleSvgMouseMove}
         onMouseUp={handleSvgMouseUp}
@@ -1107,6 +1157,63 @@ export const PanelView: React.FC<PanelViewProps> = ({
             style={{ pointerEvents: 'none' }}
           />
         )}
+
+        {/* Measuring tool overlay */}
+        {measureActive && (
+          <g style={{ pointerEvents: 'none' }}>
+            {/* Completed measurement lines */}
+            {measureLines.map((ln, i) => {
+              const dist = Math.sqrt((ln.bx - ln.ax) ** 2 + (ln.by - ln.ay) ** 2);
+              const mx = (ln.ax + ln.bx) / 2;
+              const my = (ln.ay + ln.by) / 2;
+              const crossSize = 2;
+              return (
+                <g key={`measure-${i}`}>
+                  <line x1={ln.ax} y1={ln.ay} x2={ln.bx} y2={ln.by} stroke="#ff5722" strokeWidth={0.4} />
+                  {/* Cross at A */}
+                  <line x1={ln.ax - crossSize} y1={ln.ay} x2={ln.ax + crossSize} y2={ln.ay} stroke="#ff5722" strokeWidth={0.3} />
+                  <line x1={ln.ax} y1={ln.ay - crossSize} x2={ln.ax} y2={ln.ay + crossSize} stroke="#ff5722" strokeWidth={0.3} />
+                  {/* Cross at B */}
+                  <line x1={ln.bx - crossSize} y1={ln.by} x2={ln.bx + crossSize} y2={ln.by} stroke="#ff5722" strokeWidth={0.3} />
+                  <line x1={ln.bx} y1={ln.by - crossSize} x2={ln.bx} y2={ln.by + crossSize} stroke="#ff5722" strokeWidth={0.3} />
+                  {/* Label */}
+                  <text x={mx} y={my - 1.5} textAnchor="middle" dominantBaseline="auto" fill="#ff5722" fontSize={3} fontWeight="bold">
+                    {dist < 1 ? `${(dist).toFixed(1)}mm` : `${Math.round(dist)}mm`}
+                  </text>
+                </g>
+              );
+            })}
+            {/* Preview line from pending point to mouse */}
+            {measurePending && measureMouse && (
+              <g>
+                <line x1={measurePending.x} y1={measurePending.y} x2={measureMouse.x} y2={measureMouse.y} stroke="#ff5722" strokeWidth={0.4} opacity={0.6} />
+                {(() => {
+                  const dist = Math.sqrt((measureMouse.x - measurePending.x) ** 2 + (measureMouse.y - measurePending.y) ** 2);
+                  const mx = (measurePending.x + measureMouse.x) / 2;
+                  const my = (measurePending.y + measureMouse.y) / 2;
+                  return dist > 0.5 ? (
+                    <text x={mx} y={my - 1.5} textAnchor="middle" dominantBaseline="auto" fill="#ff5722" fontSize={3} fontWeight="bold" opacity={0.6}>
+                      {dist < 1 ? `${(dist).toFixed(1)}mm` : `${Math.round(dist)}mm`}
+                    </text>
+                  ) : null;
+                })()}
+                {/* Cross at pending point */}
+                <line x1={measurePending.x - 2} y1={measurePending.y} x2={measurePending.x + 2} y2={measurePending.y} stroke="#ff5722" strokeWidth={0.3} />
+                <line x1={measurePending.x} y1={measurePending.y - 2} x2={measurePending.x} y2={measurePending.y + 2} stroke="#ff5722" strokeWidth={0.3} />
+                {/* Cross at mouse */}
+                <line x1={measureMouse.x - 2} y1={measureMouse.y} x2={measureMouse.x + 2} y2={measureMouse.y} stroke="#ff5722" strokeWidth={0.3} opacity={0.5} />
+                <line x1={measureMouse.x} y1={measureMouse.y - 2} x2={measureMouse.x} y2={measureMouse.y + 2} stroke="#ff5722" strokeWidth={0.3} opacity={0.5} />
+              </g>
+            )}
+            {/* Crosshair cursor at mouse when no pending point */}
+            {!measurePending && measureMouse && (
+              <g>
+                <line x1={measureMouse.x - 2} y1={measureMouse.y} x2={measureMouse.x + 2} y2={measureMouse.y} stroke="#ff5722" strokeWidth={0.3} opacity={0.5} />
+                <line x1={measureMouse.x} y1={measureMouse.y - 2} x2={measureMouse.x} y2={measureMouse.y + 2} stroke="#ff5722" strokeWidth={0.3} opacity={0.5} />
+              </g>
+            )}
+          </g>
+        )}
       </svg>
       </div>
       </div>
@@ -1128,7 +1235,43 @@ export const PanelView: React.FC<PanelViewProps> = ({
           >
             ↷
           </button>
+          <button
+            onClick={() => {
+              if (measureActive) {
+                setMeasureActive(false);
+                setMeasureLines([]);
+                setMeasurePending(null);
+                setMeasureMouse(null);
+              } else {
+                setMeasureActive(true);
+              }
+            }}
+            title="Medir (régua)"
+            aria-label="Medir"
+            className={measureActive ? 'measure-btn active' : 'measure-btn'}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect x="1" y="5" width="14" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none" />
+              <line x1="4" y1="5" x2="4" y2="8" stroke="currentColor" strokeWidth="0.8" />
+              <line x1="6.5" y1="5" x2="6.5" y2="7" stroke="currentColor" strokeWidth="0.8" />
+              <line x1="9" y1="5" x2="9" y2="8" stroke="currentColor" strokeWidth="0.8" />
+              <line x1="11.5" y1="5" x2="11.5" y2="7" stroke="currentColor" strokeWidth="0.8" />
+            </svg>
+          </button>
         </div>
+        {measureActive && (
+          <div className="drag-hint measure-hint">
+            Clique para marcar pontos de medição
+            {' · '}
+            <kbd>Shift</kbd> permite ângulo livre
+            {measureLines.length > 0 && (
+              <>
+                {' · '}
+                <span style={{ opacity: 0.7 }}>{measureLines.length} medição{measureLines.length > 1 ? 'ões' : ''}</span>
+              </>
+            )}
+          </div>
+        )}
         {state.wiringFrom && (
           <div className="drag-hint wiring-hint">
             <kbd>Alt</kbd>+clique para criar ponto intermediário

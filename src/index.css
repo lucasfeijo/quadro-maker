@@ -1013,6 +1013,17 @@ html, body, #root {
   cursor: not-allowed;
 }
 
+.history-controls .measure-btn {
+  border-left: 1px solid rgba(255,255,255,0.15);
+  margin-left: 2px;
+  padding-left: 2px;
+}
+
+.history-controls .measure-btn.active {
+  background: rgba(255, 87, 34, 0.4);
+  color: #ff5722;
+}
+
 .drag-hint {
   position: absolute;
   bottom: 16px;
