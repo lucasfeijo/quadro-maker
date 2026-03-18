@@ -84,6 +84,7 @@ interface PanelViewProps {
   canRedo?: boolean;
   onSelectAnnotation?: (id: string) => void;
   selectedAnnotationId?: string | null;
+  altHeld?: boolean;
 }
 
 const EDGE_PREVIEW_IO_BOX_W = 20;
@@ -146,6 +147,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
   canRedo,
   onSelectAnnotation,
   selectedAnnotationId,
+  altHeld,
 }) => {
   const state = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -158,6 +160,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
   const [isDraggingSegment, setIsDraggingSegment] = useState(false);
   const [isDraggingIO, setIsDraggingIO] = useState(false);
+  const [wiringMousePos, setWiringMousePos] = useState<{ x: number; y: number } | null>(null);
   const clipboardRef = useRef<{ data: ClipboardData; pasteCount: number } | null>(null);
   const clampZoom = useCallback((value: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value)), []);
 
@@ -265,6 +268,58 @@ export const PanelView: React.FC<PanelViewProps> = ({
     return targets;
   }, [state.wires, state.panelIOs, state.externalDevices, state.rows, layout.rails, svgWidth, svgHeight, intX, intY]);
 
+  // All port positions for wiring snap targets
+  const wiringSnapTargets = useMemo(() => {
+    const targets: { x: number; y: number }[] = [];
+    const MODULE_H_MM = 70;
+
+    // Module ports
+    for (let ri = 0; ri < state.rows.length; ri++) {
+      const rail = layout.rails[ri];
+      if (!rail) continue;
+      const railLeft = intX + mmToPx(rail.xMm);
+      const usableX = railLeft + mmToPx(rail.fixingMarginMm);
+      const railCY = intY + mmToPx(rail.yMm) + mmToPx(10) / 2;
+
+      for (const mod of state.rows[ri].modules) {
+        const def = getModuleById(mod.moduleId);
+        if (!def) continue;
+        const mx = usableX + mmToPx(mod.positionMm);
+        const my = railCY - mmToPx(MODULE_H_MM / 2);
+        const mh = mmToPx(MODULE_H_MM);
+
+        for (const port of def.ports) {
+          const hasVO = port.offsetYMm !== undefined;
+          const px = mx + mmToPx(port.offsetXMm);
+          const py = hasVO
+            ? my + mmToPx(port.offsetYMm!)
+            : port.side === 'top' ? my - 2 : my + mh + 2;
+          targets.push({ x: px, y: py });
+        }
+      }
+    }
+
+    // Panel IO ports
+    for (const io of state.panelIOs) {
+      for (const t of io.types) {
+        const pos = getIOPortPosition(io, t, svgWidth, svgHeight);
+        if (pos) targets.push({ x: pos.x, y: pos.y });
+      }
+    }
+
+    // External device ports
+    for (const dev of state.externalDevices) {
+      const def = getModuleById(dev.moduleId);
+      if (!def) continue;
+      for (const port of def.ports) {
+        const pos = getExternalDevicePortPosition(dev, port.id);
+        if (pos) targets.push(pos);
+      }
+    }
+
+    return targets;
+  }, [state.rows, layout.rails, intX, intY, state.panelIOs, state.externalDevices, svgWidth, svgHeight]);
+
   const DIM_LABEL_MM = 8;
   const contentBounds = useMemo(() => {
     let minX = -mmToPx(DIM_LABEL_MM);
@@ -326,6 +381,11 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const handleClearSelection = useCallback(() => {
     if (didMarqueeRef.current) {
       didMarqueeRef.current = false;
+      return;
+    }
+    // Don't cancel wiring if we just placed a waypoint via Alt+click
+    if (wiringWaypointJustPlacedRef.current) {
+      wiringWaypointJustPlacedRef.current = false;
       return;
     }
     onSelectModule(null);
@@ -400,9 +460,148 @@ export const PanelView: React.FC<PanelViewProps> = ({
   }, [state, layout, intX, intY, onSetSelection]);
 
   const didMarqueeRef = useRef(false);
+  const wiringWaypointJustPlacedRef = useRef(false);
+
+  const resolvePortPos = useCallback((instanceId: string, portId: string): { x: number; y: number; side?: 'top' | 'bottom' | 'left' | 'right' } | null => {
+    if (instanceId.startsWith('panel-io:')) {
+      const ioId = instanceId.replace('panel-io:', '');
+      const io = state.panelIOs.find((p) => p.id === ioId);
+      if (!io) return null;
+      const pos = getIOPortPosition(io, portId, svgWidth, svgHeight);
+      if (!pos) return null;
+      // Panel IO edge maps to the inward-facing side
+      const edgeToSide: Record<string, 'top' | 'bottom' | 'left' | 'right'> = {
+        top: 'top', bottom: 'bottom', left: 'left', right: 'right',
+      };
+      return { x: pos.x, y: pos.y, side: edgeToSide[io.edge] };
+    }
+    const extDev = state.externalDevices.find((d) => d.instanceId === instanceId);
+    if (extDev) {
+      const pos = getExternalDevicePortPosition(extDev, portId);
+      if (!pos) return null;
+      const def = getModuleById(extDev.moduleId);
+      const port = def?.ports.find((p) => p.id === portId);
+      const rot = Number(extDev.properties?.rotationDeg) || 0;
+      let side = port?.side as 'top' | 'bottom' | 'left' | 'right' | undefined;
+      // Rotate the side by the device rotation
+      if (side && rot) {
+        const sides: Array<'top' | 'right' | 'bottom' | 'left'> = ['top', 'right', 'bottom', 'left'];
+        const steps = ((rot % 360) + 360) % 360 / 90;
+        const idx = sides.indexOf(side);
+        if (idx >= 0) side = sides[(idx + Math.round(steps)) % 4];
+      }
+      return { x: pos.x, y: pos.y, side };
+    }
+    for (let ri = 0; ri < state.rows.length; ri++) {
+      const mod = state.rows[ri].modules.find((m) => m.instanceId === instanceId);
+      if (!mod) continue;
+      const def = getModuleById(mod.moduleId);
+      const port = def?.ports.find((p) => p.id === portId);
+      const rail = layout.rails[ri];
+      if (!def || !port || !rail) return null;
+      const railLeft = intX + mmToPx(rail.xMm);
+      const usableX = railLeft + mmToPx(rail.fixingMarginMm);
+      const railCY = intY + mmToPx(rail.yMm) + mmToPx(10) / 2;
+      const mx = usableX + mmToPx(mod.positionMm);
+      const my = railCY - mmToPx(70 / 2);
+      const mh = mmToPx(70);
+      const hasVO = port.offsetYMm !== undefined;
+      const py = hasVO
+        ? my + mmToPx(port.offsetYMm!)
+        : port.side === 'top' ? my - 2 : my + mh + 2;
+      return { x: mx + mmToPx(port.offsetXMm), y: py, side: port.side as 'top' | 'bottom' | 'left' | 'right' | undefined };
+    }
+    return null;
+  }, [state.panelIOs, state.externalDevices, state.rows, layout.rails, svgWidth, svgHeight, intX, intY]);
+
+  const snapWiringPoint = useCallback((pt: { x: number; y: number }): { x: number; y: number } => {
+    const SNAP_TOL = 3;
+    let sx = pt.x;
+    let sy = pt.y;
+    let bestDx = SNAP_TOL + 1;
+    let bestDy = SNAP_TOL + 1;
+
+    // Snap to all port positions
+    for (const p of wiringSnapTargets) {
+      const dx = Math.abs(sx - p.x);
+      const dy = Math.abs(sy - p.y);
+      if (dx < bestDx) { bestDx = dx; sx = p.x; }
+      if (dy < bestDy) { bestDy = dy; sy = p.y; }
+    }
+
+    // Also snap to existing wiring waypoints
+    for (const wp of state.wiringWaypoints) {
+      const dx = Math.abs(sx - wp.x);
+      const dy = Math.abs(sy - wp.y);
+      if (dx < bestDx) { bestDx = dx; sx = wp.x; }
+      if (dy < bestDy) { bestDy = dy; sy = wp.y; }
+    }
+
+    return { x: sx, y: sy };
+  }, [wiringSnapTargets, state.wiringWaypoints]);
 
   const handleSvgMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     if (e.button !== 0) return;
+
+    // Alt+click during wiring: add waypoint(s) with Manhattan routing
+    if (state.wiringFrom && e.altKey) {
+      e.stopPropagation();
+      e.preventDefault();
+      const rawPt = screenToSvg(e.clientX, e.clientY);
+      const snapped = (!e.shiftKey && state.wireSnapAlignment) ? snapWiringPoint(rawPt) : rawPt;
+
+      // Determine the last point: last waypoint or source port
+      const wps = state.wiringWaypoints;
+      const PORT_EXT = 10;
+      const isFirstWaypoint = wps.length === 0;
+      const srcPortInfo = isFirstWaypoint
+        ? resolvePortPos(state.wiringFrom.instanceId, state.wiringFrom.portId)
+        : null;
+      const lastPt = isFirstWaypoint
+        ? srcPortInfo
+        : wps[wps.length - 1];
+
+      if (lastPt) {
+        // For the first waypoint, prepend an extension point perpendicular to the port surface
+        const extPoints: Array<{ x: number; y: number }> = [];
+        let effectiveLast = lastPt;
+        if (isFirstWaypoint && srcPortInfo?.side) {
+          let ex = srcPortInfo.x;
+          let ey = srcPortInfo.y;
+          if (srcPortInfo.side === 'top') ey -= PORT_EXT;
+          else if (srcPortInfo.side === 'bottom') ey += PORT_EXT;
+          else if (srcPortInfo.side === 'left') ex -= PORT_EXT;
+          else if (srcPortInfo.side === 'right') ex += PORT_EXT;
+          extPoints.push({ x: ex, y: ey });
+          effectiveLast = { x: ex, y: ey };
+        }
+
+        const dx = Math.abs(snapped.x - effectiveLast.x);
+        const dy = Math.abs(snapped.y - effectiveLast.y);
+        const EPSILON = 0.5;
+
+        if (dx < EPSILON && dy < EPSILON) {
+          // Too close to last point, just add extension if any
+          if (extPoints.length > 0) state.addWiringWaypoints(extPoints);
+        } else if (dy < EPSILON || dx < EPSILON) {
+          // Already axis-aligned
+          state.addWiringWaypoints([...extPoints, { x: snapped.x, y: snapped.y }]);
+        } else {
+          // Manhattan: horizontal first, then vertical
+          state.addWiringWaypoints([
+            ...extPoints,
+            { x: snapped.x, y: effectiveLast.y },
+            { x: snapped.x, y: snapped.y },
+          ]);
+        }
+      } else {
+        state.addWiringWaypoint(snapped.x, snapped.y);
+      }
+
+      wiringWaypointJustPlacedRef.current = true;
+      return;
+    }
+
     const tag = (e.target as SVGElement).tagName;
     if (tag !== 'svg' && tag !== 'rect') return;
     const cls = (e.target as SVGElement).getAttribute('class');
@@ -414,9 +613,19 @@ export const PanelView: React.FC<PanelViewProps> = ({
     marqueeRef.current = rect;
     didMarqueeRef.current = false;
     setMarquee(rect);
-  }, [screenToSvg]);
+  }, [screenToSvg, state, snapWiringPoint, resolvePortPos]);
 
   const handleSvgMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    // Track mouse position during wiring for preview
+    if (state.wiringFrom) {
+      const pt = screenToSvg(e.clientX, e.clientY);
+      // Snap preview position when Alt is held (unless Shift disables snap)
+      if (e.altKey && !e.shiftKey && state.wireSnapAlignment) {
+        setWiringMousePos(snapWiringPoint(pt));
+      } else {
+        setWiringMousePos(pt);
+      }
+    }
     if (!marqueeRef.current) return;
     const pt = screenToSvg(e.clientX, e.clientY);
     const updated = { ...marqueeRef.current, currentX: pt.x, currentY: pt.y };
@@ -424,7 +633,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
     setMarquee(updated);
     const r = marqueeToRect(updated);
     if (r.w > 2 || r.h > 2) didMarqueeRef.current = true;
-  }, [screenToSvg]);
+  }, [screenToSvg, state.wiringFrom, state.wireSnapAlignment, snapWiringPoint]);
 
   const handleSvgMouseUp = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     if (e.button !== 0) return;
@@ -872,6 +1081,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
           energizedWires={simActive ? energizedWires : undefined}
           onSegmentDragChange={setIsDraggingSegment}
           dragGhost={ghostPreview?.instanceId ? ghostPreview : undefined}
+          wiringMousePos={wiringMousePos}
+          altHeld={altHeld}
         />
 
         {/* Text Annotations — on top of everything */}
@@ -918,6 +1129,19 @@ export const PanelView: React.FC<PanelViewProps> = ({
             ↷
           </button>
         </div>
+        {state.wiringFrom && (
+          <div className="drag-hint wiring-hint">
+            <kbd>Alt</kbd>+clique para criar ponto intermediário
+            {' · '}
+            <kbd>Shift</kbd> desativa snap
+            {state.wiringWaypoints.length > 0 && (
+              <>
+                {' · '}
+                <span style={{ opacity: 0.7 }}>{state.wiringWaypoints.length} ponto{state.wiringWaypoints.length > 1 ? 's' : ''}</span>
+              </>
+            )}
+          </div>
+        )}
         {(isDraggingSegment || isDraggingIO) && (
           <div className="drag-hint">
             Segure <kbd>Shift</kbd> para desativar snap

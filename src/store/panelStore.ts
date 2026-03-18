@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { nanoid } from 'nanoid';
-import { PanelState, PanelRow, DisplayMode, Wire, PanelIO, PanelIODirection, PanelIOType, PanelEdge, TextAnnotation } from '../types';
+import { PanelState, PanelRow, DisplayMode, Wire, WireWaypoint, PanelIO, PanelIODirection, PanelIOType, PanelEdge, TextAnnotation } from '../types';
 import { getEnclosureById } from '../data/enclosures';
 
 type EditorScreen = 'setup' | 'editor';
@@ -21,6 +21,7 @@ interface PanelStore extends PanelState {
   displayMode: DisplayMode;
   wireSnapAlignment: boolean;
   wiringFrom: WiringFrom | null;
+  wiringWaypoints: WireWaypoint[];
   selectedWireId: string | null;
   selectedIOId: string | null;
   selectedAnnotationId: string | null;
@@ -40,6 +41,8 @@ interface PanelStore extends PanelState {
   // Wiring
   startWiring: (instanceId: string, portId: string) => void;
   cancelWiring: () => void;
+  addWiringWaypoint: (x: number, y: number) => void;
+  addWiringWaypoints: (points: Array<{ x: number; y: number }>) => void;
   addWire: (sourceInstanceId: string, sourcePortId: string, targetInstanceId: string, targetPortId: string) => void;
   removeWire: (wireId: string) => void;
   updateWireProps: (wireId: string, props: Partial<Pick<Wire, 'wireGaugeMm2' | 'wireColor' | 'label'>>) => void;
@@ -135,6 +138,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   displayMode: 'icon' as DisplayMode,
   wireSnapAlignment: true,
   wiringFrom: null,
+  wiringWaypoints: [],
   selectedWireId: null,
   selectedIOId: null,
   selectedAnnotationId: null,
@@ -221,8 +225,10 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   setDisplayMode: (mode) => set({ displayMode: mode }),
   setWireSnapAlignment: (enabled) => set({ wireSnapAlignment: enabled }),
 
-  startWiring: (instanceId, portId) => set({ wiringFrom: { instanceId, portId } }),
-  cancelWiring: () => set({ wiringFrom: null }),
+  startWiring: (instanceId, portId) => set({ wiringFrom: { instanceId, portId }, wiringWaypoints: [] }),
+  cancelWiring: () => set({ wiringFrom: null, wiringWaypoints: [] }),
+  addWiringWaypoint: (x, y) => set((s) => ({ wiringWaypoints: [...s.wiringWaypoints, { x, y }] })),
+  addWiringWaypoints: (points) => set((s) => ({ wiringWaypoints: [...s.wiringWaypoints, ...points] })),
 
   addWire: (sourceInstanceId, sourcePortId, targetInstanceId, targetPortId) =>
     set((s) => {
@@ -233,10 +239,14 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
           (w.sourceInstanceId === targetInstanceId && w.sourcePortId === targetPortId &&
            w.targetInstanceId === sourceInstanceId && w.targetPortId === sourcePortId),
       );
-      if (exists) return s;
+      if (exists) return { wiringFrom: null, wiringWaypoints: [] };
       return {
-        wires: [...s.wires, { id: nanoid(), sourceInstanceId, sourcePortId, targetInstanceId, targetPortId }],
+        wires: [...s.wires, {
+          id: nanoid(), sourceInstanceId, sourcePortId, targetInstanceId, targetPortId,
+          waypoints: s.wiringWaypoints.length > 0 ? [...s.wiringWaypoints] : undefined,
+        }],
         wiringFrom: null,
+        wiringWaypoints: [],
       };
     }),
 

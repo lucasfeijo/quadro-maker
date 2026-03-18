@@ -79,6 +79,8 @@ export const EditorPage: React.FC = () => {
   const lastStateRef = useRef<PanelState | null>(null);
   const isRestoringHistoryRef = useRef(false);
   const shiftHeldRef = useRef(false);
+  const altHeldRef = useRef(false);
+  const [altHeld, setAltHeld] = useState(false);
   const wiringDragRef = useRef(false);
   const wiringDragSourceRef = useRef<{ instanceId: string; portId: string } | null>(null);
   const hoverPortRef = useRef<{ instanceId: string; portId: string } | null>(null);
@@ -102,8 +104,14 @@ export const EditorPage: React.FC = () => {
   }, [projectId, navigate]);
 
   useEffect(() => {
-    const down = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftHeldRef.current = true; };
-    const up = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftHeldRef.current = false; };
+    const down = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') shiftHeldRef.current = true;
+      if (e.key === 'Alt') { altHeldRef.current = true; setAltHeld(true); }
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') shiftHeldRef.current = false;
+      if (e.key === 'Alt') { altHeldRef.current = false; setAltHeld(false); }
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
@@ -776,6 +784,7 @@ export const EditorPage: React.FC = () => {
               canRedo={canRedo}
               onSelectAnnotation={handleSelectAnnotation}
               selectedAnnotationId={store.selectedAnnotationId}
+              altHeld={altHeld}
             />
           )}
           {viewMode === 'schematic' && <SchematicView />}

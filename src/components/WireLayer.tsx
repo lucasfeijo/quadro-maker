@@ -87,6 +87,8 @@ interface Props {
   energizedWires?: Set<string>;
   onSegmentDragChange?: (dragging: boolean) => void;
   dragGhost?: GhostPreview;
+  wiringMousePos?: { x: number; y: number } | null;
+  altHeld?: boolean;
 }
 
 // --- Module/port helpers ---
@@ -705,12 +707,15 @@ export const WireLayer: React.FC<Props> = ({
   energizedWires,
   onSegmentDragChange,
   dragGhost,
+  wiringMousePos,
+  altHeld,
 }) => {
   const rows = usePanelStore((s) => s.rows);
   const wires = usePanelStore((s) => s.wires);
   const panelIOs = usePanelStore((s) => s.panelIOs);
   const externalDevices = usePanelStore((s) => s.externalDevices);
   const wiringFrom = usePanelStore((s) => s.wiringFrom);
+  const wiringWaypoints = usePanelStore((s) => s.wiringWaypoints);
   const addWireWaypoint = usePanelStore((s) => s.addWireWaypoint);
   const addWireWaypointFromPath = usePanelStore((s) => s.addWireWaypointFromPath);
   const materializeWireWaypoints = usePanelStore((s) => s.materializeWireWaypoints);
@@ -1355,24 +1360,101 @@ export const WireLayer: React.FC<Props> = ({
         );
       })}
 
-      {wiringFrom && hoverTarget && (
-        (() => {
-          const src = getPos(wiringFrom.instanceId, wiringFrom.portId);
-          const tgt = getPos(hoverTarget.instanceId, hoverTarget.portId);
-          if (!src || !tgt) return null;
-          return (
-            <path
-              d={buildPreviewPath(src, tgt)}
-              fill="none"
-              stroke="#ffd600"
-              strokeWidth={0.5}
-              strokeDasharray="2 1"
-              opacity={0.7}
-              style={{ pointerEvents: 'none' }}
-            />
-          );
-        })()
-      )}
+      {wiringFrom && (() => {
+        const src = getPos(wiringFrom.instanceId, wiringFrom.portId);
+        if (!src) return null;
+
+        const wps = wiringWaypoints;
+        const hasWps = wps.length > 0;
+        const tgt = hoverTarget ? getPos(hoverTarget.instanceId, hoverTarget.portId) : null;
+
+        // Determine the end point for the preview
+        const endPoint = tgt ?? (altHeld && wiringMousePos ? wiringMousePos : null);
+
+        // Build path segments: src -> wp1 -> wp2 -> ... -> endPoint
+        const pathPoints: Point[] = [{ x: src.x, y: src.y }];
+        for (const wp of wps) {
+          pathPoints.push({ x: wp.x, y: wp.y });
+        }
+
+        // Render placed waypoints path (solid segments between placed points)
+        const placedPath = hasWps ? pointsToPathString(pathPoints) : null;
+
+        // Compute port extension point for preview (perpendicular exit from source port)
+        let extPoint: Point | null = null;
+        if (!hasWps && src.side) {
+          let ex = src.x, ey = src.y;
+          if (src.side === 'top') ey -= PORT_EXTEND;
+          else if (src.side === 'bottom') ey += PORT_EXTEND;
+          else if (src.side === 'left') ex -= PORT_EXTEND;
+          else if (src.side === 'right') ex += PORT_EXTEND;
+          extPoint = { x: ex, y: ey };
+        }
+
+        // Render preview segment from last point to end
+        const lastPoint = hasWps ? wps[wps.length - 1] : (extPoint ?? src);
+        let previewPathD: string | null = null;
+        if (endPoint) {
+          if (tgt) {
+            // Hovering a port: use buildPreviewPath from last waypoint
+            const lastAsPort: PortPosition = { x: lastPoint.x, y: lastPoint.y, type: src.type, side: undefined };
+            previewPathD = buildPreviewPath(lastAsPort, tgt);
+          } else {
+            // Alt+mouse: Manhattan L-path from extension point through to cursor
+            const startPt = !hasWps && extPoint
+              ? `M ${src.x} ${src.y} L ${extPoint.x} ${extPoint.y} L ${endPoint.x} ${extPoint.y} L ${endPoint.x} ${endPoint.y}`
+              : `M ${lastPoint.x} ${lastPoint.y} L ${endPoint.x} ${lastPoint.y} L ${endPoint.x} ${endPoint.y}`;
+            previewPathD = startPt;
+          }
+        }
+
+        return (
+          <g style={{ pointerEvents: 'none' }}>
+            {/* Placed waypoints path (solid yellow) */}
+            {placedPath && (
+              <path
+                d={placedPath}
+                fill="none"
+                stroke="#ffd600"
+                strokeWidth={0.5}
+                opacity={0.7}
+              />
+            )}
+            {/* Preview from last point to cursor/target (dashed) */}
+            {previewPathD && (
+              <path
+                d={previewPathD}
+                fill="none"
+                stroke="#ffd600"
+                strokeWidth={0.5}
+                strokeDasharray="2 1"
+                opacity={0.7}
+              />
+            )}
+            {/* Placed waypoint dots */}
+            {wps.map((wp, i) => (
+              <circle
+                key={`wiring-wp-${i}`}
+                cx={wp.x}
+                cy={wp.y}
+                r={VERTEX_RADIUS}
+                fill="#ffd600"
+                opacity={0.8}
+              />
+            ))}
+            {/* Ghost dot at mouse position when Alt is held */}
+            {altHeld && wiringMousePos && !tgt && (
+              <circle
+                cx={wiringMousePos.x}
+                cy={wiringMousePos.y}
+                r={VERTEX_RADIUS}
+                fill="#ffd600"
+                opacity={0.4}
+              />
+            )}
+          </g>
+        );
+      })()}
     </g>
   );
 };
