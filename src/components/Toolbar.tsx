@@ -28,6 +28,7 @@ interface ToolbarProps {
   simActive: boolean;
   onSimToggle: () => void;
   onExportImage?: () => void;
+  onCopyImage?: () => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -36,6 +37,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   simActive,
   onSimToggle,
   onExportImage,
+  onCopyImage,
 }) => {
   const { id: projectIdFromUrl } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -165,6 +167,28 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     }
   };
 
+  const getJsonString = () => {
+    const entry = {
+      id: '',
+      name: store.name,
+      state: {
+        name: store.name,
+        enclosureId: store.enclosureId,
+        widthUnits: store.widthUnits,
+        rowCount: store.rowCount,
+        exteriorWidthMm: store.exteriorWidthMm,
+        exteriorHeightMm: store.exteriorHeightMm,
+        rows: store.rows,
+        wires: store.wires,
+        panelIOs: store.panelIOs,
+        externalDevices: store.externalDevices,
+        textAnnotations: store.textAnnotations,
+      },
+      updatedAt: Date.now(),
+    };
+    return JSON.stringify(entry, null, 2);
+  };
+
   const handleExportJson = () => {
     exportCurrentState({
       name: store.name,
@@ -182,8 +206,20 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     closeMenu();
   };
 
+  const handleCopyJson = async () => {
+    try {
+      await navigator.clipboard.writeText(getJsonString());
+    } catch { /* ignore */ }
+    closeMenu();
+  };
+
   const handleExportImage = () => {
     onExportImage?.();
+    closeMenu();
+  };
+
+  const handleCopyImage = () => {
+    onCopyImage?.();
     closeMenu();
   };
 
@@ -249,12 +285,28 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 Salvar como
               </button>
               <div className="toolbar-dropdown-divider" />
-              <button className="toolbar-dropdown-item" onClick={handleExportJson}>
-                Exportar JSON
-              </button>
-              <button className="toolbar-dropdown-item" onClick={handleExportImage} disabled={!onExportImage}>
-                Exportar imagem
-              </button>
+              <div className="toolbar-dropdown-item-row">
+                <button className="toolbar-dropdown-item" onClick={handleExportJson}>
+                  Exportar JSON
+                </button>
+                <button className="toolbar-dropdown-clip-btn" onClick={handleCopyJson} title="Copiar JSON para clipboard">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+                    <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" stroke="currentColor" strokeWidth="1.3" />
+                  </svg>
+                </button>
+              </div>
+              <div className="toolbar-dropdown-item-row">
+                <button className="toolbar-dropdown-item" onClick={handleExportImage} disabled={!onExportImage}>
+                  Exportar imagem
+                </button>
+                <button className="toolbar-dropdown-clip-btn" onClick={handleCopyImage} disabled={!onCopyImage} title="Copiar imagem para clipboard">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+                    <path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5" stroke="currentColor" strokeWidth="1.3" />
+                  </svg>
+                </button>
+              </div>
               <button className="toolbar-dropdown-item" onClick={handleExportPdf} title="Em breve">
                 Exportar PDF
               </button>

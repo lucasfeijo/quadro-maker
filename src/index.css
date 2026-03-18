@@ -542,6 +542,42 @@ html, body, #root {
   background: var(--toolbar-border);
 }
 
+.toolbar-dropdown-item-row {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-dropdown-item-row .toolbar-dropdown-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.toolbar-dropdown-clip-btn {
+  width: 30px;
+  height: 30px;
+  margin-right: 6px;
+  border: 1px solid var(--toolbar-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sidebar-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.toolbar-dropdown-clip-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.toolbar-dropdown-clip-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .editor-body {
   display: flex;
   flex: 1;

@@ -741,6 +741,28 @@ export const EditorPage: React.FC = () => {
     }
   }, [store.name]);
 
+  const handleCopyImage = useCallback(async () => {
+    const el = document.querySelector('.panel-view-container') as HTMLElement | null;
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        backgroundColor: '#1e1e2e',
+        scale: 2,
+        useCORS: true,
+      });
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob }),
+          ]);
+        } catch { /* ignore */ }
+      }, 'image/png');
+    } catch {
+      console.error('Falha ao copiar imagem');
+    }
+  }, []);
+
   const singleSelected = selectedModules.length === 1 ? selectedModules[0] : null;
   const showProperties = singleSelected || store.selectedWireId || store.selectedIOId || store.selectedAnnotationId;
   const showMultiInfo = selectedModules.length > 1;
@@ -760,6 +782,7 @@ export const EditorPage: React.FC = () => {
           simActive={simActive}
           onSimToggle={() => setSimActive((v) => !v)}
           onExportImage={viewMode === 'panel' ? handleExportImage : undefined}
+          onCopyImage={viewMode === 'panel' ? handleCopyImage : undefined}
         />
         <div className="editor-body">
           {viewMode === 'panel' && <ModuleLibrary />}
