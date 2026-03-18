@@ -152,6 +152,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const state = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const isPanningRef = useRef(false);
+  const panStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
   const [zoom, setZoom] = useState(1);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
@@ -547,6 +549,19 @@ export const PanelView: React.FC<PanelViewProps> = ({
   }, [wiringSnapTargets, state.wiringWaypoints]);
 
   const handleSvgMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if (e.button === 2) {
+      e.preventDefault();
+      const container = containerRef.current;
+      if (!container) return;
+      isPanningRef.current = true;
+      panStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        scrollLeft: container.scrollLeft,
+        scrollTop: container.scrollTop,
+      };
+      return;
+    }
     if (e.button !== 0) return;
 
     // Measuring tool click handling
@@ -646,6 +661,14 @@ export const PanelView: React.FC<PanelViewProps> = ({
   }, [screenToSvg, state, snapWiringPoint, resolvePortPos, measureActive, measurePending]);
 
   const handleSvgMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if (isPanningRef.current) {
+      const container = containerRef.current;
+      if (container) {
+        container.scrollLeft = panStartRef.current.scrollLeft - (e.clientX - panStartRef.current.x);
+        container.scrollTop = panStartRef.current.scrollTop - (e.clientY - panStartRef.current.y);
+      }
+      return;
+    }
     // Track mouse for measuring tool
     if (measureActive) {
       const pt = screenToSvg(e.clientX, e.clientY);
@@ -683,6 +706,10 @@ export const PanelView: React.FC<PanelViewProps> = ({
   }, [screenToSvg, state.wiringFrom, state.wireSnapAlignment, snapWiringPoint, measureActive, measurePending]);
 
   const handleSvgMouseUp = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if (e.button === 2) {
+      isPanningRef.current = false;
+      return;
+    }
     if (e.button !== 0) return;
     if (!marqueeRef.current) return;
     handleMarqueeEnd();
@@ -890,6 +917,13 @@ export const PanelView: React.FC<PanelViewProps> = ({
     return () => window.removeEventListener('keydown', handler);
   }, [selectedModules, state, layout, fitToContainer, onSelectModule, onSetSelection, clampZoom, onUndo, onRedo]);
 
+  // --- Right-click pan: stop on global mouseup and suppress context menu ---
+  useEffect(() => {
+    const stopPan = () => { isPanningRef.current = false; };
+    window.addEventListener('mouseup', stopPan);
+    return () => window.removeEventListener('mouseup', stopPan);
+  }, []);
+
   // --- Ctrl+Wheel zoom toward cursor ---
   useEffect(() => {
     const container = containerRef.current;
@@ -903,7 +937,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
       if (!svg) return;
 
       const oldZoom = zoomRef.current;
-      const newZoom = clampZoom(oldZoom - e.deltaY * 0.002);
+      const newZoom = clampZoom(oldZoom - e.deltaY * 0.008);
       if (newZoom === oldZoom) return;
 
       const ratio = newZoom / oldZoom;
@@ -953,6 +987,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
         onMouseDown={handleSvgMouseDown}
         onMouseMove={handleSvgMouseMove}
         onMouseUp={handleSvgMouseUp}
+        onContextMenu={(e) => e.preventDefault()}
       >
         <defs>
           <pattern
