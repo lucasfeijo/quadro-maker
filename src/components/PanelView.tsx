@@ -85,6 +85,7 @@ interface PanelViewProps {
   onSelectAnnotation?: (id: string) => void;
   selectedAnnotationId?: string | null;
   altHeld?: boolean;
+  onDragChange?: (dragging: boolean) => void;
 }
 
 const EDGE_PREVIEW_IO_BOX_W = 20;
@@ -148,6 +149,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
   onSelectAnnotation,
   selectedAnnotationId,
   altHeld,
+  onDragChange,
 }) => {
   const state = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -164,6 +166,11 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const [isDraggingIO, setIsDraggingIO] = useState(false);
   const [hoveringWaypoint, setHoveringWaypoint] = useState(false);
   const [isDraggingWaypoint, setIsDraggingWaypoint] = useState(false);
+  const [isDraggingDevice, setIsDraggingDevice] = useState(false);
+
+  useEffect(() => {
+    onDragChange?.(isDraggingSegment || isDraggingIO || isDraggingWaypoint || isDraggingDevice);
+  }, [isDraggingSegment, isDraggingIO, isDraggingWaypoint, isDraggingDevice, onDragChange]);
   const [wiringMousePos, setWiringMousePos] = useState<{ x: number; y: number } | null>(null);
   const [measureActive, setMeasureActive] = useState(false);
   const [measureLines, setMeasureLines] = useState<Array<{ ax: number; ay: number; bx: number; by: number }>>([]);
@@ -1181,6 +1188,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
           onPortLeave={onPortLeave}
           simStates={simActive ? simStates : undefined}
           onSimModeChange={simActive ? onSimModeChange : undefined}
+          onDragChange={setIsDraggingDevice}
         />
 
         {/* Wires — rendered on top so they stay clickable when passing through switches/buttons */}

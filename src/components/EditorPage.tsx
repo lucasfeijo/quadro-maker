@@ -78,6 +78,8 @@ export const EditorPage: React.FC = () => {
   const lastSnapshotRef = useRef<string | null>(null);
   const lastStateRef = useRef<PanelState | null>(null);
   const isRestoringHistoryRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const preDragSnapshotRef = useRef<PanelState | null>(null);
   const shiftHeldRef = useRef(false);
   const altHeldRef = useRef(false);
   const [altHeld, setAltHeld] = useState(false);
@@ -295,6 +297,13 @@ export const EditorPage: React.FC = () => {
     }
     if (snapshotKey === lastSnapshotRef.current) return;
 
+    // During drag, don't push intermediate states to history
+    if (isDraggingRef.current) {
+      lastSnapshotRef.current = snapshotKey;
+      lastStateRef.current = clonePanelState(panelStateSnapshot);
+      return;
+    }
+
     if (lastStateRef.current) {
       historyPastRef.current.push(lastStateRef.current);
       if (historyPastRef.current.length > 100) historyPastRef.current.shift();
@@ -326,6 +335,24 @@ export const EditorPage: React.FC = () => {
     store.loadState(next);
     updateHistoryFlags();
   }, [panelStateSnapshot, store, updateHistoryFlags]);
+
+  const handleDragChange = useCallback((dragging: boolean) => {
+    if (dragging) {
+      isDraggingRef.current = true;
+      // Save the state before drag starts for undo
+      preDragSnapshotRef.current = lastStateRef.current ? clonePanelState(lastStateRef.current) : null;
+    } else {
+      isDraggingRef.current = false;
+      // Drag ended: push the pre-drag state as a single undo entry
+      if (preDragSnapshotRef.current && lastSnapshotRef.current !== JSON.stringify(preDragSnapshotRef.current)) {
+        historyPastRef.current.push(preDragSnapshotRef.current);
+        if (historyPastRef.current.length > 100) historyPastRef.current.shift();
+        historyFutureRef.current = [];
+        updateHistoryFlags();
+      }
+      preDragSnapshotRef.current = null;
+    }
+  }, [updateHistoryFlags]);
 
   const computeSnapPosition = useCallback(
     (
@@ -382,6 +409,7 @@ export const EditorPage: React.FC = () => {
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
+      handleDragChange(true);
       const data = event.active.data.current;
       const dtype = data?.type ?? null;
       setActiveDragType(dtype);
@@ -551,6 +579,7 @@ export const EditorPage: React.FC = () => {
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      handleDragChange(false);
       const placedInfo = activePlaced;
       clearDragState();
 
@@ -811,6 +840,7 @@ export const EditorPage: React.FC = () => {
               onSelectAnnotation={handleSelectAnnotation}
               selectedAnnotationId={store.selectedAnnotationId}
               altHeld={altHeld}
+              onDragChange={handleDragChange}
             />
           )}
           {viewMode === 'schematic' && <SchematicView />}

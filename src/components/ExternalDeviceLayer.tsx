@@ -17,6 +17,7 @@ interface Props {
   onPortLeave?: () => void;
   simStates?: ComponentState[];
   onSimModeChange?: (instanceId: string, newMode: string) => void;
+  onDragChange?: (dragging: boolean) => void;
 }
 
 const DEV_SCALE = 1;
@@ -111,6 +112,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
   onPortLeave,
   simStates,
   onSimModeChange,
+  onDragChange,
 }) => {
   const devices = usePanelStore((s) => s.externalDevices);
   const displayMode = usePanelStore((s) => s.displayMode);
@@ -122,6 +124,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
   const wires = usePanelStore((s) => s.wires);
 
   const [dragging, setDragging] = useState<string | null>(null);
+  React.useEffect(() => { onDragChange?.(dragging != null); }, [dragging, onDragChange]);
   const dragOrigin = useRef<{
     mx: number;
     my: number;
