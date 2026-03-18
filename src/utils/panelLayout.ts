@@ -5,7 +5,7 @@ import { getEnclosureById, DIN_MODULE_1P_MM } from '../data/enclosures';
 
 const ROW_HEIGHT_MM = 100;
 const ROW_SPACING_MM = 30;
-const WALL_THICKNESS_MM = 2;
+const WALL_THICKNESS_MM = 30;
 const DEFAULT_FIXING_MARGIN_MM = 30;
 const VERTICAL_PADDING_MM = 40;
 
