@@ -112,9 +112,9 @@ export const DinRail: React.FC<Props> = ({
             <line
               key={i}
               x1={usableOffsetXPx + mmToPx(xMm)}
-              y1={railTopPx - mmToPx(35)}
+              y1={railCenterYPx - mmToPx(40)}
               x2={usableOffsetXPx + mmToPx(xMm)}
-              y2={railTopPx + mmToPx(45)}
+              y2={railCenterYPx + mmToPx(40)}
               stroke={isMajor ? '#ccc' : '#e8e8e8'}
               strokeWidth={isMajor ? 0.3 : 0.15}
             />

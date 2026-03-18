@@ -1077,7 +1077,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
           width={svgWidth}
           height={svgHeight}
           rx={2}
-          fill={layout.isEnclosure ? '#e0e0e0' : '#f5f5f5'}
+          fill={layout.isEnclosure ? '#fafafa' : '#f5f5f5'}
           stroke="#999"
           strokeWidth={2}
         />

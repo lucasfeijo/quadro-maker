@@ -70,18 +70,58 @@ export const EnclosureSelector: React.FC<Props> = ({ onSelect }) => {
                         strokeWidth={2}
                       />
                       {enc.rails.map((r) => {
+                        const railH = 35;
+                        const railBarInset = 15;
                         const fixingMm =
                           (enc.interiorWidthMm - r.usableWidthMm) / 2;
+                        const railFullX = wallX + r.xMm;
+                        const railFullW = enc.interiorWidthMm;
+                        const barX = railFullX + railBarInset;
+                        const barW = railFullW - railBarInset * 2;
+                        const barY = wallY + r.yMm;
+                        const slotW = 18;
+                        const slotH = 6;
+                        const slotSpacing = 25;
+                        const slotStartX = barX - 9;
+                        const slotY = barY + (railH - slotH) / 2;
+                        const slotRx = slotH / 2;
+                        const slotCount = Math.ceil((barW + 9) / slotSpacing) + 1;
+                        const clipId = `enc-rail-clip-${enc.id}-${r.id}`;
                         return (
-                          <rect
-                            key={r.id}
-                            x={wallX + r.xMm + fixingMm}
-                            y={wallY + r.yMm - 3}
-                            width={r.usableWidthMm}
-                            height={6}
-                            fill="#90a4ae"
-                            rx={1}
-                          />
+                          <g key={r.id}>
+                            {/* Rail bar */}
+                            <rect
+                              x={barX}
+                              y={barY}
+                              width={barW}
+                              height={railH}
+                              rx={1}
+                              fill="#b0bec5"
+                              stroke="#78909c"
+                              strokeWidth={1}
+                            />
+                            {/* Rail slots */}
+                            <defs>
+                              <clipPath id={clipId}>
+                                <rect x={barX + 1} y={barY + 1} width={barW - 2} height={railH - 2} rx={1} />
+                              </clipPath>
+                            </defs>
+                            <g clipPath={`url(#${clipId})`}>
+                              {Array.from({ length: slotCount }, (_, i) => (
+                                <rect
+                                  key={i}
+                                  x={slotStartX + i * slotSpacing}
+                                  y={slotY}
+                                  width={slotW}
+                                  height={slotH}
+                                  rx={slotRx}
+                                  fill="#90a4ae"
+                                  stroke="#7d949e"
+                                  strokeWidth={0.8}
+                                />
+                              ))}
+                            </g>
+                          </g>
                         );
                       })}
                       {enc.mountingHoles.map((h, i) => (
