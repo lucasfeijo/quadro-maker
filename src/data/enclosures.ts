@@ -3,7 +3,6 @@ import { EnclosureDefinition } from '../types';
 /** Largura por módulo DIN 1P (disjuntor unipolar) em mm — padrão 17.5mm, app usa 18 */
 export const DIN_MODULE_1P_MM = 18;
 
-const DEFAULT_BAR_OVERHANG_MM = 15;
 const RAIL_BRACKET_SPACE_MM = 15;
 
 function makeRails(

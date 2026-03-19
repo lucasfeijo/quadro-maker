@@ -230,8 +230,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const svgHeight = mmToPx(layout.exteriorHeightMm);
   const intX = mmToPx(layout.interiorOffsetXMm);
   const intY = mmToPx(layout.interiorOffsetYMm);
-  const intW = mmToPx(layout.interiorWidthMm);
-  const intH = mmToPx(layout.interiorHeightMm);
+
+
 
   const ioWireTargets = useMemo(() => {
     const MODULE_H_MM = 70;

@@ -239,7 +239,6 @@ export const CustomPanelPreview: React.FC<Props> = ({
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoverEdge, setHoverEdge] = useState<string | null>(null);
-  const [hoverRailId, setHoverRailId] = useState<string | null>(null);
   const [draggingEdge, setDraggingEdge] = useState<{
     axis: 'x' | 'y';
     startClientX: number;

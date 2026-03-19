@@ -50,7 +50,6 @@ export const DinRail: React.FC<Props> = ({
 
   const railLeftPx = interiorOffsetXPx + mmToPx(rail.xMm);
   const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
-  const railWidthPx = mmToPx(rail.widthMm);
   const railHeightPx = mmToPx(RAIL_HEIGHT_MM);
   const fixingPx = mmToPx(rail.fixingMarginMm);
   const usablePx = mmToPx(rail.usableWidthMm);
