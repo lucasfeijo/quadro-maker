@@ -766,10 +766,32 @@ html, body, #root {
   margin-bottom: 16px;
 }
 
+.library-filter-wrap {
+  position: relative;
+}
+
+.library-filter-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.library-filter-clear:hover {
+  color: rgba(255,255,255,0.8);
+}
+
 .library-filter-input {
   width: 100%;
   box-sizing: border-box;
-  padding: 6px 10px;
+  padding: 6px 26px 6px 10px;
   border: 1px solid var(--toolbar-border);
   border-radius: 6px;
   background: rgba(255,255,255,0.06);

@@ -281,9 +281,9 @@ export const ModuleLibrary: React.FC = () => {
     | { type: 'module'; mod: NonNullable<ReturnType<typeof getModuleById>> };
 
   const activeGroup = LIBRARY_GROUPS[activeTab];
-  const filteredSubgroups = useMemo(() => {
-    if (!activeGroup) return [] as Array<{ id: string; label: string; resolved: ResolvedItem[] }>;
-    return activeGroup.subgroups
+
+  const resolveSubgroups = useCallback((group: typeof LIBRARY_GROUPS[number]) => {
+    return group.subgroups
       .map((sg) => {
         const resolved: ResolvedItem[] = [];
         for (const modId of sg.modules) {
@@ -308,22 +308,44 @@ export const ModuleLibrary: React.FC = () => {
         return { ...sg, resolved };
       })
       .filter((sg) => sg.resolved.length > 0);
-  }, [activeGroup, q, matchesFilter]);
+  }, [matchesFilter]);
+
+  const filteredSubgroups = useMemo(() => {
+    if (!q) {
+      // No search: show active tab only
+      if (!activeGroup) return [] as Array<{ id: string; label: string; resolved: ResolvedItem[] }>;
+      return resolveSubgroups(activeGroup);
+    }
+    // Search: merge results from all tabs
+    return LIBRARY_GROUPS.flatMap((g) => resolveSubgroups(g));
+  }, [activeGroup, q, resolveSubgroups]);
 
   const showAnnotations = !q || ['legenda', 'texto', 'anotação', 'annotation', 'label'].some((w) => q.includes(normalize(w)));
-  const hasAnnotations = activeGroup?.id === 'connection_interface' && showAnnotations;
+  const hasAnnotations = (q ? true : activeGroup?.id === 'connection_interface') && showAnnotations;
 
   return (
     <div className="module-library">
       <div className="library-filter-sticky">
-        <input
-          type="text"
-          className="library-filter-input"
-          placeholder="Filtrar componentes..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-        <div className="library-tabs">
+        <div className="library-filter-wrap">
+          <input
+            type="text"
+            className="library-filter-input"
+            placeholder="Filtrar componentes..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          {filter && (
+            <button
+              type="button"
+              className="library-filter-clear"
+              onClick={() => setFilter('')}
+              aria-label="Limpar busca"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        {!q && <div className="library-tabs">
           {LIBRARY_GROUPS.map((g, i) => (
             <button
               key={g.id}
@@ -339,7 +361,7 @@ export const ModuleLibrary: React.FC = () => {
               {g.label}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       {filteredSubgroups.map((sg) => (
