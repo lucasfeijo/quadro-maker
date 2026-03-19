@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePanelStore } from '../store/panelStore';
 import { EnclosureSelector } from './EnclosureSelector';
+import { CustomPanelPreview } from './CustomPanelPreview';
 import { listProjects, loadProject, deleteProject, importProject, importFromJsonString } from '../utils/storage';
 import { SavedProject } from '../types';
 import { DIN_MODULE_1P_MM } from '../data/enclosures';
+import { resolveCustomLayout } from '../utils/panelLayout';
 
 export const PanelConfig: React.FC = () => {
   const navigate = useNavigate();
@@ -12,13 +14,59 @@ export const PanelConfig: React.FC = () => {
   const [tab, setTab] = useState<'custom' | 'enclosure' | 'load'>('enclosure');
   const [widthUnits, setWidthUnits] = useState(12);
   const [rowCount, setRowCount] = useState(1);
+  const [exteriorWidthMm, setExteriorWidthMm] = useState<number | undefined>(undefined);
+  const [exteriorHeightMm, setExteriorHeightMm] = useState<number | undefined>(undefined);
+  const [railYOverrides, setRailYOverrides] = useState<Record<string, number>>({});
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
   const [pasteJson, setPasteJson] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
   const [pasteCollapsed, setPasteCollapsed] = useState(true);
 
+  // Auto-computed (no dimension overrides) layout for min bounds
+  const defaultLayout = useMemo(
+    () => resolveCustomLayout(widthUnits, rowCount),
+    [widthUnits, rowCount],
+  );
+
+  // Active layout with overrides
+  const previewLayout = useMemo(
+    () => resolveCustomLayout(widthUnits, rowCount, exteriorWidthMm, exteriorHeightMm, railYOverrides),
+    [widthUnits, rowCount, exteriorWidthMm, exteriorHeightMm, railYOverrides],
+  );
+
+  const handleWidthChange = useCallback((v: number) => {
+    setWidthUnits(v);
+  }, []);
+
+  const handleRowCountChange = useCallback((v: number) => {
+    setRowCount(v);
+    setRailYOverrides({});
+  }, []);
+
+  const handleResizeExterior = useCallback((w: number, h: number) => {
+    setExteriorWidthMm(w);
+    setExteriorHeightMm(h);
+  }, []);
+
+  const handleRailYChange = useCallback((railId: string, yMm: number) => {
+    setRailYOverrides(prev => ({ ...prev, [railId]: yMm }));
+  }, []);
+
+  const handleRailYReset = useCallback((railId: string) => {
+    setRailYOverrides(prev => {
+      const next = { ...prev };
+      delete next[railId];
+      return next;
+    });
+  }, []);
+
   const handleCustomStart = () => {
-    store.configureCustom(widthUnits, rowCount);
+    const hasOverrides = exteriorWidthMm != null || exteriorHeightMm != null || Object.keys(railYOverrides).length > 0;
+    store.configureCustom(widthUnits, rowCount, hasOverrides ? {
+      exteriorWidthMm,
+      exteriorHeightMm,
+      railYOverridesMm: Object.keys(railYOverrides).length > 0 ? railYOverrides : undefined,
+    } : undefined);
     navigate('/project/new');
   };
 
@@ -124,42 +172,97 @@ export const PanelConfig: React.FC = () => {
       <div className="setup-content">
         {tab === 'custom' && (
           <div className="custom-config">
-            <div className="config-field">
-              <label>Largura (disjuntores unipolares):</label>
-              <select
-                value={widthUnits}
-                onChange={(e) => setWidthUnits(Number(e.target.value))}
-              >
-                {[6, 8, 10, 12, 14, 16, 18, 20, 24, 30, 36].map((n) => (
-                  <option key={n} value={n}>
-                    {n} unidades ({n * DIN_MODULE_1P_MM}mm)
-                  </option>
-                ))}
-              </select>
+            <div className="custom-config-controls">
+              <div className="config-field">
+                <label>Largura (disjuntores unipolares):</label>
+                <select
+                  value={widthUnits}
+                  onChange={(e) => handleWidthChange(Number(e.target.value))}
+                >
+                  {[4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 30, 36].map((n) => (
+                    <option key={n} value={n}>
+                      {n} unidades ({n * DIN_MODULE_1P_MM}mm)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="config-field">
+                <label>Trilhos DIN: {rowCount}</label>
+                <input
+                  type="range"
+                  min={1}
+                  max={8}
+                  step={1}
+                  value={rowCount}
+                  onChange={(e) => handleRowCountChange(Number(e.target.value))}
+                  className="row-slider"
+                />
+                <div className="slider-ticks">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+                    <span key={n} className={n === rowCount ? 'active' : ''}>{n}</span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="config-field config-dimensions">
+                <label>Dimensões exteriores (mm):</label>
+                <div className="dimension-inputs">
+                  <div className="dim-input-group">
+                    <input
+                      type="number"
+                      min={defaultLayout.exteriorWidthMm}
+                      max={1000}
+                      step={10}
+                      value={exteriorWidthMm ?? ''}
+                      placeholder={String(defaultLayout.exteriorWidthMm)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setExteriorWidthMm(v === '' ? undefined : Math.max(defaultLayout.exteriorWidthMm, Number(v)));
+                      }}
+                    />
+                    <span className="dim-label">largura</span>
+                  </div>
+                  <span className="dim-separator">×</span>
+                  <div className="dim-input-group">
+                    <input
+                      type="number"
+                      min={defaultLayout.exteriorHeightMm}
+                      max={1000}
+                      step={10}
+                      value={exteriorHeightMm ?? ''}
+                      placeholder={String(defaultLayout.exteriorHeightMm)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setExteriorHeightMm(v === '' ? undefined : Math.max(defaultLayout.exteriorHeightMm, Number(v)));
+                      }}
+                    />
+                    <span className="dim-label">altura</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="config-summary">
+                <p>
+                  Trilho DIN: {widthUnits * DIN_MODULE_1P_MM}mm utilizável + {Math.round(previewLayout.rails[0]?.fixingMarginMm ?? 30)}mm
+                  fixação cada lado
+                </p>
+              </div>
+              <button className="start-btn" onClick={handleCustomStart}>
+                Criar Quadro
+              </button>
             </div>
-            <div className="config-field">
-              <label>Número de fileiras:</label>
-              <select
-                value={rowCount}
-                onChange={(e) => setRowCount(Number(e.target.value))}
-              >
-                {[1, 2, 3, 4, 5, 6].map((n) => (
-                  <option key={n} value={n}>
-                    {n} fileira{n > 1 ? 's' : ''}
-                  </option>
-                ))}
-              </select>
+
+            <div className="custom-config-preview">
+              <CustomPanelPreview
+                layout={previewLayout}
+                defaultLayout={defaultLayout}
+                railYOverrides={railYOverrides}
+                onResizeExterior={handleResizeExterior}
+                onRailYChange={handleRailYChange}
+                onRailYReset={handleRailYReset}
+              />
             </div>
-            <div className="config-summary">
-              <p>
-                Trilho DIN: {widthUnits * DIN_MODULE_1P_MM}mm utilizável + 30mm
-                fixação cada lado = {widthUnits * DIN_MODULE_1P_MM + 60}mm total
-              </p>
-              <p>Subunidade mínima: {DIN_MODULE_1P_MM}mm (snap grid)</p>
-            </div>
-            <button className="start-btn" onClick={handleCustomStart}>
-              Criar Quadro
-            </button>
           </div>
         )}
 

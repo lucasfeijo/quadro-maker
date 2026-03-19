@@ -170,6 +170,7 @@ export type PanelState = {
   /** Override exterior dimensions (mm). When set, rails stay centered; when unset, computed from widthUnits/rowCount. */
   exteriorWidthMm?: number;
   exteriorHeightMm?: number;
+  railYOverridesMm?: Record<string, number>;
   rows: PanelRow[];
   wires: Wire[];
   panelIOs: PanelIO[];

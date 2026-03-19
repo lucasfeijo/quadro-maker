@@ -1,13 +1,13 @@
 import type { ResolvedLayout } from '../types';
 
-type LayoutInput = Pick<import('../types').PanelState, 'enclosureId' | 'widthUnits' | 'rowCount' | 'rows' | 'exteriorWidthMm' | 'exteriorHeightMm'>;
+type LayoutInput = Pick<import('../types').PanelState, 'enclosureId' | 'widthUnits' | 'rowCount' | 'rows' | 'exteriorWidthMm' | 'exteriorHeightMm' | 'railYOverridesMm'>;
 import { getEnclosureById, DIN_MODULE_1P_MM } from '../data/enclosures';
 
-const ROW_HEIGHT_MM = 100;
-const ROW_SPACING_MM = 30;
-const WALL_THICKNESS_MM = 30;
-const DEFAULT_FIXING_MARGIN_MM = 30;
-const VERTICAL_PADDING_MM = 40;
+export const ROW_HEIGHT_MM = 100;
+export const ROW_SPACING_MM = 30;
+export const WALL_THICKNESS_MM = 30;
+export const DEFAULT_FIXING_MARGIN_MM = 30;
+export const VERTICAL_PADDING_MM = 40;
 
 export function resolveLayout(state: LayoutInput): ResolvedLayout {
   return state.enclosureId
@@ -17,6 +17,7 @@ export function resolveLayout(state: LayoutInput): ResolvedLayout {
         state.rowCount,
         state.exteriorWidthMm,
         state.exteriorHeightMm,
+        state.railYOverridesMm,
       );
 }
 
@@ -50,11 +51,12 @@ function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
   };
 }
 
-function resolveCustomLayout(
+export function resolveCustomLayout(
   widthUnits: number,
   rowCount: number,
   exteriorWidthMm?: number,
   exteriorHeightMm?: number,
+  railYOverridesMm?: Record<string, number>,
 ): ResolvedLayout {
   const usableWidth = widthUnits * DIN_MODULE_1P_MM;
   const contentHeight = rowCount * ROW_HEIGHT_MM + (rowCount - 1) * ROW_SPACING_MM;
@@ -95,14 +97,21 @@ function resolveCustomLayout(
     railStartYMm = VERTICAL_PADDING_MM;
   }
 
-  const rails = Array.from({ length: rowCount }, (_, i) => ({
-    id: `row-${i}`,
-    xMm: 0,
-    yMm: railStartYMm + i * (ROW_HEIGHT_MM + ROW_SPACING_MM) + ROW_HEIGHT_MM / 2 - 17.5,
-    widthMm: interiorWidth,
-    usableWidthMm: usableWidth,
-    fixingMarginMm: railFixingMarginMm,
-  }));
+  const railWidthMm = usableWidth + DEFAULT_FIXING_MARGIN_MM * 2;
+  const railXMm = (interiorWidth - railWidthMm) / 2;
+
+  const rails = Array.from({ length: rowCount }, (_, i) => {
+    const id = `row-${i}`;
+    const defaultY = railStartYMm + i * (ROW_HEIGHT_MM + ROW_SPACING_MM) + ROW_HEIGHT_MM / 2 - 17.5;
+    return {
+      id,
+      xMm: railXMm,
+      yMm: railYOverridesMm?.[id] ?? defaultY,
+      widthMm: railWidthMm,
+      usableWidthMm: usableWidth,
+      fixingMarginMm: DEFAULT_FIXING_MARGIN_MM,
+    };
+  });
 
   return {
     exteriorWidthMm: exteriorWidth,

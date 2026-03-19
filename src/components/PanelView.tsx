@@ -220,8 +220,9 @@ export const PanelView: React.FC<PanelViewProps> = ({
         rows: state.rows,
         exteriorWidthMm: state.exteriorWidthMm,
         exteriorHeightMm: state.exteriorHeightMm,
+        railYOverridesMm: state.railYOverridesMm,
       }),
-    [state.enclosureId, state.widthUnits, state.rowCount, state.rows, state.exteriorWidthMm, state.exteriorHeightMm],
+    [state.enclosureId, state.widthUnits, state.rowCount, state.rows, state.exteriorWidthMm, state.exteriorHeightMm, state.railYOverridesMm],
   );
 
   const svgWidth = mmToPx(layout.exteriorWidthMm);
