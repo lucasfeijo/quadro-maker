@@ -191,8 +191,9 @@ export const App: React.FC = () => {
         rows: store.rows,
         exteriorWidthMm: store.exteriorWidthMm,
         exteriorHeightMm: store.exteriorHeightMm,
+        barOverhangMm: store.barOverhangMm,
       }),
-    [store.enclosureId, store.widthUnits, store.rowCount, store.rows, store.exteriorWidthMm, store.exteriorHeightMm],
+    [store.enclosureId, store.widthUnits, store.rowCount, store.rows, store.exteriorWidthMm, store.exteriorHeightMm, store.barOverhangMm],
   );
 
   const panelStateSnapshot = useMemo<PanelState>(

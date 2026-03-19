@@ -71,13 +71,11 @@ export const EnclosureSelector: React.FC<Props> = ({ onSelect }) => {
                       />
                       {enc.rails.map((r) => {
                         const railH = 35;
-                        const railBarInset = 15;
                         const fixingMm =
                           (enc.interiorWidthMm - r.usableWidthMm) / 2;
-                        const railFullX = wallX + r.xMm;
-                        const railFullW = enc.interiorWidthMm;
-                        const barX = railFullX + railBarInset;
-                        const barW = railFullW - railBarInset * 2;
+                        const usableX = wallX + r.xMm + fixingMm;
+                        const barX = usableX - r.barOverhangLeftMm;
+                        const barW = r.barOverhangLeftMm + r.usableWidthMm + r.barOverhangRightMm;
                         const barY = wallY + r.yMm;
                         const slotW = 18;
                         const slotH = 6;

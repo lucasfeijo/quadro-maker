@@ -26,7 +26,7 @@ interface PanelStore extends PanelState {
   selectedIOId: string | null;
   selectedAnnotationId: string | null;
 
-  configureCustom: (widthUnits: number, rowCount: number, options?: { exteriorWidthMm?: number; exteriorHeightMm?: number; railYOverridesMm?: Record<string, number> }) => void;
+  configureCustom: (widthUnits: number, rowCount: number, options?: { exteriorWidthMm?: number; exteriorHeightMm?: number; railYOverridesMm?: Record<string, number>; barOverhangMm?: number }) => void;
   configureFromEnclosure: (enclosureId: string) => void;
   goToSetup: () => void;
 
@@ -98,6 +98,7 @@ function getSavableSnapshot(s: PanelStore): string {
     exteriorWidthMm: s.exteriorWidthMm,
     exteriorHeightMm: s.exteriorHeightMm,
     railYOverridesMm: s.railYOverridesMm,
+    barOverhangMm: s.barOverhangMm,
     rows: s.rows,
     wires: s.wires,
     panelIOs: s.panelIOs,
@@ -153,6 +154,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       exteriorWidthMm: options?.exteriorWidthMm,
       exteriorHeightMm: options?.exteriorHeightMm,
       railYOverridesMm: options?.railYOverridesMm,
+      barOverhangMm: options?.barOverhangMm,
       rows: makeRows(rowCount),
       wires: [],
       panelIOs: [],

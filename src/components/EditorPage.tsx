@@ -248,8 +248,9 @@ export const EditorPage: React.FC = () => {
         exteriorWidthMm: store.exteriorWidthMm,
         exteriorHeightMm: store.exteriorHeightMm,
         railYOverridesMm: store.railYOverridesMm,
+        barOverhangMm: store.barOverhangMm,
       }),
-    [store.enclosureId, store.widthUnits, store.rowCount, store.rows, store.exteriorWidthMm, store.exteriorHeightMm, store.railYOverridesMm],
+    [store.enclosureId, store.widthUnits, store.rowCount, store.rows, store.exteriorWidthMm, store.exteriorHeightMm, store.railYOverridesMm, store.barOverhangMm],
   );
 
   const panelStateSnapshot = useMemo<PanelState>(
@@ -259,6 +260,7 @@ export const EditorPage: React.FC = () => {
       widthUnits: store.widthUnits,
       rowCount: store.rowCount,
       railYOverridesMm: store.railYOverridesMm,
+      barOverhangMm: store.barOverhangMm,
       rows: store.rows,
       wires: store.wires,
       panelIOs: store.panelIOs,

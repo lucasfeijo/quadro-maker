@@ -6,7 +6,7 @@ import { CustomPanelPreview } from './CustomPanelPreview';
 import { listProjects, loadProject, deleteProject, importProject, importFromJsonString } from '../utils/storage';
 import { SavedProject } from '../types';
 import { DIN_MODULE_1P_MM } from '../data/enclosures';
-import { resolveCustomLayout } from '../utils/panelLayout';
+import { resolveCustomLayout, DEFAULT_BAR_OVERHANG_MM } from '../utils/panelLayout';
 
 export const PanelConfig: React.FC = () => {
   const navigate = useNavigate();
@@ -20,18 +20,19 @@ export const PanelConfig: React.FC = () => {
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
   const [pasteJson, setPasteJson] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
+  const [barOverhangMm, setBarOverhangMm] = useState<number | undefined>(undefined);
   const [pasteCollapsed, setPasteCollapsed] = useState(true);
 
   // Auto-computed (no dimension overrides) layout for min bounds
   const defaultLayout = useMemo(
-    () => resolveCustomLayout(widthUnits, rowCount),
-    [widthUnits, rowCount],
+    () => resolveCustomLayout(widthUnits, rowCount, undefined, undefined, undefined, barOverhangMm),
+    [widthUnits, rowCount, barOverhangMm],
   );
 
   // Active layout with overrides
   const previewLayout = useMemo(
-    () => resolveCustomLayout(widthUnits, rowCount, exteriorWidthMm, exteriorHeightMm, railYOverrides),
-    [widthUnits, rowCount, exteriorWidthMm, exteriorHeightMm, railYOverrides],
+    () => resolveCustomLayout(widthUnits, rowCount, exteriorWidthMm, exteriorHeightMm, railYOverrides, barOverhangMm),
+    [widthUnits, rowCount, exteriorWidthMm, exteriorHeightMm, railYOverrides, barOverhangMm],
   );
 
   const handleWidthChange = useCallback((v: number) => {
@@ -61,11 +62,12 @@ export const PanelConfig: React.FC = () => {
   }, []);
 
   const handleCustomStart = () => {
-    const hasOverrides = exteriorWidthMm != null || exteriorHeightMm != null || Object.keys(railYOverrides).length > 0;
+    const hasOverrides = exteriorWidthMm != null || exteriorHeightMm != null || Object.keys(railYOverrides).length > 0 || barOverhangMm != null;
     store.configureCustom(widthUnits, rowCount, hasOverrides ? {
       exteriorWidthMm,
       exteriorHeightMm,
       railYOverridesMm: Object.keys(railYOverrides).length > 0 ? railYOverrides : undefined,
+      barOverhangMm,
     } : undefined);
     navigate('/project/new');
   };
@@ -174,21 +176,31 @@ export const PanelConfig: React.FC = () => {
           <div className="custom-config">
             <div className="custom-config-controls">
               <div className="config-field">
-                <label>Largura (disjuntores unipolares):</label>
-                <select
+                <label>Largura: {widthUnits}P</label>
+                <input
+                  type="range"
+                  min={2}
+                  max={36}
+                  step={1}
                   value={widthUnits}
                   onChange={(e) => handleWidthChange(Number(e.target.value))}
-                >
-                  {[4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 30, 36].map((n) => (
-                    <option key={n} value={n}>
-                      {n} unidades ({n * DIN_MODULE_1P_MM}mm)
-                    </option>
+                  className="row-slider"
+                />
+                <div className="slider-ticks width-ticks">
+                  {[4, 8, 10, 12, 14, 16, 18, 20, 24, 30, 36].map(n => (
+                    <span
+                      key={n}
+                      className={n === widthUnits ? 'active' : ''}
+                      style={{ left: `${((n - 2) / 34) * 100}%` }}
+                    >
+                      {n}
+                    </span>
                   ))}
-                </select>
+                </div>
               </div>
 
               <div className="config-field">
-                <label>Trilhos DIN: {rowCount}</label>
+                <label>Quantidade de Trilhos: {rowCount}</label>
                 <input
                   type="range"
                   min={1}
@@ -242,10 +254,31 @@ export const PanelConfig: React.FC = () => {
                 </div>
               </div>
 
+              <div className="config-field config-dimensions">
+                <label>Sobra do trilho (mm):</label>
+                <div className="dimension-inputs">
+                  <div className="dim-input-group">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={barOverhangMm ?? ''}
+                      placeholder={String(DEFAULT_BAR_OVERHANG_MM)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setBarOverhangMm(v === '' ? undefined : Math.max(0, Number(v)));
+                      }}
+                    />
+                    <span className="dim-label">cada lado</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="config-summary">
                 <p>
-                  Trilho DIN: {widthUnits * DIN_MODULE_1P_MM}mm utilizável + {Math.round(previewLayout.rails[0]?.fixingMarginMm ?? 30)}mm
-                  fixação cada lado
+                  Trilho DIN: {widthUnits * DIN_MODULE_1P_MM}mm utilizável + {barOverhangMm ?? DEFAULT_BAR_OVERHANG_MM}mm
+                  sobra cada lado
                 </p>
               </div>
               <button className="start-btn" onClick={handleCustomStart}>
@@ -258,6 +291,8 @@ export const PanelConfig: React.FC = () => {
                 layout={previewLayout}
                 defaultLayout={defaultLayout}
                 railYOverrides={railYOverrides}
+                widthUnits={widthUnits}
+                onWidthUnitsChange={handleWidthChange}
                 onResizeExterior={handleResizeExterior}
                 onRailYChange={handleRailYChange}
                 onRailYReset={handleRailYReset}

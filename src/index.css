@@ -206,6 +206,24 @@ html, body, #root {
   font-weight: 700;
 }
 
+.slider-ticks.width-ticks {
+  position: relative;
+  height: 16px;
+  justify-content: flex-start;
+}
+
+.slider-ticks.width-ticks span {
+  position: absolute;
+  transform: translateX(-50%);
+  width: auto;
+}
+
+.slider-subtitle {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  opacity: 0.45;
+}
+
 /* Dimension inputs */
 .dimension-inputs {
   display: flex;

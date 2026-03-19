@@ -13,6 +13,8 @@ export type RailDefinition = {
   widthMm: number;
   usableWidthMm: number;
   fixingMarginMm: number;
+  barOverhangLeftMm: number;
+  barOverhangRightMm: number;
 };
 
 export type EnclosureDefinition = {
@@ -171,6 +173,7 @@ export type PanelState = {
   exteriorWidthMm?: number;
   exteriorHeightMm?: number;
   railYOverridesMm?: Record<string, number>;
+  barOverhangMm?: number;
   rows: PanelRow[];
   wires: Wire[];
   panelIOs: PanelIO[];
@@ -187,6 +190,8 @@ export type ResolvedRail = {
   widthMm: number;
   usableWidthMm: number;
   fixingMarginMm: number;
+  barOverhangLeftMm: number;
+  barOverhangRightMm: number;
 };
 
 export type ResolvedLayout = {

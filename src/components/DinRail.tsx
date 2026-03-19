@@ -25,7 +25,6 @@ interface Props {
 
 const RAIL_HEIGHT_MM = 35;
 const MODULE_HEIGHT_MM = 70;
-const RAIL_BAR_END_INSET_MM = 15;
 
 export const DinRail: React.FC<Props> = ({
   rail,
@@ -57,9 +56,9 @@ export const DinRail: React.FC<Props> = ({
   const usablePx = mmToPx(rail.usableWidthMm);
   const usableOffsetXPx = railLeftPx + fixingPx;
 
-  const railBarInsetPx = mmToPx(RAIL_BAR_END_INSET_MM);
-  const railBarLeftPx = railLeftPx + railBarInsetPx;
-  const railBarWidthPx = railWidthPx - railBarInsetPx * 2;
+  // Rail bar = usable area + overhang on each side
+  const railBarLeftPx = usableOffsetXPx - mmToPx(rail.barOverhangLeftMm);
+  const railBarWidthPx = mmToPx(rail.barOverhangLeftMm + rail.usableWidthMm + rail.barOverhangRightMm);
 
   const ghostX = ghostPreview
     ? usableOffsetXPx + mmToPx(ghostPreview.positionMm)

@@ -221,8 +221,9 @@ export const PanelView: React.FC<PanelViewProps> = ({
         exteriorWidthMm: state.exteriorWidthMm,
         exteriorHeightMm: state.exteriorHeightMm,
         railYOverridesMm: state.railYOverridesMm,
+        barOverhangMm: state.barOverhangMm,
       }),
-    [state.enclosureId, state.widthUnits, state.rowCount, state.rows, state.exteriorWidthMm, state.exteriorHeightMm, state.railYOverridesMm],
+    [state.enclosureId, state.widthUnits, state.rowCount, state.rows, state.exteriorWidthMm, state.exteriorHeightMm, state.railYOverridesMm, state.barOverhangMm],
   );
 
   const svgWidth = mmToPx(layout.exteriorWidthMm);
@@ -1078,18 +1079,9 @@ export const PanelView: React.FC<PanelViewProps> = ({
           width={svgWidth}
           height={svgHeight}
           rx={2}
-          fill={layout.isEnclosure ? '#fafafa' : '#f5f5f5'}
+          fill="#fafafa"
           stroke="#999"
           strokeWidth={2}
-        />
-
-        {/* Interior area */}
-        <rect
-          x={intX}
-          y={intY}
-          width={intW}
-          height={intH}
-          fill="#fafafa"
         />
 
         {/* Top border outer shadow */}

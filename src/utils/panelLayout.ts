@@ -1,6 +1,6 @@
 import type { ResolvedLayout } from '../types';
 
-type LayoutInput = Pick<import('../types').PanelState, 'enclosureId' | 'widthUnits' | 'rowCount' | 'rows' | 'exteriorWidthMm' | 'exteriorHeightMm' | 'railYOverridesMm'>;
+type LayoutInput = Pick<import('../types').PanelState, 'enclosureId' | 'widthUnits' | 'rowCount' | 'rows' | 'exteriorWidthMm' | 'exteriorHeightMm' | 'railYOverridesMm' | 'barOverhangMm'>;
 import { getEnclosureById, DIN_MODULE_1P_MM } from '../data/enclosures';
 
 export const ROW_HEIGHT_MM = 100;
@@ -8,6 +8,8 @@ export const ROW_SPACING_MM = 30;
 export const WALL_THICKNESS_MM = 30;
 export const DEFAULT_FIXING_MARGIN_MM = 30;
 export const VERTICAL_PADDING_MM = 40;
+export const DEFAULT_BAR_OVERHANG_MM = 15;
+export const RAIL_BRACKET_SPACE_MM = 15;
 
 export function resolveLayout(state: LayoutInput): ResolvedLayout {
   return state.enclosureId
@@ -18,6 +20,7 @@ export function resolveLayout(state: LayoutInput): ResolvedLayout {
         state.exteriorWidthMm,
         state.exteriorHeightMm,
         state.railYOverridesMm,
+        state.barOverhangMm,
       );
 }
 
@@ -38,12 +41,15 @@ function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
     interiorOffsetYMm: origWallY + extraY,
     rails: enc.rails.map((r) => {
       const fixingMarginMm = (enc.interiorWidthMm - r.usableWidthMm) / 2;
+      const barOvh = Math.max(0, fixingMarginMm - RAIL_BRACKET_SPACE_MM);
       return {
         ...r,
         xMm: 0,
         widthMm: enc.interiorWidthMm,
         usableWidthMm: r.usableWidthMm,
         fixingMarginMm,
+        barOverhangLeftMm: barOvh,
+        barOverhangRightMm: barOvh,
       };
     }),
     mountingHoles: enc.mountingHoles,
@@ -57,7 +63,9 @@ export function resolveCustomLayout(
   exteriorWidthMm?: number,
   exteriorHeightMm?: number,
   railYOverridesMm?: Record<string, number>,
+  barOverhangMm?: number,
 ): ResolvedLayout {
+  const overhang = barOverhangMm ?? DEFAULT_BAR_OVERHANG_MM;
   const usableWidth = widthUnits * DIN_MODULE_1P_MM;
   const contentHeight = rowCount * ROW_HEIGHT_MM + (rowCount - 1) * ROW_SPACING_MM;
 
@@ -85,7 +93,8 @@ export function resolveCustomLayout(
     railFixingMarginMm = Math.max(0, (interiorWidth - usableWidth) / 2);
     railStartYMm = Math.max(0, (interiorHeight - contentHeight) / 2);
   } else {
-    const baseInteriorWidth = usableWidth + DEFAULT_FIXING_MARGIN_MM * 2;
+    const computedFixing = RAIL_BRACKET_SPACE_MM + overhang;
+    const baseInteriorWidth = usableWidth + computedFixing * 2;
     const baseInteriorHeight = VERTICAL_PADDING_MM * 2 + contentHeight;
     exteriorWidth = baseInteriorWidth + WALL_THICKNESS_MM * 2;
     exteriorHeight = baseInteriorHeight + WALL_THICKNESS_MM * 2;
@@ -93,11 +102,12 @@ export function resolveCustomLayout(
     interiorHeight = baseInteriorHeight;
     interiorOffsetXMm = WALL_THICKNESS_MM;
     interiorOffsetYMm = WALL_THICKNESS_MM;
-    railFixingMarginMm = DEFAULT_FIXING_MARGIN_MM;
+    railFixingMarginMm = computedFixing;
     railStartYMm = VERTICAL_PADDING_MM;
   }
 
-  const railWidthMm = usableWidth + DEFAULT_FIXING_MARGIN_MM * 2;
+  const railFixing = railFixingMarginMm;
+  const railWidthMm = usableWidth + railFixing * 2;
   const railXMm = (interiorWidth - railWidthMm) / 2;
 
   const rails = Array.from({ length: rowCount }, (_, i) => {
@@ -109,7 +119,9 @@ export function resolveCustomLayout(
       yMm: railYOverridesMm?.[id] ?? defaultY,
       widthMm: railWidthMm,
       usableWidthMm: usableWidth,
-      fixingMarginMm: DEFAULT_FIXING_MARGIN_MM,
+      fixingMarginMm: railFixing,
+      barOverhangLeftMm: overhang,
+      barOverhangRightMm: overhang,
     };
   });
 
