@@ -1,81 +1,37 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePanelStore } from '../store/panelStore';
 import { EnclosureSelector } from './EnclosureSelector';
-import { CustomPanelPreview } from './CustomPanelPreview';
+import { PanelConfigurator } from './PanelConfigurator';
 import { listProjects, loadProject, deleteProject, importProject, importFromJsonString } from '../utils/storage';
 import { SavedProject } from '../types';
-import { DIN_MODULE_1P_MM } from '../data/enclosures';
-import { resolveCustomLayout, DEFAULT_BAR_OVERHANG_MM, getMinExteriorDimensions } from '../utils/panelLayout';
 
 export const PanelConfig: React.FC = () => {
   const navigate = useNavigate();
   const store = usePanelStore();
   const [tab, setTab] = useState<'custom' | 'enclosure' | 'load'>('enclosure');
-  const [widthUnits, setWidthUnits] = useState(12);
-  const [rowCount, setRowCount] = useState(1);
-  const [exteriorWidthMm, setExteriorWidthMm] = useState<number | undefined>(undefined);
-  const [exteriorHeightMm, setExteriorHeightMm] = useState<number | undefined>(undefined);
-  const [railYOverrides, setRailYOverrides] = useState<Record<string, number>>({});
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
   const [pasteJson, setPasteJson] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
-  const [barOverhangMm, setBarOverhangMm] = useState<number | undefined>(undefined);
   const [pasteCollapsed, setPasteCollapsed] = useState(true);
 
-  // Auto-computed (no dimension overrides) layout for min bounds
-  const defaultLayout = useMemo(
-    () => resolveCustomLayout(widthUnits, rowCount, undefined, undefined, undefined, barOverhangMm),
-    [widthUnits, rowCount, barOverhangMm],
-  );
-
-  const minDimensions = useMemo(
-    () => getMinExteriorDimensions(widthUnits, rowCount),
-    [widthUnits, rowCount],
-  );
-
-  // Active layout with overrides
-  const previewLayout = useMemo(
-    () => resolveCustomLayout(widthUnits, rowCount, exteriorWidthMm, exteriorHeightMm, railYOverrides, barOverhangMm),
-    [widthUnits, rowCount, exteriorWidthMm, exteriorHeightMm, railYOverrides, barOverhangMm],
-  );
-
-  const handleWidthChange = useCallback((v: number) => {
-    setWidthUnits(v);
-  }, []);
-
-  const handleRowCountChange = useCallback((v: number) => {
-    setRowCount(v);
-    setRailYOverrides({});
-  }, []);
-
-  const handleResizeExterior = useCallback((w: number, h: number) => {
-    setExteriorWidthMm(w);
-    setExteriorHeightMm(h);
-  }, []);
-
-  const handleRailYChange = useCallback((railId: string, yMm: number) => {
-    setRailYOverrides(prev => ({ ...prev, [railId]: yMm }));
-  }, []);
-
-  const handleRailYReset = useCallback((railId: string) => {
-    setRailYOverrides(prev => {
-      const next = { ...prev };
-      delete next[railId];
-      return next;
-    });
-  }, []);
-
-  const handleCustomStart = () => {
-    const hasOverrides = exteriorWidthMm != null || exteriorHeightMm != null || Object.keys(railYOverrides).length > 0 || barOverhangMm != null;
-    store.configureCustom(widthUnits, rowCount, hasOverrides ? {
-      exteriorWidthMm,
-      exteriorHeightMm,
-      railYOverridesMm: Object.keys(railYOverrides).length > 0 ? railYOverrides : undefined,
-      barOverhangMm,
+  const handleCustomApply = useCallback((config: {
+    widthUnits: number;
+    rowCount: number;
+    exteriorWidthMm?: number;
+    exteriorHeightMm?: number;
+    railYOverrides: Record<string, number>;
+    barOverhangMm?: number;
+  }) => {
+    const hasOverrides = config.exteriorWidthMm != null || config.exteriorHeightMm != null || Object.keys(config.railYOverrides).length > 0 || config.barOverhangMm != null;
+    store.configureCustom(config.widthUnits, config.rowCount, hasOverrides ? {
+      exteriorWidthMm: config.exteriorWidthMm,
+      exteriorHeightMm: config.exteriorHeightMm,
+      railYOverridesMm: Object.keys(config.railYOverrides).length > 0 ? config.railYOverrides : undefined,
+      barOverhangMm: config.barOverhangMm,
     } : undefined);
     navigate('/project/new');
-  };
+  }, [store, navigate]);
 
   const handleEnclosureSelect = (enclosureId: string) => {
     store.configureFromEnclosure(enclosureId);
@@ -178,134 +134,12 @@ export const PanelConfig: React.FC = () => {
 
       <div className="setup-content">
         {tab === 'custom' && (
-          <div className="custom-config">
-            <div className="custom-config-controls">
-              <div className="config-field">
-                <label>Largura: {widthUnits}P</label>
-                <input
-                  type="range"
-                  min={2}
-                  max={36}
-                  step={1}
-                  value={widthUnits}
-                  onChange={(e) => handleWidthChange(Number(e.target.value))}
-                  className="row-slider"
-                />
-                <div className="slider-ticks width-ticks">
-                  {[4, 8, 10, 12, 14, 16, 18, 20, 24, 30, 36].map(n => (
-                    <span
-                      key={n}
-                      className={n === widthUnits ? 'active' : ''}
-                      style={{ left: `${((n - 2) / 34) * 100}%` }}
-                    >
-                      {n}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="config-field">
-                <label>Quantidade de Trilhos: {rowCount}</label>
-                <input
-                  type="range"
-                  min={1}
-                  max={8}
-                  step={1}
-                  value={rowCount}
-                  onChange={(e) => handleRowCountChange(Number(e.target.value))}
-                  className="row-slider"
-                />
-                <div className="slider-ticks">
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
-                    <span key={n} className={n === rowCount ? 'active' : ''}>{n}</span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="config-field config-dimensions">
-                <label>Dimensões exteriores (mm):</label>
-                <div className="dimension-inputs">
-                  <div className="dim-input-group">
-                    <input
-                      type="number"
-                      min={minDimensions.width}
-                      max={1000}
-                      step={10}
-                      value={exteriorWidthMm ?? ''}
-                      placeholder={String(defaultLayout.exteriorWidthMm)}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setExteriorWidthMm(v === '' ? undefined : Math.max(minDimensions.width, Number(v)));
-                      }}
-                    />
-                    <span className="dim-label">largura</span>
-                  </div>
-                  <span className="dim-separator">×</span>
-                  <div className="dim-input-group">
-                    <input
-                      type="number"
-                      min={minDimensions.height}
-                      max={1000}
-                      step={10}
-                      value={exteriorHeightMm ?? ''}
-                      placeholder={String(defaultLayout.exteriorHeightMm)}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setExteriorHeightMm(v === '' ? undefined : Math.max(minDimensions.height, Number(v)));
-                      }}
-                    />
-                    <span className="dim-label">altura</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="config-field config-dimensions">
-                <label>Sobra do trilho (mm):</label>
-                <div className="dimension-inputs">
-                  <div className="dim-input-group">
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={barOverhangMm ?? ''}
-                      placeholder={String(DEFAULT_BAR_OVERHANG_MM)}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setBarOverhangMm(v === '' ? undefined : Math.max(0, Number(v)));
-                      }}
-                    />
-                    <span className="dim-label">cada lado</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="config-summary">
-                <p>
-                  Trilho DIN: {widthUnits * DIN_MODULE_1P_MM}mm utilizável + {barOverhangMm ?? DEFAULT_BAR_OVERHANG_MM}mm
-                  sobra cada lado
-                </p>
-              </div>
-              <button className="start-btn" onClick={handleCustomStart}>
-                Criar Quadro
-              </button>
-            </div>
-
-            <div className="custom-config-preview">
-              <CustomPanelPreview
-                layout={previewLayout}
-                defaultLayout={defaultLayout}
-                railYOverrides={railYOverrides}
-                widthUnits={widthUnits}
-                minExteriorWidth={minDimensions.width}
-                minExteriorHeight={minDimensions.height}
-                onWidthUnitsChange={handleWidthChange}
-                onResizeExterior={handleResizeExterior}
-                onRailYChange={handleRailYChange}
-                onRailYReset={handleRailYReset}
-              />
-            </div>
-          </div>
+          <PanelConfigurator
+            initialWidthUnits={12}
+            initialRowCount={1}
+            onApply={handleCustomApply}
+            applyLabel="Criar Quadro"
+          />
         )}
 
         {tab === 'enclosure' && (

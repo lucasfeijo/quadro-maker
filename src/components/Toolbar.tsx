@@ -3,26 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { usePanelStore } from '../store/panelStore';
 import { saveProject, listProjects, loadProject, deleteProject, exportProject, exportCurrentState } from '../utils/storage';
 import { SavedProject } from '../types';
-import { DIN_MODULE_1P_MM, getEnclosureById } from '../data/enclosures';
 import { getModuleById } from '../data/modules';
 import { resolveLayout } from '../utils/panelLayout';
+import { PanelConfigurator } from './PanelConfigurator';
 import { computeWireLengthMm, resolveWireColor } from '../utils/wireLength';
 import { mmToPx } from '../utils/geometry';
-
-function getExteriorDimensions(
-  enclosureId: string | null,
-  widthUnits: number,
-  rowCount: number
-): { widthMm: number; heightMm: number } {
-  if (enclosureId) {
-    const enc = getEnclosureById(enclosureId);
-    if (enc) return { widthMm: enc.exteriorWidthMm, heightMm: enc.exteriorHeightMm };
-  }
-  return {
-    widthMm: widthUnits * DIN_MODULE_1P_MM + 120,
-    heightMm: 110 + 130 * rowCount,
-  };
-}
 
 type OpenMenu = 'arquivo' | 'simular' | 'visualizar' | null;
 
@@ -52,11 +37,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
-  const [optWidth, setOptWidth] = useState(store.widthUnits);
-  const [optRows, setOptRows] = useState(store.rowCount);
-  const [optWidthMm, setOptWidthMm] = useState(0);
-  const [optHeightMm, setOptHeightMm] = useState(0);
-  const [optWireSnap, setOptWireSnap] = useState(store.wireSnapAlignment);
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [showSaveAsModal, setShowSaveAsModal] = useState(false);
   const [saveAsName, setSaveAsName] = useState('');
@@ -236,19 +216,27 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   };
 
   const handleOpenOptions = () => {
-    setOptWidth(store.widthUnits);
-    setOptRows(store.rowCount);
-    const dims = getExteriorDimensions(store.enclosureId, store.widthUnits, store.rowCount);
-    setOptWidthMm(store.exteriorWidthMm ?? dims.widthMm);
-    setOptHeightMm(store.exteriorHeightMm ?? dims.heightMm);
-    setOptWireSnap(store.wireSnapAlignment);
     setShowOptionsModal(true);
   };
 
-  const handleApplyOptions = () => {
-    store.resizePanel(optWidth, optRows);
-    store.setPanelDimensions(optWidthMm, optHeightMm);
-    store.setWireSnapAlignment(optWireSnap);
+  const handleApplyOptions = (config: {
+    widthUnits: number;
+    rowCount: number;
+    exteriorWidthMm?: number;
+    exteriorHeightMm?: number;
+    railYOverrides: Record<string, number>;
+    barOverhangMm?: number;
+  }) => {
+    store.resizePanel(config.widthUnits, config.rowCount);
+    if (config.exteriorWidthMm != null && config.exteriorHeightMm != null) {
+      store.setPanelDimensions(config.exteriorWidthMm, config.exteriorHeightMm);
+    }
+    const hasRailOverrides = Object.keys(config.railYOverrides).length > 0;
+    // Update rail Y overrides and bar overhang via set
+    usePanelStore.setState({
+      railYOverridesMm: hasRailOverrides ? config.railYOverrides : undefined,
+      barOverhangMm: config.barOverhangMm,
+    });
     setShowOptionsModal(false);
   };
 
@@ -403,97 +391,26 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
       {showOptionsModal && (
         <div className="modal-overlay" onClick={() => setShowOptionsModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
             <h3>Opções do Quadro</h3>
             {store.enclosureId && (
               <p style={{ color: '#aaa', fontSize: 12, marginBottom: 12 }}>
                 Quadro de caixa: redimensionar converte para personalizado.
               </p>
             )}
-            <div className="options-field" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-              <label>Dimensões do quadro (exterior):</label>
-              <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input
-                    type="number"
-                    min={180}
-                    max={1800}
-                    step={10}
-                    value={optWidthMm}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      if (!Number.isFinite(v) || v <= 0) return;
-                      setOptWidthMm(v);
-                    }}
-                    placeholder="Largura mm"
-                    style={{ flex: 1 }}
-                  />
-                  <span style={{ fontSize: 11, color: '#888' }}>mm ×</span>
-                </div>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <input
-                    type="number"
-                    min={240}
-                    max={1000}
-                    step={10}
-                    value={optHeightMm}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      if (!Number.isFinite(v) || v <= 0) return;
-                      setOptHeightMm(v);
-                    }}
-                    placeholder="Altura mm"
-                    style={{ flex: 1 }}
-                  />
-                  <span style={{ fontSize: 11, color: '#888' }}>mm</span>
-                </div>
-              </div>
-            </div>
-            <div className="options-field">
-              <label>Largura (unipolares):</label>
-              <select
-                value={optWidth}
-                onChange={(e) => setOptWidth(Number(e.target.value))}
-              >
-                {[6, 8, 10, 12, 14, 16, 18, 20, 24, 30, 36, 44, 56].map((n) => (
-                  <option key={n} value={n}>
-                    {n} unidades ({n * DIN_MODULE_1P_MM}mm)
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="options-field">
-              <label>Fileiras:</label>
-              <select
-                value={optRows}
-                onChange={(e) => setOptRows(Number(e.target.value))}
-              >
-                {[1, 2, 3, 4, 5, 6].map((n) => (
-                  <option key={n} value={n}>
-                    {n} fileira{n > 1 ? 's' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="options-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <input
-                type="checkbox"
-                id="opt-wire-snap"
-                checked={optWireSnap}
-                onChange={(e) => setOptWireSnap(e.target.checked)}
-              />
-              <label htmlFor="opt-wire-snap" style={{ marginBottom: 0 }}>
-                Alinhamento Manhattan nos fios (trava H/V ao arrastar vértices)
-              </label>
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button className="toolbar-btn" style={{ flex: 1 }} onClick={handleApplyOptions}>
-                Aplicar
-              </button>
-              <button className="toolbar-btn" style={{ flex: 1 }} onClick={() => setShowOptionsModal(false)}>
-                Cancelar
-              </button>
-            </div>
+            <PanelConfigurator
+              initialWidthUnits={store.widthUnits}
+              initialRowCount={store.rowCount}
+              initialExteriorWidthMm={store.exteriorWidthMm}
+              initialExteriorHeightMm={store.exteriorHeightMm}
+              initialRailYOverrides={store.railYOverridesMm}
+              initialBarOverhangMm={store.barOverhangMm}
+              onApply={handleApplyOptions}
+              applyLabel="Aplicar"
+            />
+            <button className="toolbar-btn" style={{ marginTop: 8, width: '100%' }} onClick={() => setShowOptionsModal(false)}>
+              Cancelar
+            </button>
           </div>
         </div>
       )}
