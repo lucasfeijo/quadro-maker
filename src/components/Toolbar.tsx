@@ -4,6 +4,10 @@ import { usePanelStore } from '../store/panelStore';
 import { saveProject, listProjects, loadProject, deleteProject, exportProject, exportCurrentState } from '../utils/storage';
 import { SavedProject } from '../types';
 import { DIN_MODULE_1P_MM, getEnclosureById } from '../data/enclosures';
+import { getModuleById } from '../data/modules';
+import { resolveLayout } from '../utils/panelLayout';
+import { computeWireLengthMm, resolveWireColor } from '../utils/wireLength';
+import { mmToPx } from '../utils/geometry';
 
 function getExteriorDimensions(
   enclosureId: string | null,
@@ -29,6 +33,7 @@ interface ToolbarProps {
   onSimToggle: () => void;
   onExportImage?: () => void;
   onCopyImage?: () => void;
+  onSelectModule?: (id: string) => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -38,6 +43,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onSimToggle,
   onExportImage,
   onCopyImage,
+  onSelectModule,
 }) => {
   const { id: projectIdFromUrl } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -55,6 +61,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   const [showSaveAsModal, setShowSaveAsModal] = useState(false);
   const [saveAsName, setSaveAsName] = useState('');
   const [showLeaveConfirmModal, setShowLeaveConfirmModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const handleBackToMenu = () => {
@@ -351,6 +358,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               >
                 Unifilar
               </button>
+              <div className="toolbar-dropdown-divider" />
+              <button
+                className="toolbar-dropdown-item"
+                onClick={() => { setShowReportModal(true); closeMenu(); }}
+              >
+                Relatório
+              </button>
             </div>
           )}
         </div>
@@ -500,6 +514,241 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           </div>
         </div>
       )}
+
+      {showReportModal && (() => {
+        const CATEGORY_LABELS: Record<string, string> = {
+          breaker: 'Disjuntor', dr: 'Dispositivo DR', dps: 'DPS', contactor: 'Contator',
+          relay: 'Relé', timer: 'Temporizador', terminal: 'Borne', ats: 'ATS',
+          switch: 'Interruptor', button: 'Botão Pulsador',
+        };
+        const COLOR_LABELS: Record<string, string> = {
+          '#333': 'Preto (Fase)', '#8b4513': 'Marrom (Fase)', '#d32f2f': 'Vermelho (Fase)', '#2196f3': 'Azul (Neutro)',
+          '#4caf50': 'Verde (Terra)', '#ff9800': 'Laranja', '#9c27b0': 'Roxo', '#ffffff': 'Branco',
+          '#607d8b': 'Cinza', '#e91e63': 'Rosa', '#00bcd4': 'Ciano', '#ffeb3b': 'Amarelo',
+        };
+
+        const layout = resolveLayout({
+          enclosureId: store.enclosureId,
+          widthUnits: store.widthUnits,
+          rowCount: store.rowCount,
+          rows: store.rows,
+          exteriorWidthMm: store.exteriorWidthMm,
+          exteriorHeightMm: store.exteriorHeightMm,
+          railYOverridesMm: store.railYOverridesMm,
+          barOverhangMm: store.barOverhangMm,
+        });
+        const wireLengthCtx = {
+          rows: store.rows,
+          rails: layout.rails,
+          panelIOs: store.panelIOs,
+          externalDevices: store.externalDevices,
+          interiorOffsetXPx: mmToPx(layout.interiorOffsetXMm),
+          interiorOffsetYPx: mmToPx(layout.interiorOffsetYMm),
+          svgWidth: mmToPx(layout.exteriorWidthMm),
+          svgHeight: mmToPx(layout.exteriorHeightMm),
+        };
+
+        const allModules: { instanceId: string; name: string; label: string; category: string; row: number }[] = [];
+        store.rows.forEach((row, rowIdx) => {
+          row.modules.forEach((mod) => {
+            const def = getModuleById(mod.moduleId);
+            allModules.push({
+              instanceId: mod.instanceId,
+              name: def?.name ?? mod.moduleId,
+              label: mod.label ?? '',
+              category: def ? (CATEGORY_LABELS[def.category] ?? def.category) : '',
+              row: rowIdx + 1,
+            });
+          });
+        });
+
+        const getModuleName = (instanceId: string): string => {
+          if (instanceId.startsWith('panel-io:')) {
+            const ioId = instanceId.replace('panel-io:', '');
+            const io = store.panelIOs.find((i) => i.id === ioId);
+            return io?.label ?? 'E/S';
+          }
+          const extDev = store.externalDevices.find((d) => d.instanceId === instanceId);
+          if (extDev) {
+            const def = getModuleById(extDev.moduleId);
+            return extDev.label || def?.name || extDev.moduleId;
+          }
+          for (const row of store.rows) {
+            const mod = row.modules.find((m) => m.instanceId === instanceId);
+            if (mod) {
+              const def = getModuleById(mod.moduleId);
+              return mod.label || def?.name || mod.moduleId;
+            }
+          }
+          return instanceId.slice(0, 8);
+        };
+
+        const wireRows = store.wires.map((w) => {
+          const lengthMm = computeWireLengthMm(w, wireLengthCtx);
+          const hasWaypoints = (w.waypoints?.length ?? 0) > 0;
+          const resolvedColor = resolveWireColor(w, wireLengthCtx);
+          const colorLabel = COLOR_LABELS[resolvedColor] ?? resolvedColor;
+          return {
+            wireId: w.id,
+            source: `${getModuleName(w.sourceInstanceId)} : ${w.sourcePortId}`,
+            target: `${getModuleName(w.targetInstanceId)} : ${w.targetPortId}`,
+            gauge: w.wireGaugeMm2 != null ? `${w.wireGaugeMm2} mm²` : '—',
+            gaugeRaw: w.wireGaugeMm2 ?? null,
+            colorHex: resolvedColor,
+            colorLabel,
+            lengthMm,
+            hasWaypoints,
+            label: w.label ?? '',
+          };
+        });
+
+        const totalLengthMm = wireRows.reduce((acc, r) => acc + (r.lengthMm ?? 0), 0);
+
+        // Somatório por cor
+        const byColor = new Map<string, { colorHex: string; colorLabel: string; count: number; totalMm: number }>();
+        for (const r of wireRows) {
+          const key = r.colorHex;
+          const entry = byColor.get(key) ?? { colorHex: r.colorHex, colorLabel: r.colorLabel, count: 0, totalMm: 0 };
+          entry.count += 1;
+          entry.totalMm += r.lengthMm ?? 0;
+          byColor.set(key, entry);
+        }
+
+        // Somatório por bitola
+        const byGauge = new Map<string, { gaugeLabel: string; count: number; totalMm: number }>();
+        for (const r of wireRows) {
+          const key = r.gauge;
+          const entry = byGauge.get(key) ?? { gaugeLabel: r.gauge, count: 0, totalMm: 0 };
+          entry.count += 1;
+          entry.totalMm += r.lengthMm ?? 0;
+          byGauge.set(key, entry);
+        }
+
+        const fmtLen = (mm: number) => mm >= 1000 ? `${(mm / 1000).toFixed(2)} m` : `${Math.round(mm)} mm`;
+
+        return (
+          <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
+            <div className="modal report-modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Relatório — {store.name}</h3>
+
+              <div className="report-section">
+                <h4>Módulos ({allModules.length})</h4>
+                {allModules.length === 0 ? (
+                  <p className="empty-msg">Nenhum módulo colocado.</p>
+                ) : (
+                  <div className="report-table-wrapper">
+                    <table className="report-table">
+                      <thead>
+                        <tr><th>Nome</th><th>Rótulo</th><th>Categoria</th><th>Trilho</th></tr>
+                      </thead>
+                      <tbody>
+                        {allModules.map((m, i) => (
+                          <tr key={i} style={{ cursor: 'pointer' }} onClick={() => { onSelectModule?.(m.instanceId); setShowReportModal(false); }}>
+                            <td>{m.name}</td>
+                            <td>{m.label || '—'}</td>
+                            <td>{m.category}</td>
+                            <td>Linha {m.row}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="report-section">
+                <h4>Fios ({wireRows.length})</h4>
+                {wireRows.length === 0 ? (
+                  <p className="empty-msg">Nenhum fio conectado.</p>
+                ) : (
+                  <div className="report-table-wrapper">
+                    <table className="report-table">
+                      <thead>
+                        <tr><th>Origem</th><th>Destino</th><th>Rótulo</th><th>Bitola</th><th>Cor</th><th>Comprimento</th></tr>
+                      </thead>
+                      <tbody>
+                        {wireRows.map((r, i) => (
+                          <tr key={i} style={{ cursor: 'pointer' }} onClick={() => { store.selectWire(r.wireId); setShowReportModal(false); }}>
+                            <td>{r.source}</td>
+                            <td>{r.target}</td>
+                            <td>{r.label || '—'}</td>
+                            <td>{r.gauge}</td>
+                            <td>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: r.colorHex, border: '1px solid rgba(255,255,255,0.3)', flexShrink: 0 }} />
+                                {r.colorLabel}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              {r.lengthMm != null
+                                ? `${r.hasWaypoints ? '' : '≈ '}${Math.round(r.lengthMm)} mm`
+                                : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {wireRows.length > 0 && (
+                <div className="report-section">
+                  <h4>Resumo</h4>
+                  <div className="report-table-wrapper">
+                    <table className="report-table">
+                      <thead>
+                        <tr><th colSpan={2}>Por Cor</th></tr>
+                        <tr><th>Cor</th><th style={{ textAlign: 'right' }}>Comprimento</th></tr>
+                      </thead>
+                      <tbody>
+                        {[...byColor.values()].map((entry, i) => (
+                          <tr key={i}>
+                            <td>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: entry.colorHex, border: '1px solid rgba(255,255,255,0.3)', flexShrink: 0 }} />
+                                {entry.colorLabel}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>{fmtLen(entry.totalMm)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="report-table-wrapper" style={{ marginTop: 8 }}>
+                    <table className="report-table">
+                      <thead>
+                        <tr><th colSpan={2}>Por Bitola</th></tr>
+                        <tr><th>Bitola</th><th style={{ textAlign: 'right' }}>Comprimento</th></tr>
+                      </thead>
+                      <tbody>
+                        {[...byGauge.values()].map((entry, i) => (
+                          <tr key={i}>
+                            <td>{entry.gaugeLabel}</td>
+                            <td style={{ textAlign: 'right' }}>{fmtLen(entry.totalMm)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td style={{ fontWeight: 600 }}>Total Geral</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtLen(totalLengthMm)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <button className="toolbar-btn" style={{ marginTop: 12 }} onClick={() => setShowReportModal(false)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {showLoadModal && (
         <div className="modal-overlay" onClick={() => setShowLoadModal(false)}>

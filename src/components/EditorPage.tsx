@@ -817,6 +817,7 @@ export const EditorPage: React.FC = () => {
           onSimToggle={() => setSimActive((v) => !v)}
           onExportImage={viewMode === 'panel' ? handleExportImage : undefined}
           onCopyImage={viewMode === 'panel' ? handleCopyImage : undefined}
+          onSelectModule={(id) => handleSelectModule(id)}
         />
         <div className="editor-body">
           {viewMode === 'panel' && <ModuleLibrary />}

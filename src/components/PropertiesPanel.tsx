@@ -6,6 +6,9 @@ import type { ComponentSpec } from '../data/components';
 import type { PlacedModule, PanelIOType } from '../types';
 import { getIOTypes } from '../utils/panelIO';
 import { FONT_OPTIONS } from './TextAnnotationLayer';
+import { resolveLayout } from '../utils/panelLayout';
+import { computeWireLengthMm } from '../utils/wireLength';
+import { mmToPx } from '../utils/geometry';
 
 const CATEGORY_LABELS: Record<string, string> = {
   breaker: 'Disjuntor',
@@ -447,6 +450,38 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
               <span className="prop-value">{selectedWire.waypoints!.length}</span>
             </div>
           )}
+          {(() => {
+            const layout = resolveLayout({
+              enclosureId: usePanelStore.getState().enclosureId,
+              widthUnits: usePanelStore.getState().widthUnits,
+              rowCount: usePanelStore.getState().rowCount,
+              rows: usePanelStore.getState().rows,
+              exteriorWidthMm: usePanelStore.getState().exteriorWidthMm,
+              exteriorHeightMm: usePanelStore.getState().exteriorHeightMm,
+              railYOverridesMm: usePanelStore.getState().railYOverridesMm,
+              barOverhangMm: usePanelStore.getState().barOverhangMm,
+            });
+            const lengthMm = computeWireLengthMm(selectedWire, {
+              rows,
+              rails: layout.rails,
+              panelIOs,
+              externalDevices,
+              interiorOffsetXPx: mmToPx(layout.interiorOffsetXMm),
+              interiorOffsetYPx: mmToPx(layout.interiorOffsetYMm),
+              svgWidth: mmToPx(layout.exteriorWidthMm),
+              svgHeight: mmToPx(layout.exteriorHeightMm),
+            });
+            if (lengthMm == null) return null;
+            const hasWaypoints = (selectedWire.waypoints?.length ?? 0) > 0;
+            return (
+              <div className="prop-row">
+                <span className="prop-label">Comprimento</span>
+                <span className="prop-value">
+                  {hasWaypoints ? '' : '≈ '}{Math.round(lengthMm)} mm
+                </span>
+              </div>
+            );
+          })()}
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {(selectedWire.waypoints?.length ?? 0) > 0 && (
