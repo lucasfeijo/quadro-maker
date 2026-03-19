@@ -14,6 +14,8 @@ interface Props {
   defaultLayout: ResolvedLayout;
   railYOverrides: Record<string, number>;
   widthUnits: number;
+  minExteriorWidth: number;
+  minExteriorHeight: number;
   onWidthUnitsChange: (v: number) => void;
   onResizeExterior: (widthMm: number, heightMm: number) => void;
   onRailYChange: (railId: string, yMm: number) => void;
@@ -232,6 +234,8 @@ export const CustomPanelPreview: React.FC<Props> = ({
   defaultLayout,
   railYOverrides,
   widthUnits,
+  minExteriorWidth,
+  minExteriorHeight,
   onWidthUnitsChange,
   onResizeExterior,
   onRailYChange,
@@ -337,12 +341,12 @@ export const CustomPanelPreview: React.FC<Props> = ({
       if (axis === 'x') {
         const deltaPx = e.clientX - startClientX;
         const deltaMm = deltaPx / pxPerMm;
-        const newW = Math.min(MAX_EXTERIOR_MM, Math.max(defaultLayout.exteriorWidthMm, Math.round(startWidth + deltaMm * 2)));
+        const newW = Math.min(MAX_EXTERIOR_MM, Math.max(minExteriorWidth, Math.round(startWidth + deltaMm * 2)));
         onResizeExterior(newW, layout.exteriorHeightMm);
       } else {
         const deltaPx = e.clientY - startClientY;
         const deltaMm = deltaPx / pxPerMm;
-        const newH = Math.min(MAX_EXTERIOR_MM, Math.max(defaultLayout.exteriorHeightMm, Math.round(startHeight + deltaMm * 2)));
+        const newH = Math.min(MAX_EXTERIOR_MM, Math.max(minExteriorHeight, Math.round(startHeight + deltaMm * 2)));
         onResizeExterior(layout.exteriorWidthMm, newH);
       }
       return;

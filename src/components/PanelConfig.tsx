@@ -6,7 +6,7 @@ import { CustomPanelPreview } from './CustomPanelPreview';
 import { listProjects, loadProject, deleteProject, importProject, importFromJsonString } from '../utils/storage';
 import { SavedProject } from '../types';
 import { DIN_MODULE_1P_MM } from '../data/enclosures';
-import { resolveCustomLayout, DEFAULT_BAR_OVERHANG_MM } from '../utils/panelLayout';
+import { resolveCustomLayout, DEFAULT_BAR_OVERHANG_MM, getMinExteriorDimensions } from '../utils/panelLayout';
 
 export const PanelConfig: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +27,11 @@ export const PanelConfig: React.FC = () => {
   const defaultLayout = useMemo(
     () => resolveCustomLayout(widthUnits, rowCount, undefined, undefined, undefined, barOverhangMm),
     [widthUnits, rowCount, barOverhangMm],
+  );
+
+  const minDimensions = useMemo(
+    () => getMinExteriorDimensions(widthUnits, rowCount),
+    [widthUnits, rowCount],
   );
 
   // Active layout with overrides
@@ -223,14 +228,14 @@ export const PanelConfig: React.FC = () => {
                   <div className="dim-input-group">
                     <input
                       type="number"
-                      min={defaultLayout.exteriorWidthMm}
+                      min={minDimensions.width}
                       max={1000}
                       step={10}
                       value={exteriorWidthMm ?? ''}
                       placeholder={String(defaultLayout.exteriorWidthMm)}
                       onChange={(e) => {
                         const v = e.target.value;
-                        setExteriorWidthMm(v === '' ? undefined : Math.max(defaultLayout.exteriorWidthMm, Number(v)));
+                        setExteriorWidthMm(v === '' ? undefined : Math.max(minDimensions.width, Number(v)));
                       }}
                     />
                     <span className="dim-label">largura</span>
@@ -239,14 +244,14 @@ export const PanelConfig: React.FC = () => {
                   <div className="dim-input-group">
                     <input
                       type="number"
-                      min={defaultLayout.exteriorHeightMm}
+                      min={minDimensions.height}
                       max={1000}
                       step={10}
                       value={exteriorHeightMm ?? ''}
                       placeholder={String(defaultLayout.exteriorHeightMm)}
                       onChange={(e) => {
                         const v = e.target.value;
-                        setExteriorHeightMm(v === '' ? undefined : Math.max(defaultLayout.exteriorHeightMm, Number(v)));
+                        setExteriorHeightMm(v === '' ? undefined : Math.max(minDimensions.height, Number(v)));
                       }}
                     />
                     <span className="dim-label">altura</span>
@@ -292,6 +297,8 @@ export const PanelConfig: React.FC = () => {
                 defaultLayout={defaultLayout}
                 railYOverrides={railYOverrides}
                 widthUnits={widthUnits}
+                minExteriorWidth={minDimensions.width}
+                minExteriorHeight={minDimensions.height}
                 onWidthUnitsChange={handleWidthChange}
                 onResizeExterior={handleResizeExterior}
                 onRailYChange={handleRailYChange}

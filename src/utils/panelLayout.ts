@@ -11,6 +11,16 @@ export const VERTICAL_PADDING_MM = 40;
 export const DEFAULT_BAR_OVERHANG_MM = 15;
 export const RAIL_BRACKET_SPACE_MM = 15;
 
+/** Absolute minimum exterior dimensions — just enough for usable rail + walls */
+export function getMinExteriorDimensions(widthUnits: number, rowCount: number) {
+  const usableWidth = widthUnits * DIN_MODULE_1P_MM;
+  const contentHeight = rowCount * ROW_HEIGHT_MM + (rowCount - 1) * ROW_SPACING_MM;
+  return {
+    width: usableWidth + WALL_THICKNESS_MM * 2,
+    height: contentHeight + WALL_THICKNESS_MM * 2,
+  };
+}
+
 export function resolveLayout(state: LayoutInput): ResolvedLayout {
   return state.enclosureId
     ? resolveEnclosureLayout(state.enclosureId)
@@ -110,6 +120,8 @@ export function resolveCustomLayout(
   const railWidthMm = usableWidth + railFixing * 2;
   const railXMm = (interiorWidth - railWidthMm) / 2;
 
+  const effectiveOverhang = Math.min(overhang, railFixing);
+
   const rails = Array.from({ length: rowCount }, (_, i) => {
     const id = `row-${i}`;
     const defaultY = railStartYMm + i * (ROW_HEIGHT_MM + ROW_SPACING_MM) + ROW_HEIGHT_MM / 2 - 17.5;
@@ -120,8 +132,8 @@ export function resolveCustomLayout(
       widthMm: railWidthMm,
       usableWidthMm: usableWidth,
       fixingMarginMm: railFixing,
-      barOverhangLeftMm: overhang,
-      barOverhangRightMm: overhang,
+      barOverhangLeftMm: effectiveOverhang,
+      barOverhangRightMm: effectiveOverhang,
     };
   });
 
