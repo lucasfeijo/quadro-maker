@@ -604,27 +604,16 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
         const totalLengthMm = wireRows.reduce((acc, r) => acc + (r.lengthMm ?? 0), 0);
 
-        // Somatório por cor
-        const byColor = new Map<string, { colorHex: string; colorLabel: string; count: number; totalMm: number }>();
+        // Somatório por cor + bitola (para saber quanto comprar de cada fio)
+        const byColorGauge = new Map<string, { colorHex: string; colorLabel: string; gaugeLabel: string; totalMm: number }>();
         for (const r of wireRows) {
-          const key = r.colorHex;
-          const entry = byColor.get(key) ?? { colorHex: r.colorHex, colorLabel: r.colorLabel, count: 0, totalMm: 0 };
-          entry.count += 1;
+          const key = `${r.colorHex}|${r.gauge}`;
+          const entry = byColorGauge.get(key) ?? { colorHex: r.colorHex, colorLabel: r.colorLabel, gaugeLabel: r.gauge, totalMm: 0 };
           entry.totalMm += r.lengthMm ?? 0;
-          byColor.set(key, entry);
+          byColorGauge.set(key, entry);
         }
 
-        // Somatório por bitola
-        const byGauge = new Map<string, { gaugeLabel: string; count: number; totalMm: number }>();
-        for (const r of wireRows) {
-          const key = r.gauge;
-          const entry = byGauge.get(key) ?? { gaugeLabel: r.gauge, count: 0, totalMm: 0 };
-          entry.count += 1;
-          entry.totalMm += r.lengthMm ?? 0;
-          byGauge.set(key, entry);
-        }
-
-        const fmtLen = (mm: number) => mm >= 1000 ? `${(mm / 1000).toFixed(2)} m` : `${Math.round(mm)} mm`;
+        const fmtLen = (mm: number) => `${(mm / 1000).toFixed(2)} m`;
 
         return (
           <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
@@ -681,7 +670,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                             </td>
                             <td style={{ textAlign: 'right' }}>
                               {r.lengthMm != null
-                                ? `${r.hasWaypoints ? '' : '≈ '}${Math.round(r.lengthMm)} mm`
+                                ? `${r.hasWaypoints ? '' : '≈ '}${(r.lengthMm / 1000).toFixed(2)} m`
                                 : '—'}
                             </td>
                           </tr>
@@ -694,16 +683,16 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
               {wireRows.length > 0 && (
                 <div className="report-section">
-                  <h4>Resumo</h4>
+                  <h4>Fios por bitola e cor</h4>
                   <div className="report-table-wrapper">
                     <table className="report-table">
                       <thead>
-                        <tr><th colSpan={2}>Por Cor</th></tr>
-                        <tr><th>Cor</th><th style={{ textAlign: 'right' }}>Comprimento</th></tr>
+                        <tr><th>Bitola</th><th>Cor</th><th style={{ textAlign: 'right' }}>Comprimento</th></tr>
                       </thead>
                       <tbody>
-                        {[...byColor.values()].map((entry, i) => (
+                        {[...byColorGauge.values()].map((entry, i) => (
                           <tr key={i}>
+                            <td>{entry.gaugeLabel}</td>
                             <td>
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                                 <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: entry.colorHex, border: '1px solid rgba(255,255,255,0.3)', flexShrink: 0 }} />
@@ -714,26 +703,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                           </tr>
                         ))}
                       </tbody>
-                    </table>
-                  </div>
-
-                  <div className="report-table-wrapper" style={{ marginTop: 8 }}>
-                    <table className="report-table">
-                      <thead>
-                        <tr><th colSpan={2}>Por Bitola</th></tr>
-                        <tr><th>Bitola</th><th style={{ textAlign: 'right' }}>Comprimento</th></tr>
-                      </thead>
-                      <tbody>
-                        {[...byGauge.values()].map((entry, i) => (
-                          <tr key={i}>
-                            <td>{entry.gaugeLabel}</td>
-                            <td style={{ textAlign: 'right' }}>{fmtLen(entry.totalMm)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
                       <tfoot>
                         <tr>
-                          <td style={{ fontWeight: 600 }}>Total Geral</td>
+                          <td colSpan={2} style={{ fontWeight: 600 }}>Total Geral</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtLen(totalLengthMm)}</td>
                         </tr>
                       </tfoot>
