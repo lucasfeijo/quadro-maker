@@ -1360,6 +1360,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
         {(isDraggingSegment || isDraggingIO || isDraggingWaypoint) && (
           <div className="drag-hint">
             Segure <kbd>Shift</kbd> para desativar snap
+            {isDraggingSegment && <><br/><kbd>Alt</kbd> move na direção paralela ao segmento</>}
           </div>
         )}
         {state.selectedWireId && !isDraggingSegment && !isDraggingWaypoint && (() => {

@@ -830,10 +830,11 @@ export const WireLayer: React.FC<Props> = ({
         const segDy = draggingSegment.startP2.y - draggingSegment.startP1.y;
         const len = Math.sqrt(segDx * segDx + segDy * segDy);
         if (len > 0.01) {
-          const perpX = -segDy / len;
-          const perpY = segDx / len;
-          let deltaPerpX = (dx * perpX + dy * perpY) * perpX;
-          let deltaPerpY = (dx * perpX + dy * perpY) * perpY;
+          // Normal: move perpendicular to segment. Alt: move along segment direction.
+          const dirX = e.altKey ? segDx / len : -segDy / len;
+          const dirY = e.altKey ? segDy / len : segDx / len;
+          let deltaPerpX = (dx * dirX + dy * dirY) * dirX;
+          let deltaPerpY = (dx * dirX + dy * dirY) * dirY;
           if (wireSnapAlignment && !e.shiftKey) {
             const movingIndices = new Set<number>(
               draggingSegment.segmentIndex === 0
