@@ -48,10 +48,10 @@ export const EnclosureSelector: React.FC<Props> = ({ onSelect }) => {
                   y={0}
                   width={enc.exteriorWidthMm}
                   height={enc.exteriorHeightMm}
-                  rx={5}
-                  fill="#e0e0e0"
+                  rx={2}
+                  fill="#fafafa"
                   stroke="#999"
-                  strokeWidth={3}
+                  strokeWidth={2}
                 />
                 {(() => {
                   const wallX =
@@ -60,15 +60,6 @@ export const EnclosureSelector: React.FC<Props> = ({ onSelect }) => {
                     (enc.exteriorHeightMm - enc.interiorHeightMm) / 2;
                   return (
                     <>
-                      <rect
-                        x={wallX}
-                        y={wallY}
-                        width={enc.interiorWidthMm}
-                        height={enc.interiorHeightMm}
-                        fill="#fafafa"
-                        stroke="#bbb"
-                        strokeWidth={2}
-                      />
                       {enc.rails.map((r) => {
                         const railH = 35;
                         const fixingMm =
