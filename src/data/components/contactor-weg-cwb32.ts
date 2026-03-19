@@ -6,6 +6,7 @@ const component: ComponentSpec = {
   name: 'Contator WEG CWB32',
   description: 'Contator trifásico WEG CWB32, 32A, com contatos auxiliares 1NA+1NF incorporados. Bobina A1/A2. Terminais principais L1/L2/L3 (entrada) e T1/T2/T3 (saída). Contatos auxiliares NA e NF.',
   widthMm: 45,
+  heightMm: 85,
   category: 'contactor',
   color: '#1565c0',
   icon: 'contactor',

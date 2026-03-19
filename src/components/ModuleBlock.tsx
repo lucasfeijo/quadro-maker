@@ -25,7 +25,7 @@ interface Props {
   onSimModeChange?: (instanceId: string, newMode: string) => void;
 }
 
-const MODULE_HEIGHT_MM = 70;
+const DEFAULT_MODULE_HEIGHT_MM = 70;
 
 export const ModuleBlock: React.FC<Props> = ({
   mod,
@@ -65,10 +65,11 @@ export const ModuleBlock: React.FC<Props> = ({
 
   if (!def) return null;
 
+  const moduleH = def.heightMm ?? DEFAULT_MODULE_HEIGHT_MM;
   const x = railUsableOffsetXPx + mmToPx(mod.positionMm);
-  const y = railYPx - mmToPx(MODULE_HEIGHT_MM / 2);
+  const y = railYPx - mmToPx(moduleH / 2);
   const w = mmToPx(def.widthMm);
-  const h = mmToPx(MODULE_HEIGHT_MM);
+  const h = mmToPx(moduleH);
   const iconSize = Math.min(w * 0.6, h * 0.35);
 
   const handleContextMenu = (e: React.MouseEvent) => {

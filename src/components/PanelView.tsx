@@ -14,7 +14,7 @@ import { getIOPortPosition, getIOPosition } from '../utils/panelIO';
 import type { GhostPreview, ComponentState, PanelEdge } from '../types';
 
 const MARGIN = 15;
-const MODULE_HEIGHT_MM = 70;
+const DEFAULT_MODULE_HEIGHT_MM = 70;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 20;
 
@@ -462,9 +462,10 @@ export const PanelView: React.FC<PanelViewProps> = ({
         const def = getModuleById(mod.moduleId);
         if (!def) continue;
         const mx = usableOffsetXPx + mmToPx(mod.positionMm);
-        const my = railCenterY - mmToPx(MODULE_HEIGHT_MM / 2);
+        const modH = def.heightMm ?? DEFAULT_MODULE_HEIGHT_MM;
+        const my = railCenterY - mmToPx(modH / 2);
         const mw = mmToPx(def.widthMm);
-        const mh = mmToPx(MODULE_HEIGHT_MM);
+        const mh = mmToPx(modH);
         if (rectsOverlap(sel.x, sel.y, sel.w, sel.h, mx, my, mw, mh)) {
           ids.push(mod.instanceId);
         }

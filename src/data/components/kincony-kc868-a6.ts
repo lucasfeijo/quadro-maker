@@ -6,6 +6,7 @@ const component: ComponentSpec = {
   description:
     'Módulo relé 6 canais ESP32 da Kincony. 6 entradas digitais (DI), 4 entradas analógicas (A1-A4), 2 saídas DAC (DA-1, DA-2), 2 GPIO 1-Wire (IO-1, IO-2). 6 relés 10A com NO/COM/NC. Alimentação 12V DC.',
   widthMm: 154,
+  heightMm: 110,
   category: 'relay',
   color: '#5e35b1',
   icon: 'relay',
@@ -122,7 +123,7 @@ const component: ComponentSpec = {
   ],
   defaultMode: 'idle',
   din_mounted: true,
-  screw_mounted: false,
+  screw_mounted: true,
 };
 
 export default component;

@@ -13,6 +13,7 @@ const component = {
     'Relé de proteção contra falta de fase bifásico (CCA). Monitora L1, L2 e N. Quando as fases estão OK, energiza (C→NA). Em falta de fase ou assimetria, desenergiza (C→NF). Usado em painéis para proteção de motores e equipamentos.',
   // Datasheet CCA: largura 24,1 mm (DIMENSÕES FÍSICAS)
   widthMm: 24,
+  heightMm: 85,
   category: 'relay' as const,
   color: '#c62828',
   icon: 'relay',

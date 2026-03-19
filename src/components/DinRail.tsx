@@ -24,7 +24,7 @@ interface Props {
 }
 
 const RAIL_HEIGHT_MM = 35;
-const MODULE_HEIGHT_MM = 70;
+const DEFAULT_MODULE_HEIGHT_MM = 70;
 
 export const DinRail: React.FC<Props> = ({
   rail,
@@ -63,7 +63,7 @@ export const DinRail: React.FC<Props> = ({
     ? usableOffsetXPx + mmToPx(ghostPreview.positionMm)
     : 0;
   const ghostW = ghostPreview ? mmToPx(ghostPreview.widthMm) : 0;
-  const ghostH = mmToPx(MODULE_HEIGHT_MM);
+  const ghostH = mmToPx(DEFAULT_MODULE_HEIGHT_MM);
   const ghostY = railTopPx + railHeightPx / 2 - ghostH / 2;
 
   const railCenterYPx = railTopPx + railHeightPx / 2;

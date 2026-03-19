@@ -7,6 +7,7 @@ const component: ComponentSpec = {
   description:
     'Chave de Transferência Automática 100A, 230V, 2 polos. Modelo NLQ4-125/2P com comutação automática entre Normal Power A (ex: solar) e Reserve Power B (ex: rede). Possui seletor Manual/Auto, indicadores LED, entradas de sensing (AR/AN, BR/BN) e contatos auxiliares secos (NC/COM/NO) para sinalização de fonte ativa.',
   widthMm: 108,
+  heightMm: 95,
   category: 'ats',
   poles: 2,
   color: '#78909c',

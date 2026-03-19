@@ -62,6 +62,7 @@ export type ModuleDefinition = {
   id: string;
   name: string;
   widthMm: number;
+  heightMm?: number;
   category: ModuleCategory;
   poles?: number;
   color: string;

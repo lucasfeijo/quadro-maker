@@ -6,7 +6,7 @@ import { usePanelStore } from '../store/panelStore';
 import { getIOPortPosition } from '../utils/panelIO';
 import { getExternalDevicePortPosition } from './ExternalDeviceLayer';
 
-const MODULE_HEIGHT_MM = 70;
+const DEFAULT_MODULE_HEIGHT_MM = 70;
 const WIRE_COLORS: Record<string, string> = {
   phase: '#333',
   neutral: '#2196f3',
@@ -129,9 +129,10 @@ function getPortAbsolutePosition(
   const railHeightPx = mmToPx(35);
   const railCenterY = railTopPx + railHeightPx / 2;
 
+  const modH = def.heightMm ?? DEFAULT_MODULE_HEIGHT_MM;
   const moduleX = usableOffsetXPx + mmToPx(mod.positionMm);
-  const moduleY = railCenterY - mmToPx(MODULE_HEIGHT_MM / 2);
-  const moduleH = mmToPx(MODULE_HEIGHT_MM);
+  const moduleY = railCenterY - mmToPx(modH / 2);
+  const moduleH = mmToPx(modH);
 
   const hasVerticalOffset = port.offsetYMm !== undefined;
   const x = moduleX + mmToPx(port.offsetXMm);
@@ -166,12 +167,13 @@ function getModuleBounds(
     for (const mod of rows[i].modules) {
       const def = getModuleById(mod.moduleId);
       if (!def) continue;
+      const mH = def.heightMm ?? DEFAULT_MODULE_HEIGHT_MM;
       rects.push({
         instanceId: mod.instanceId,
         x: usableOffsetXPx + mmToPx(mod.positionMm),
-        y: railCenterY - mmToPx(MODULE_HEIGHT_MM / 2),
+        y: railCenterY - mmToPx(mH / 2),
         w: mmToPx(def.widthMm),
-        h: mmToPx(MODULE_HEIGHT_MM),
+        h: mmToPx(mH),
       });
     }
   }
@@ -198,9 +200,10 @@ function getPortObstacles(
     for (const mod of rows[i].modules) {
       const def = getModuleById(mod.moduleId);
       if (!def) continue;
+      const mHt = def.heightMm ?? DEFAULT_MODULE_HEIGHT_MM;
       const moduleX = usableOffsetXPx + mmToPx(mod.positionMm);
-      const moduleY = railCenterY - mmToPx(MODULE_HEIGHT_MM / 2);
-      const moduleH = mmToPx(MODULE_HEIGHT_MM);
+      const moduleY = railCenterY - mmToPx(mHt / 2);
+      const moduleH = mmToPx(mHt);
 
       for (const port of def.ports) {
         const hasVerticalOffset = port.offsetYMm !== undefined;

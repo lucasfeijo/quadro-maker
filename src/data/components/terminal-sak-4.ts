@@ -5,6 +5,7 @@ const component: ComponentSpec = {
   name: 'Borne SAK 4',
   description: 'Borne de conexão para cabos até 4mm². Ponto de conexão passivo para organizar e distribuir conexões dentro do quadro.',
   widthMm: 8,
+  heightMm: 40,
   category: 'terminal',
   poles: 1,
   color: '#78909c',

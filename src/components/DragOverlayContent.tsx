@@ -8,7 +8,7 @@ interface Props {
   moduleId: string;
 }
 
-const MODULE_HEIGHT_MM = 70;
+const DEFAULT_MODULE_HEIGHT_MM = 70;
 
 export const DragOverlayContent: React.FC<Props> = ({ moduleId }) => {
   const def = getModuleById(moduleId);
@@ -16,7 +16,7 @@ export const DragOverlayContent: React.FC<Props> = ({ moduleId }) => {
   if (!def) return null;
 
   const w = mmToPx(def.widthMm);
-  const h = mmToPx(MODULE_HEIGHT_MM);
+  const h = mmToPx(def.heightMm ?? DEFAULT_MODULE_HEIGHT_MM);
   const iconSize = Math.min(w * 0.6, h * 0.35);
 
   return (

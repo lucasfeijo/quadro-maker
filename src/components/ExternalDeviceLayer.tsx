@@ -23,7 +23,7 @@ interface Props {
 const DEV_SCALE = 1;
 const BOX_H = 18 * DEV_SCALE;
 const BAR_H = 8;
-const MODULE_HEIGHT_MM = 70;
+const DEFAULT_MODULE_HEIGHT_MM = 70;
 
 function isScrewBusbar(moduleId: string): boolean {
   return moduleId.startsWith('busbar-screw-8p-');
@@ -52,7 +52,7 @@ export function getExternalDevicePortPosition(
   const boxW = mmToPx(def.widthMm) * DEV_SCALE;
   const isBar = isScrewBusbar(device.moduleId);
   const isDual = isDualMount(device.moduleId);
-  const h = isBar ? BAR_H : isDual ? mmToPx(MODULE_HEIGHT_MM) * DEV_SCALE : BOX_H;
+  const h = isBar ? BAR_H : isDual ? mmToPx(def.heightMm ?? DEFAULT_MODULE_HEIGHT_MM) * DEV_SCALE : BOX_H;
   const bx = device.x - boxW / 2;
   const by = device.y - h / 2;
 
@@ -81,7 +81,7 @@ export function getExternalDeviceBounds(
   const boxW = mmToPx(def.widthMm) * DEV_SCALE;
   const isBar = isScrewBusbar(device.moduleId);
   const isDual = isDualMount(device.moduleId);
-  const h = isBar ? BAR_H : isDual ? mmToPx(MODULE_HEIGHT_MM) * DEV_SCALE : BOX_H;
+  const h = isBar ? BAR_H : isDual ? mmToPx(def.heightMm ?? DEFAULT_MODULE_HEIGHT_MM) * DEV_SCALE : BOX_H;
   const portMargin = 8;
   const rot = Number(device.properties?.rotationDeg) || 0;
   const halfW = boxW / 2 + portMargin;
@@ -217,7 +217,7 @@ export const ExternalDeviceLayer: React.FC<Props> = ({
 
         const isBar = isScrewBusbar(dev.moduleId);
         const isDual = isDualMount(dev.moduleId);
-        const boxH = isBar ? BAR_H : isDual ? mmToPx(MODULE_HEIGHT_MM) * DEV_SCALE : BOX_H;
+        const boxH = isBar ? BAR_H : isDual ? mmToPx(def.heightMm ?? DEFAULT_MODULE_HEIGHT_MM) * DEV_SCALE : BOX_H;
         const boxW = mmToPx(def.widthMm) * DEV_SCALE;
         const bx = dev.x - boxW / 2;
         const by = dev.y - boxH / 2;

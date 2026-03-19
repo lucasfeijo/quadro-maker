@@ -3,13 +3,13 @@ import type { ResolvedLayout } from '../types';
 type LayoutInput = Pick<import('../types').PanelState, 'enclosureId' | 'widthUnits' | 'rowCount' | 'rows' | 'exteriorWidthMm' | 'exteriorHeightMm' | 'railYOverridesMm' | 'barOverhangMm'>;
 import { getEnclosureById, DIN_MODULE_1P_MM } from '../data/enclosures';
 
-export const ROW_HEIGHT_MM = 100;
-export const ROW_SPACING_MM = 30;
-export const WALL_THICKNESS_MM = 30;
-export const DEFAULT_FIXING_MARGIN_MM = 30;
-export const VERTICAL_PADDING_MM = 40;
-export const DEFAULT_BAR_OVERHANG_MM = 15;
-export const RAIL_BRACKET_SPACE_MM = 15;
+export const ROW_HEIGHT_MM = 90;
+export const ROW_SPACING_MM = 20;
+export const WALL_THICKNESS_MM = 20;
+export const DEFAULT_FIXING_MARGIN_MM = 20;
+export const VERTICAL_PADDING_MM = 25;
+export const DEFAULT_BAR_OVERHANG_MM = 10;
+export const RAIL_BRACKET_SPACE_MM = 10;
 
 /** Absolute minimum exterior dimensions — just enough for usable rail + walls */
 export function getMinExteriorDimensions(widthUnits: number, rowCount: number) {

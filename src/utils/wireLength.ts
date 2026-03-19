@@ -4,7 +4,7 @@ import { mmToPx } from './geometry';
 import { getIOPortPosition } from './panelIO';
 import { getExternalDevicePortPosition } from '../components/ExternalDeviceLayer';
 
-const MODULE_HEIGHT_MM = 70;
+const DEFAULT_MODULE_HEIGHT_MM = 70;
 
 /**
  * Calcula o comprimento total de um caminho de fio a partir dos pontos.
@@ -43,9 +43,10 @@ function getPortAbsolutePosition(
   const railHeightPx = mmToPx(35);
   const railCenterY = railTopPx + railHeightPx / 2;
 
+  const modH = def.heightMm ?? DEFAULT_MODULE_HEIGHT_MM;
   const moduleX = usableOffsetXPx + mmToPx(mod.positionMm);
-  const moduleY = railCenterY - mmToPx(MODULE_HEIGHT_MM / 2);
-  const moduleH = mmToPx(MODULE_HEIGHT_MM);
+  const moduleY = railCenterY - mmToPx(modH / 2);
+  const moduleH = mmToPx(modH);
 
   const hasVerticalOffset = port.offsetYMm !== undefined;
   const x = moduleX + mmToPx(port.offsetXMm);
