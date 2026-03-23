@@ -89,6 +89,8 @@ interface Props {
   dragGhost?: GhostPreview;
   wiringMousePos?: { x: number; y: number } | null;
   altHeld?: boolean;
+  wirePaintMode?: boolean;
+  onWirePaintClick?: (wireId: string, altKey: boolean) => void;
 }
 
 // --- Module/port helpers ---
@@ -706,6 +708,8 @@ export const WireLayer: React.FC<Props> = ({
   dragGhost,
   wiringMousePos,
   altHeld,
+  wirePaintMode,
+  onWirePaintClick,
 }) => {
   const rows = usePanelStore((s) => s.rows);
   const wires = usePanelStore((s) => s.wires);
@@ -721,6 +725,7 @@ export const WireLayer: React.FC<Props> = ({
   const removeWireWaypoint = usePanelStore((s) => s.removeWireWaypoint);
   const wireSnapAlignment = usePanelStore((s) => s.wireSnapAlignment);
 
+  const [paintHoveredWireId, setPaintHoveredWireId] = useState<string | null>(null);
   const [draggingWp, setDraggingWp] = useState<{ wireId: string; wpIndex: number } | null>(null);
   const [draggingSegment, setDraggingSegment] = useState<{
     wireId: string;
@@ -1182,6 +1187,7 @@ export const WireLayer: React.FC<Props> = ({
       {sortedRenderData.map(({ wire, src, tgt, points, hasWaypoints, displayPath, hitPath }) => {
         const isSelected = wire.id === selectedWireId;
         const isEnergized = energizedWires?.has(wire.id);
+        const isPaintHovered = wirePaintMode && wire.id === paintHoveredWireId;
         const isDragPreview = dragGhost?.instanceId != null && (
           wire.sourceInstanceId === dragGhost.instanceId || wire.targetInstanceId === dragGhost.instanceId
         );
@@ -1191,15 +1197,30 @@ export const WireLayer: React.FC<Props> = ({
         const baseWidth = gaugeToStrokeWidth(wire.wireGaugeMm2);
         const waypoints = wire.waypoints ?? [];
 
+        const handleWireClick = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          if (wirePaintMode && onWirePaintClick) {
+            onWirePaintClick(wire.id, e.altKey);
+          } else {
+            onSelectWire(wire.id);
+          }
+        };
+        const paintHoverHandlers = wirePaintMode ? {
+          onMouseEnter: () => setPaintHoveredWireId(wire.id),
+          onMouseLeave: () => setPaintHoveredWireId((prev) => prev === wire.id ? null : prev),
+        } : {};
+
         return (
           <g key={wire.id}>
             {hasWaypoints ? (
               points.slice(0, -1).map((p, i) => {
                 const next = points[i + 1];
                 const segPath = `M ${p.x} ${p.y} L ${next.x} ${next.y}`;
-                const segCursor = isSelected
-                  ? (draggingSegment?.wireId === wire.id && draggingSegment?.segmentIndex === i ? 'grabbing' : 'grab')
-                  : 'pointer';
+                const segCursor = wirePaintMode
+                  ? 'crosshair'
+                  : isSelected
+                    ? (draggingSegment?.wireId === wire.id && draggingSegment?.segmentIndex === i ? 'grabbing' : 'grab')
+                    : 'pointer';
                 return (
                   <path
                     key={`seg-hit-${i}`}
@@ -1208,15 +1229,16 @@ export const WireLayer: React.FC<Props> = ({
                     stroke="transparent"
                     strokeWidth={HIT_WIDTH}
                     style={{ cursor: segCursor, pointerEvents: 'stroke' }}
-                    onClick={(e) => { e.stopPropagation(); onSelectWire(wire.id); }}
+                    onClick={handleWireClick}
                     onMouseDown={
-                      isSelected
+                      !wirePaintMode && isSelected
                         ? (e) => handleSegmentMouseDown(e, wire.id, i, points, true)
                         : undefined
                     }
-                    onDoubleClick={(e) =>
+                    onDoubleClick={!wirePaintMode ? (e) =>
                       handleSegmentDoubleClick(e, wire.id, i, points, true)
-                    }
+                    : undefined}
+                    {...paintHoverHandlers}
                   />
                 );
               })
@@ -1226,16 +1248,30 @@ export const WireLayer: React.FC<Props> = ({
                 fill="none"
                 stroke="transparent"
                 strokeWidth={HIT_WIDTH}
-                style={{ cursor: isSelected ? (draggingSegment ? 'grabbing' : 'grab') : 'pointer', pointerEvents: 'stroke' }}
-                onClick={(e) => { e.stopPropagation(); onSelectWire(wire.id); }}
+                style={{ cursor: wirePaintMode ? 'crosshair' : isSelected ? (draggingSegment ? 'grabbing' : 'grab') : 'pointer', pointerEvents: 'stroke' }}
+                onClick={handleWireClick}
                 onMouseDown={
-                  isSelected
+                  !wirePaintMode && isSelected
                     ? (e) => handleSegmentMouseDown(e, wire.id, 0, points, false)
                     : undefined
                 }
-                onDoubleClick={(e) =>
+                onDoubleClick={!wirePaintMode ? (e) =>
                   handleSegmentDoubleClick(e, wire.id, 0, points, false)
-                }
+                : undefined}
+                {...paintHoverHandlers}
+              />
+            )}
+
+            {isPaintHovered && !isDragPreview && (
+              <path
+                d={displayPath}
+                fill="none"
+                stroke="#26c6da"
+                strokeWidth={Math.max(baseWidth, 0.8) + 3}
+                opacity={0.45}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ pointerEvents: 'none' }}
               />
             )}
 

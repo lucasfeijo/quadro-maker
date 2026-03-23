@@ -18,6 +18,19 @@ const DEFAULT_MODULE_HEIGHT_MM = 70;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 20;
 
+const GAUGE_OPTIONS = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50];
+const PAINT_COLOR_OPTIONS = [
+  { value: '#333', label: 'Preto' },
+  { value: '#8b4513', label: 'Marrom' },
+  { value: '#d32f2f', label: 'Vermelho' },
+  { value: '#2196f3', label: 'Azul' },
+  { value: '#4caf50', label: 'Verde' },
+  { value: '#ff9800', label: 'Laranja' },
+  { value: '#9c27b0', label: 'Roxo' },
+  { value: '#ffffff', label: 'Branco' },
+  { value: '#607d8b', label: 'Cinza' },
+];
+
 interface MarqueeRect {
   startX: number;
   startY: number;
@@ -486,6 +499,21 @@ export const PanelView: React.FC<PanelViewProps> = ({
   const didMarqueeRef = useRef(false);
   const wiringWaypointJustPlacedRef = useRef(false);
 
+  const handleWirePaintClick = useCallback((wireId: string, altKey: boolean) => {
+    const wire = state.wires.find((w) => w.id === wireId);
+    if (!wire) return;
+    if (altKey) {
+      state.setWirePaintOptions({ color: wire.wireColor, gauge: wire.wireGaugeMm2 });
+    } else {
+      const props: Record<string, unknown> = {};
+      if (state.wirePaintColor !== undefined) props.wireColor = state.wirePaintColor;
+      if (state.wirePaintGauge !== undefined) props.wireGaugeMm2 = state.wirePaintGauge;
+      if (Object.keys(props).length > 0) {
+        state.updateWireProps(wireId, props as { wireColor?: string; wireGaugeMm2?: number });
+      }
+    }
+  }, [state]);
+
   const resolvePortPos = useCallback((instanceId: string, portId: string): { x: number; y: number; side?: 'top' | 'bottom' | 'left' | 'right' } | null => {
     if (instanceId.startsWith('panel-io:')) {
       const ioId = instanceId.replace('panel-io:', '');
@@ -735,6 +763,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (state.wirePaintMode) { state.setWirePaintMode(false); return; }
         if (measureActive) {
           if (measurePending) { setMeasurePending(null); setMeasureMouse(null); }
           else { setMeasureActive(false); setMeasureLines([]); setMeasurePending(null); setMeasureMouse(null); }
@@ -1199,6 +1228,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
           dragGhost={ghostPreview?.instanceId ? ghostPreview : undefined}
           wiringMousePos={wiringMousePos}
           altHeld={altHeld}
+          wirePaintMode={state.wirePaintMode}
+          onWirePaintClick={handleWirePaintClick}
         />
 
         {/* Text Annotations — on top of everything */}
@@ -1302,6 +1333,18 @@ export const PanelView: React.FC<PanelViewProps> = ({
             ↷
           </button>
           <button
+            onClick={() => state.setWirePaintMode(!state.wirePaintMode)}
+            title="Pintar fios"
+            aria-label="Pintar fios"
+            className={state.wirePaintMode ? 'measure-btn active' : 'measure-btn'}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M4 2 L9 2 L9 7 L7 9 L7 12 L6 12 L6 9 L4 7 Z" fill="currentColor" opacity="0.8" />
+              <path d="M9 5 Q12 4 13 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none" opacity="0.7" />
+              <circle cx="13.5" cy="1.5" r="1" fill="currentColor" opacity="0.5" />
+            </svg>
+          </button>
+          <button
             onClick={() => {
               if (measureActive) {
                 setMeasureActive(false);
@@ -1356,6 +1399,72 @@ export const PanelView: React.FC<PanelViewProps> = ({
             Segure <kbd>Shift</kbd> para desativar snap
             {isDraggingSegment && <><br/><kbd>Alt</kbd> move na direção paralela ao segmento</>}
           </div>
+        )}
+        {state.wirePaintMode && (
+          <>
+            <div className="wire-paint-panel">
+              <div className="wire-paint-title">Pintar fios</div>
+              <div className="wire-paint-row">
+                <label>Bitola</label>
+                <select
+                  value={state.wirePaintGauge ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    state.setWirePaintOptions({
+                      color: state.wirePaintColor,
+                      gauge: v ? Number(v) : undefined,
+                    });
+                  }}
+                >
+                  <option value="">—</option>
+                  {GAUGE_OPTIONS.map((g) => (
+                    <option key={g} value={g}>{g} mm²</option>
+                  ))}
+                </select>
+              </div>
+              <div className="wire-paint-row">
+                <label>Cor</label>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <select
+                    style={{ flex: 1 }}
+                    value={
+                      state.wirePaintColor === undefined
+                        ? ''
+                        : PAINT_COLOR_OPTIONS.some((c) => c.value === state.wirePaintColor)
+                          ? state.wirePaintColor
+                          : '__custom__'
+                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === '__custom__') return;
+                      state.setWirePaintOptions({
+                        color: v || undefined,
+                        gauge: state.wirePaintGauge,
+                      });
+                    }}
+                  >
+                    <option value="">—</option>
+                    {PAINT_COLOR_OPTIONS.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                    {state.wirePaintColor && !PAINT_COLOR_OPTIONS.some((c) => c.value === state.wirePaintColor) && (
+                      <option value="__custom__">Personalizada</option>
+                    )}
+                  </select>
+                  <input
+                    type="color"
+                    value={state.wirePaintColor || '#333333'}
+                    onChange={(e) => state.setWirePaintOptions({ color: e.target.value, gauge: state.wirePaintGauge })}
+                    style={{ width: 24, height: 24, padding: 0, border: '1px solid #555', borderRadius: 4, cursor: 'pointer', background: 'none' }}
+                    title="Cor personalizada"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="drag-hint">
+              Clique em um fio para pintar · <kbd>Alt</kbd> copia as opções do fio
+            </div>
+          </>
         )}
         {state.selectedWireId && !isDraggingSegment && !isDraggingWaypoint && (() => {
           const selWire = state.wires.find((w) => w.id === state.selectedWireId);

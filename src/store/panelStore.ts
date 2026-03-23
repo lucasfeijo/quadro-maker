@@ -85,6 +85,13 @@ interface PanelStore extends PanelState {
   resizePanel: (widthUnits: number, rowCount: number) => void;
   setPanelDimensions: (widthMm: number, heightMm: number) => void;
 
+  // Wire paint tool
+  wirePaintMode: boolean;
+  wirePaintColor?: string;
+  wirePaintGauge?: number;
+  setWirePaintMode: (on: boolean) => void;
+  setWirePaintOptions: (opts: { color?: string; gauge?: number }) => void;
+
   markAsSaved: () => void;
   getIsDirty: () => boolean;
 }
@@ -144,6 +151,9 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   selectedWireId: null,
   selectedIOId: null,
   selectedAnnotationId: null,
+  wirePaintMode: false,
+  wirePaintColor: undefined,
+  wirePaintGauge: undefined,
 
   configureCustom: (widthUnits, rowCount, options) =>
     set({
@@ -627,6 +637,9 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
 
   setPanelDimensions: (widthMm, heightMm) =>
     set({ exteriorWidthMm: widthMm, exteriorHeightMm: heightMm, enclosureId: null }),
+
+  setWirePaintMode: (on) => set({ wirePaintMode: on }),
+  setWirePaintOptions: (opts) => set({ wirePaintColor: opts.color, wirePaintGauge: opts.gauge }),
 
   markAsSaved: () => {
     lastSavedSnapshot = getSavableSnapshot(get());
