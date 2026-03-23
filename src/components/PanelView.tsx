@@ -226,10 +226,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
     [state.enclosureId, state.widthUnits, state.rowCount, state.rows, state.exteriorWidthMm, state.exteriorHeightMm, state.railYOverridesMm, state.barOverhangMm],
   );
 
-  const svgWidth = mmToPx(layout.exteriorWidthMm);
-  const svgHeight = mmToPx(layout.exteriorHeightMm);
-  const intX = mmToPx(layout.interiorOffsetXMm);
-  const intY = mmToPx(layout.interiorOffsetYMm);
+  const svgWidth = mmToPx(layout.widthMm);
+  const svgHeight = mmToPx(layout.heightMm);
 
 
 
@@ -252,9 +250,9 @@ export const PanelView: React.FC<PanelViewProps> = ({
         const port = def?.ports.find((p) => p.id === portId);
         const rail = layout.rails[ri];
         if (!def || !port || !rail) return null;
-        const railLeft = intX + mmToPx(rail.xMm);
+        const railLeft = mmToPx(rail.xMm);
         const usableX = railLeft + mmToPx(rail.fixingMarginMm);
-        const railCY = intY + mmToPx(rail.yMm) + mmToPx(35) / 2;
+        const railCY = mmToPx(rail.yMm) + mmToPx(35) / 2;
         const mx = usableX + mmToPx(mod.positionMm);
         const my = railCY - mmToPx(MODULE_H_MM / 2);
         const mh = mmToPx(MODULE_H_MM);
@@ -283,7 +281,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
       addTarget(wire.targetInstanceId, wire.sourceInstanceId, wire.sourcePortId);
     }
     return targets;
-  }, [state.wires, state.panelIOs, state.externalDevices, state.rows, layout.rails, svgWidth, svgHeight, intX, intY]);
+  }, [state.wires, state.panelIOs, state.externalDevices, state.rows, layout.rails, svgWidth, svgHeight]);
 
   // All port positions for wiring snap targets
   const wiringSnapTargets = useMemo(() => {
@@ -294,9 +292,9 @@ export const PanelView: React.FC<PanelViewProps> = ({
     for (let ri = 0; ri < state.rows.length; ri++) {
       const rail = layout.rails[ri];
       if (!rail) continue;
-      const railLeft = intX + mmToPx(rail.xMm);
+      const railLeft = mmToPx(rail.xMm);
       const usableX = railLeft + mmToPx(rail.fixingMarginMm);
-      const railCY = intY + mmToPx(rail.yMm) + mmToPx(35) / 2;
+      const railCY = mmToPx(rail.yMm) + mmToPx(35) / 2;
 
       for (const mod of state.rows[ri].modules) {
         const def = getModuleById(mod.moduleId);
@@ -335,7 +333,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
     }
 
     return targets;
-  }, [state.rows, layout.rails, intX, intY, state.panelIOs, state.externalDevices, svgWidth, svgHeight]);
+  }, [state.rows, layout.rails, state.panelIOs, state.externalDevices, svgWidth, svgHeight]);
 
   const DIM_LABEL_MM = 8;
   const contentBounds = useMemo(() => {
@@ -451,10 +449,10 @@ export const PanelView: React.FC<PanelViewProps> = ({
       const railIdx = state.rows.indexOf(row);
       const rail = layout.rails[railIdx];
       if (!rail) continue;
-      const railLeftPx = intX + mmToPx(rail.xMm);
+      const railLeftPx = mmToPx(rail.xMm);
       const fixingPx = mmToPx(rail.fixingMarginMm);
       const usableOffsetXPx = railLeftPx + fixingPx;
-      const railTopPx = intY + mmToPx(rail.yMm);
+      const railTopPx = mmToPx(rail.yMm);
       const railHeightPx = mmToPx(35);
       const railCenterY = railTopPx + railHeightPx / 2;
 
@@ -483,7 +481,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
     if (ids.length > 0) {
       onSetSelection(ids);
     }
-  }, [state, layout, intX, intY, onSetSelection]);
+  }, [state, layout, onSetSelection]);
 
   const didMarqueeRef = useRef(false);
   const wiringWaypointJustPlacedRef = useRef(false);
@@ -525,9 +523,9 @@ export const PanelView: React.FC<PanelViewProps> = ({
       const port = def?.ports.find((p) => p.id === portId);
       const rail = layout.rails[ri];
       if (!def || !port || !rail) return null;
-      const railLeft = intX + mmToPx(rail.xMm);
+      const railLeft = mmToPx(rail.xMm);
       const usableX = railLeft + mmToPx(rail.fixingMarginMm);
-      const railCY = intY + mmToPx(rail.yMm) + mmToPx(35) / 2;
+      const railCY = mmToPx(rail.yMm) + mmToPx(35) / 2;
       const mx = usableX + mmToPx(mod.positionMm);
       const my = railCY - mmToPx(70 / 2);
       const mh = mmToPx(70);
@@ -538,7 +536,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
       return { x: mx + mmToPx(port.offsetXMm), y: py, side: port.side as 'top' | 'bottom' | 'left' | 'right' | undefined };
     }
     return null;
-  }, [state.panelIOs, state.externalDevices, state.rows, layout.rails, svgWidth, svgHeight, intX, intY]);
+  }, [state.panelIOs, state.externalDevices, state.rows, layout.rails, svgWidth, svgHeight]);
 
   const snapWiringPoint = useCallback((pt: { x: number; y: number }): { x: number; y: number } => {
     const SNAP_TOL = 3;
@@ -1058,7 +1056,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
             fontSize={2.2}
             transform={`rotate(-90, ${-mmToPx(3.5)}, ${mmToPx(8)})`}
           >
-            {layout.exteriorHeightMm}mm
+            {layout.heightMm}mm
           </text>
           <text
             className="rail-length-label"
@@ -1069,7 +1067,7 @@ export const PanelView: React.FC<PanelViewProps> = ({
             fill="#607d8b"
             fontSize={2.2}
           >
-            {layout.exteriorWidthMm}mm
+            {layout.widthMm}mm
           </text>
         </g>
 
@@ -1099,8 +1097,8 @@ export const PanelView: React.FC<PanelViewProps> = ({
         {layout.mountingHoles.map((hole, i) => (
           <circle
             key={i}
-            cx={intX + mmToPx(hole.xMm)}
-            cy={intY + mmToPx(hole.yMm)}
+            cx={mmToPx(hole.xMm)}
+            cy={mmToPx(hole.yMm)}
             r={hole.diameterMm / 2}
             fill="none"
             stroke="#999"
@@ -1117,8 +1115,6 @@ export const PanelView: React.FC<PanelViewProps> = ({
               key={rail.id}
               rail={rail}
               row={row}
-              interiorOffsetXPx={intX}
-              interiorOffsetYPx={intY}
               selectedModules={selectedModules}
               onSelectModule={onSelectModule}
               ghostPreview={
@@ -1188,8 +1184,6 @@ export const PanelView: React.FC<PanelViewProps> = ({
         {/* Wires — rendered on top so they stay clickable when passing through switches/buttons */}
         <WireLayer
           rails={layout.rails}
-          interiorOffsetXPx={intX}
-          interiorOffsetYPx={intY}
           panelWidth={svgWidth}
           panelHeight={svgHeight}
           svgWidth={vb.w}

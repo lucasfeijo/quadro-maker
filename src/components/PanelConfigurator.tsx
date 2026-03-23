@@ -145,7 +145,7 @@ export const PanelConfigurator: React.FC<PanelConfiguratorProps> = ({
                 max={1000}
                 step={10}
                 value={exteriorWidthMm ?? ''}
-                placeholder={String(defaultLayout.exteriorWidthMm)}
+                placeholder={String(defaultLayout.widthMm)}
                 onChange={(e) => {
                   const v = e.target.value;
                   setExteriorWidthMm(v === '' ? undefined : Math.max(minDimensions.width, Number(v)));
@@ -161,7 +161,7 @@ export const PanelConfigurator: React.FC<PanelConfiguratorProps> = ({
                 max={1000}
                 step={10}
                 value={exteriorHeightMm ?? ''}
-                placeholder={String(defaultLayout.exteriorHeightMm)}
+                placeholder={String(defaultLayout.heightMm)}
                 onChange={(e) => {
                   const v = e.target.value;
                   setExteriorHeightMm(v === '' ? undefined : Math.max(minDimensions.height, Number(v)));

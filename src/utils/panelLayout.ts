@@ -41,20 +41,19 @@ function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
   const minWall = WALL_THICKNESS_MM;
   const extraX = Math.max(0, minWall - origWallX);
   const extraY = Math.max(0, minWall - origWallY);
+  const offsetX = origWallX + extraX;
+  const offsetY = origWallY + extraY;
 
   return {
-    exteriorWidthMm: enc.exteriorWidthMm + extraX * 2,
-    exteriorHeightMm: enc.exteriorHeightMm + extraY * 2,
-    interiorWidthMm: enc.interiorWidthMm,
-    interiorHeightMm: enc.interiorHeightMm,
-    interiorOffsetXMm: origWallX + extraX,
-    interiorOffsetYMm: origWallY + extraY,
+    widthMm: enc.exteriorWidthMm + extraX * 2,
+    heightMm: enc.exteriorHeightMm + extraY * 2,
     rails: enc.rails.map((r) => {
       const fixingMarginMm = (enc.interiorWidthMm - r.usableWidthMm) / 2;
       const barOvh = Math.max(0, fixingMarginMm - RAIL_BRACKET_SPACE_MM);
       return {
         ...r,
-        xMm: 0,
+        xMm: offsetX,
+        yMm: r.yMm + offsetY,
         widthMm: enc.interiorWidthMm,
         usableWidthMm: r.usableWidthMm,
         fixingMarginMm,
@@ -62,7 +61,11 @@ function resolveEnclosureLayout(enclosureId: string): ResolvedLayout {
         barOverhangRightMm: barOvh,
       };
     }),
-    mountingHoles: enc.mountingHoles,
+    mountingHoles: enc.mountingHoles.map((h) => ({
+      ...h,
+      xMm: h.xMm + offsetX,
+      yMm: h.yMm + offsetY,
+    })),
     isEnclosure: true,
   };
 }
@@ -79,12 +82,9 @@ export function resolveCustomLayout(
   const usableWidth = widthUnits * DIN_MODULE_1P_MM;
   const contentHeight = rowCount * ROW_HEIGHT_MM + (rowCount - 1) * ROW_SPACING_MM;
 
-  let exteriorWidth: number;
-  let exteriorHeight: number;
+  let panelWidth: number;
+  let panelHeight: number;
   let interiorWidth: number;
-  let interiorHeight: number;
-  let interiorOffsetXMm: number;
-  let interiorOffsetYMm: number;
   let railFixingMarginMm: number;
   let railStartYMm: number;
 
@@ -94,31 +94,25 @@ export function resolveCustomLayout(
     exteriorWidthMm > 0 &&
     exteriorHeightMm > 0
   ) {
-    exteriorWidth = exteriorWidthMm;
-    exteriorHeight = exteriorHeightMm;
-    interiorWidth = exteriorWidth - WALL_THICKNESS_MM * 2;
-    interiorHeight = exteriorHeight - WALL_THICKNESS_MM * 2;
-    interiorOffsetXMm = WALL_THICKNESS_MM;
-    interiorOffsetYMm = WALL_THICKNESS_MM;
+    panelWidth = exteriorWidthMm;
+    panelHeight = exteriorHeightMm;
+    interiorWidth = panelWidth - WALL_THICKNESS_MM * 2;
+    const interiorHeight = panelHeight - WALL_THICKNESS_MM * 2;
     railFixingMarginMm = Math.max(0, (interiorWidth - usableWidth) / 2);
     railStartYMm = Math.max(0, (interiorHeight - contentHeight) / 2);
   } else {
     const computedFixing = RAIL_BRACKET_SPACE_MM + overhang;
-    const baseInteriorWidth = usableWidth + computedFixing * 2;
-    const baseInteriorHeight = VERTICAL_PADDING_MM * 2 + contentHeight;
-    exteriorWidth = baseInteriorWidth + WALL_THICKNESS_MM * 2;
-    exteriorHeight = baseInteriorHeight + WALL_THICKNESS_MM * 2;
-    interiorWidth = baseInteriorWidth;
-    interiorHeight = baseInteriorHeight;
-    interiorOffsetXMm = WALL_THICKNESS_MM;
-    interiorOffsetYMm = WALL_THICKNESS_MM;
+    interiorWidth = usableWidth + computedFixing * 2;
+    const interiorHeight = VERTICAL_PADDING_MM * 2 + contentHeight;
+    panelWidth = interiorWidth + WALL_THICKNESS_MM * 2;
+    panelHeight = interiorHeight + WALL_THICKNESS_MM * 2;
     railFixingMarginMm = computedFixing;
     railStartYMm = VERTICAL_PADDING_MM;
   }
 
   const railFixing = railFixingMarginMm;
   const railWidthMm = usableWidth + railFixing * 2;
-  const railXMm = (interiorWidth - railWidthMm) / 2;
+  const railXMm = WALL_THICKNESS_MM + (interiorWidth - railWidthMm) / 2;
 
   const effectiveOverhang = Math.min(overhang, railFixing);
 
@@ -128,7 +122,7 @@ export function resolveCustomLayout(
     return {
       id,
       xMm: railXMm,
-      yMm: railYOverridesMm?.[id] ?? defaultY,
+      yMm: WALL_THICKNESS_MM + (railYOverridesMm?.[id] ?? defaultY),
       widthMm: railWidthMm,
       usableWidthMm: usableWidth,
       fixingMarginMm: railFixing,
@@ -138,12 +132,8 @@ export function resolveCustomLayout(
   });
 
   return {
-    exteriorWidthMm: exteriorWidth,
-    exteriorHeightMm: exteriorHeight,
-    interiorWidthMm: interiorWidth,
-    interiorHeightMm: interiorHeight,
-    interiorOffsetXMm,
-    interiorOffsetYMm,
+    widthMm: panelWidth,
+    heightMm: panelHeight,
     rails,
     mountingHoles: [],
     isEnclosure: false,

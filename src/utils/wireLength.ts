@@ -25,8 +25,6 @@ function getPortAbsolutePosition(
   portId: string,
   rowIndex: number,
   rails: ResolvedRail[],
-  interiorOffsetXPx: number,
-  interiorOffsetYPx: number,
 ): { x: number; y: number } | null {
   const def = getModuleById(mod.moduleId);
   if (!def) return null;
@@ -36,10 +34,10 @@ function getPortAbsolutePosition(
   const rail = rails[rowIndex];
   if (!rail) return null;
 
-  const railLeftPx = interiorOffsetXPx + mmToPx(rail.xMm);
+  const railLeftPx = mmToPx(rail.xMm);
   const fixingPx = mmToPx(rail.fixingMarginMm);
   const usableOffsetXPx = railLeftPx + fixingPx;
-  const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
+  const railTopPx = mmToPx(rail.yMm);
   const railHeightPx = mmToPx(35);
   const railCenterY = railTopPx + railHeightPx / 2;
 
@@ -64,8 +62,6 @@ export interface WireLengthContext {
   rails: ResolvedRail[];
   panelIOs: PanelIO[];
   externalDevices: ExternalDevice[];
-  interiorOffsetXPx: number;
-  interiorOffsetYPx: number;
   svgWidth: number;
   svgHeight: number;
 }
@@ -92,7 +88,7 @@ function resolveEndpoint(
   for (let i = 0; i < ctx.rows.length; i++) {
     const mod = ctx.rows[i].modules.find((m) => m.instanceId === instanceId);
     if (mod) {
-      return getPortAbsolutePosition(mod, portId, i, ctx.rails, ctx.interiorOffsetXPx, ctx.interiorOffsetYPx);
+      return getPortAbsolutePosition(mod, portId, i, ctx.rails);
     }
   }
   return null;

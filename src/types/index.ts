@@ -196,12 +196,8 @@ export type ResolvedRail = {
 };
 
 export type ResolvedLayout = {
-  exteriorWidthMm: number;
-  exteriorHeightMm: number;
-  interiorWidthMm: number;
-  interiorHeightMm: number;
-  interiorOffsetXMm: number;
-  interiorOffsetYMm: number;
+  widthMm: number;
+  heightMm: number;
   rails: ResolvedRail[];
   mountingHoles: MountingHole[];
   isEnclosure: boolean;

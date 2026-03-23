@@ -459,10 +459,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           rails: layout.rails,
           panelIOs: store.panelIOs,
           externalDevices: store.externalDevices,
-          interiorOffsetXPx: mmToPx(layout.interiorOffsetXMm),
-          interiorOffsetYPx: mmToPx(layout.interiorOffsetYMm),
-          svgWidth: mmToPx(layout.exteriorWidthMm),
-          svgHeight: mmToPx(layout.exteriorHeightMm),
+          svgWidth: mmToPx(layout.widthMm),
+          svgHeight: mmToPx(layout.heightMm),
         };
 
         const allModules: { instanceId: string; name: string; label: string; category: string; row: number }[] = [];

@@ -379,8 +379,7 @@ export const EditorPage: React.FC = () => {
         svgRect.left;
 
       const svgX = dropX * scaleX + svgViewBox[0];
-      const intX = layout.interiorOffsetXMm;
-      const usableStartPx = intX + rail.xMm + rail.fixingMarginMm;
+      const usableStartPx = rail.xMm + rail.fixingMarginMm;
 
       let pos = pxToMm(svgX - usableStartPx);
       pos = Math.max(0, Math.min(pos, rail.usableWidthMm - moduleWidthMm));
@@ -468,8 +467,8 @@ export const EditorPage: React.FC = () => {
       if (data.type === 'new-panel-io' || data.type === 'new-panel-io-group') {
         const pos = computeDragPositionInSvg(event);
         if (pos) {
-          const panelW = mmToPx(layout.exteriorWidthMm);
-          const panelH = mmToPx(layout.exteriorHeightMm);
+          const panelW = mmToPx(layout.widthMm);
+          const panelH = mmToPx(layout.heightMm);
           const { edge, positionPercent } = closestEdge(pos.x, pos.y, panelW, panelH);
           setPanelEdgePreview({ edge, positionPercent });
         } else {
@@ -545,7 +544,7 @@ export const EditorPage: React.FC = () => {
         instanceId: isPlaced ? (data.instanceId as string) : undefined,
       });
     },
-    [store.rows, layout.rails, layout.exteriorWidthMm, layout.exteriorHeightMm, activePlaced, computeSnapPosition, computeSnapPositionFromDelta, computeDragPositionInSvg],
+    [store.rows, layout.rails, layout.widthMm, layout.heightMm, activePlaced, computeSnapPosition, computeSnapPositionFromDelta, computeDragPositionInSvg],
   );
 
   const clearDragState = useCallback(() => {
@@ -604,8 +603,8 @@ export const EditorPage: React.FC = () => {
         const pos = computeExternalDevicePosition(event);
         if (pos) {
           const layout = resolveLayout(store);
-          const panelW = mmToPx(layout.exteriorWidthMm);
-          const panelH = mmToPx(layout.exteriorHeightMm);
+          const panelW = mmToPx(layout.widthMm);
+          const panelH = mmToPx(layout.heightMm);
           const { edge, positionPercent } = closestEdge(pos.x, pos.y, panelW, panelH);
           store.addPanelIO(data.direction, data.ioType, edge, positionPercent);
         }
@@ -616,8 +615,8 @@ export const EditorPage: React.FC = () => {
         const pos = computeExternalDevicePosition(event);
         if (pos && data.ioTypes?.length) {
           const layout = resolveLayout(store);
-          const panelW = mmToPx(layout.exteriorWidthMm);
-          const panelH = mmToPx(layout.exteriorHeightMm);
+          const panelW = mmToPx(layout.widthMm);
+          const panelH = mmToPx(layout.heightMm);
           const { edge, positionPercent } = closestEdge(pos.x, pos.y, panelW, panelH);
           store.addPanelIOGroup(data.direction, data.ioTypes, edge, positionPercent, data.defaultColor);
         }

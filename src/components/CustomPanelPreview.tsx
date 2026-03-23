@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { ResolvedLayout, ResolvedRail } from '../types';
 import { DIN_MODULE_1P_MM } from '../data/enclosures';
+import { WALL_THICKNESS_MM } from '../utils/panelLayout';
 
 const RAIL_HEIGHT_MM = 35;
 const HANDLE_SIZE_MM = 8;
@@ -130,15 +131,13 @@ function DimensionLine({ x1, y1, x2, y2, label }: {
   );
 }
 
-function RailVisual({ rail, intX, intY, opacity = 1, clipPrefix = '' }: {
+function RailVisual({ rail, opacity = 1, clipPrefix = '' }: {
   rail: ResolvedRail;
-  intX: number;
-  intY: number;
   opacity?: number;
   clipPrefix?: string;
 }) {
-  const railLeft = intX + rail.xMm;
-  const railTop = intY + rail.yMm;
+  const railLeft = rail.xMm;
+  const railTop = rail.yMm;
   const fixing = rail.fixingMarginMm;
   const usableOffset = railLeft + fixing;
   const railBarLeft = usableOffset - rail.barOverhangLeftMm;
@@ -278,7 +277,7 @@ export const CustomPanelPreview: React.FC<Props> = ({
     };
   }, []);
 
-  const { exteriorWidthMm: W, exteriorHeightMm: H, interiorOffsetXMm: intX, interiorOffsetYMm: intY, interiorWidthMm: intW, interiorHeightMm: intH } = layout;
+  const { widthMm: W, heightMm: H } = layout;
 
   const DIM_EXTRA = 20; // extra space for dimension lines on right/bottom
   const vbX = -PADDING_MM;
@@ -342,12 +341,12 @@ export const CustomPanelPreview: React.FC<Props> = ({
         const deltaPx = e.clientX - startClientX;
         const deltaMm = deltaPx / pxPerMm;
         const newW = Math.min(MAX_EXTERIOR_MM, Math.max(minExteriorWidth, Math.round(startWidth + deltaMm * 2)));
-        onResizeExterior(newW, layout.exteriorHeightMm);
+        onResizeExterior(newW, layout.heightMm);
       } else {
         const deltaPx = e.clientY - startClientY;
         const deltaMm = deltaPx / pxPerMm;
         const newH = Math.min(MAX_EXTERIOR_MM, Math.max(minExteriorHeight, Math.round(startHeight + deltaMm * 2)));
-        onResizeExterior(layout.exteriorWidthMm, newH);
+        onResizeExterior(layout.widthMm, newH);
       }
       return;
     }
@@ -371,13 +370,13 @@ export const CustomPanelPreview: React.FC<Props> = ({
       const deltaY = pt.y - startMouseY;
       let newY = startYMm + deltaY;
 
-      // Clamp within interior
-      newY = Math.max(0, Math.min(intH - RAIL_HEIGHT_MM, newY));
+      // Clamp within panel (absolute coords, wall padding on each side)
+      newY = Math.max(WALL_THICKNESS_MM, Math.min(H - WALL_THICKNESS_MM - RAIL_HEIGHT_MM, newY));
 
-      // Clamp to not overlap other rails
+      // Clamp to not overlap other rails (all in absolute coords)
       const otherRails = layout.rails.filter(r => r.id !== railId);
       for (const other of otherRails) {
-        const otherY = railYOverrides[other.id] ?? defaultRailY[other.id] ?? other.yMm;
+        const otherY = other.yMm;
         if (newY < otherY && newY + RAIL_HEIGHT_MM + MIN_RAIL_GAP_MM > otherY) {
           newY = otherY - RAIL_HEIGHT_MM - MIN_RAIL_GAP_MM;
         }
@@ -385,25 +384,25 @@ export const CustomPanelPreview: React.FC<Props> = ({
           newY = otherY + RAIL_HEIGHT_MM + MIN_RAIL_GAP_MM;
         }
       }
-      newY = Math.max(0, Math.min(intH - RAIL_HEIGHT_MM, newY));
+      newY = Math.max(WALL_THICKNESS_MM, Math.min(H - WALL_THICKNESS_MM - RAIL_HEIGHT_MM, newY));
 
-      // Snap to default position
+      // Snap to default position (absolute coords)
       const defY = defaultRailY[railId];
       if (!shiftHeldRef.current && defY != null && Math.abs(newY - defY) < SNAP_THRESHOLD_MM) {
-        onRailYChange(railId, defY);
+        onRailYChange(railId, defY - WALL_THICKNESS_MM);
       } else {
-        onRailYChange(railId, Math.round(newY));
+        onRailYChange(railId, Math.round(newY - WALL_THICKNESS_MM));
       }
       return;
     }
-  }, [draggingEdge, draggingRail, draggingRailWidth, getMm, layout, defaultLayout, intH, widthUnits, railYOverrides, defaultRailY, onResizeExterior, onRailYChange, onWidthUnitsChange]);
+  }, [draggingEdge, draggingRail, draggingRailWidth, getMm, layout, defaultLayout, H, widthUnits, railYOverrides, defaultRailY, onResizeExterior, onRailYChange, onWidthUnitsChange]);
 
   const handleMouseUp = useCallback(() => {
     if (draggingRail) {
       const { railId } = draggingRail;
       const defY = defaultRailY[railId];
       const overrideY = railYOverrides[railId];
-      if (defY != null && overrideY != null && Math.abs(overrideY - defY) < 0.5) {
+      if (defY != null && overrideY != null && Math.abs((overrideY + WALL_THICKNESS_MM) - defY) < 0.5) {
         onRailYReset(railId);
       }
     }
@@ -475,9 +474,7 @@ export const CustomPanelPreview: React.FC<Props> = ({
               {isBeingDragged && defY != null && (
                 <RailVisual
                   rail={{ ...rail, yMm: defY }}
-                  intX={intX}
-                  intY={intY}
-                  opacity={0.15}
+                                    opacity={0.15}
                   clipPrefix="ghost-"
                 />
               )}
@@ -485,10 +482,10 @@ export const CustomPanelPreview: React.FC<Props> = ({
               {/* Red center axis when snapped to default */}
               {isBeingDragged && defY != null && Math.abs(rail.yMm - defY) < 0.5 && (
                 <line
-                  x1={intX}
-                  y1={intY + defY + RAIL_HEIGHT_MM / 2}
-                  x2={intX + intW}
-                  y2={intY + defY + RAIL_HEIGHT_MM / 2}
+                  x1={WALL_THICKNESS_MM}
+                  y1={defY + RAIL_HEIGHT_MM / 2}
+                  x2={W - WALL_THICKNESS_MM}
+                  y2={defY + RAIL_HEIGHT_MM / 2}
                   stroke="#e53935"
                   strokeWidth={0.8}
                   opacity={0.7}
@@ -499,15 +496,13 @@ export const CustomPanelPreview: React.FC<Props> = ({
               {/* Actual rail */}
               <RailVisual
                 rail={rail}
-                intX={intX}
-                intY={intY}
-                opacity={isBeingDragged ? 0.7 : 1}
+                                opacity={isBeingDragged ? 0.7 : 1}
               />
 
               {/* Rail vertical drag handle */}
               <rect
-                x={intX + rail.xMm}
-                y={intY + rail.yMm}
+                x={rail.xMm}
+                y={rail.yMm}
                 width={rail.widthMm}
                 height={RAIL_HEIGHT_MM}
                 fill="transparent"
@@ -517,8 +512,8 @@ export const CustomPanelPreview: React.FC<Props> = ({
 
               {/* "NP" label centered on rail */}
               {(() => {
-                const railCenterX = intX + rail.xMm + rail.widthMm / 2;
-                const railCenterY = intY + rail.yMm + RAIL_HEIGHT_MM / 2;
+                const railCenterX = rail.xMm + rail.widthMm / 2;
+                const railCenterY = rail.yMm + RAIL_HEIGHT_MM / 2;
                 const labelText = `${widthUnits}P`;
                 const labelW = labelText.length * 5.5 + 6;
                 const labelH = 12;
@@ -551,9 +546,9 @@ export const CustomPanelPreview: React.FC<Props> = ({
               {/* Rail width drag handles — left and right edges */}
               {(() => {
                 const handleW = HANDLE_SIZE_MM;
-                const railLeft = intX + rail.xMm + rail.fixingMarginMm;
+                const railLeft = rail.xMm + rail.fixingMarginMm;
                 const railRight = railLeft + rail.usableWidthMm;
-                const railTop = intY + rail.yMm;
+                const railTop = rail.yMm;
                 const handleH = RAIL_HEIGHT_MM + 16;
                 const handleY = railTop - 8;
                 return (
@@ -615,23 +610,23 @@ export const CustomPanelPreview: React.FC<Props> = ({
           const vDimX = W + 10; // X position of vertical dimension lines
           const vSegments: { y1: number; y2: number }[] = [];
 
-          // Top exterior wall → first rail top
-          vSegments.push({ y1: 0, y2: intY + sortedRails[0].yMm });
+          // Top wall → first rail top
+          vSegments.push({ y1: 0, y2: sortedRails[0].yMm });
           // Between consecutive rails (bottom of one → top of next)
           for (let i = 0; i < sortedRails.length - 1; i++) {
             vSegments.push({
-              y1: intY + sortedRails[i].yMm + RAIL_HEIGHT_MM,
-              y2: intY + sortedRails[i + 1].yMm,
+              y1: sortedRails[i].yMm + RAIL_HEIGHT_MM,
+              y2: sortedRails[i + 1].yMm,
             });
           }
-          // Last rail bottom → bottom exterior wall
+          // Last rail bottom → bottom wall
           const lastRail = sortedRails[sortedRails.length - 1];
-          vSegments.push({ y1: intY + lastRail.yMm + RAIL_HEIGHT_MM, y2: H });
+          vSegments.push({ y1: lastRail.yMm + RAIL_HEIGHT_MM, y2: H });
 
-          // --- Horizontal dimension lines (placed below the exterior) ---
+          // --- Horizontal dimension lines (placed below the panel) ---
           // Measure to the rail bar edges (usable area ± overhang)
           const firstRail = sortedRails[0];
-          const usableAbsLeft = intX + firstRail.xMm + firstRail.fixingMarginMm;
+          const usableAbsLeft = firstRail.xMm + firstRail.fixingMarginMm;
           const railBarAbsLeft = usableAbsLeft - firstRail.barOverhangLeftMm;
           const railBarAbsRight = usableAbsLeft + firstRail.usableWidthMm + firstRail.barOverhangRightMm;
           const hDimY = H + 10; // Y position of horizontal dimension lines

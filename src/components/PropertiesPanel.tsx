@@ -466,10 +466,8 @@ export const PropertiesPanel: React.FC<Props> = ({ selectedModuleId }) => {
               rails: layout.rails,
               panelIOs,
               externalDevices,
-              interiorOffsetXPx: mmToPx(layout.interiorOffsetXMm),
-              interiorOffsetYPx: mmToPx(layout.interiorOffsetYMm),
-              svgWidth: mmToPx(layout.exteriorWidthMm),
-              svgHeight: mmToPx(layout.exteriorHeightMm),
+              svgWidth: mmToPx(layout.widthMm),
+              svgHeight: mmToPx(layout.heightMm),
             });
             if (lengthMm == null) return null;
             const hasWaypoints = (selectedWire.waypoints?.length ?? 0) > 0;

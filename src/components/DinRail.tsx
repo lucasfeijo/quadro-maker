@@ -8,8 +8,6 @@ import { DIN_MODULE_1P_MM } from '../data/enclosures';
 interface Props {
   rail: ResolvedRail;
   row: PanelRow;
-  interiorOffsetXPx: number;
-  interiorOffsetYPx: number;
   selectedModules: string[];
   onSelectModule: (instanceId: string, additive?: boolean) => void;
   ghostPreview: GhostPreview | null;
@@ -29,8 +27,6 @@ const DEFAULT_MODULE_HEIGHT_MM = 70;
 export const DinRail: React.FC<Props> = ({
   rail,
   row,
-  interiorOffsetXPx,
-  interiorOffsetYPx,
   selectedModules,
   onSelectModule,
   ghostPreview,
@@ -48,8 +44,8 @@ export const DinRail: React.FC<Props> = ({
     data: { rowId: row.id, rail },
   });
 
-  const railLeftPx = interiorOffsetXPx + mmToPx(rail.xMm);
-  const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
+  const railLeftPx = mmToPx(rail.xMm);
+  const railTopPx = mmToPx(rail.yMm);
   const railHeightPx = mmToPx(RAIL_HEIGHT_MM);
   const fixingPx = mmToPx(rail.fixingMarginMm);
   const usablePx = mmToPx(rail.usableWidthMm);

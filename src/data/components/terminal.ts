@@ -5,6 +5,7 @@ const component: ComponentSpec = {
   name: 'Borne SAK 2.5',
   description: 'Ponto de conexão passivo. Liga o fio de entrada ao de saída sem interrupção. Usado para organizar e distribuir conexões dentro do quadro.',
   widthMm: 6,
+  heightMm: 40,
   category: 'terminal',
   poles: 1,
   color: '#78909c',

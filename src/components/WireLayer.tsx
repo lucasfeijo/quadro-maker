@@ -74,8 +74,6 @@ interface DimensionLine {
 
 interface Props {
   rails: ResolvedRail[];
-  interiorOffsetXPx: number;
-  interiorOffsetYPx: number;
   panelWidth: number;
   panelHeight: number;
   svgWidth: number;
@@ -111,8 +109,6 @@ function getPortAbsolutePosition(
   portId: string,
   rowIndex: number,
   rails: ResolvedRail[],
-  interiorOffsetXPx: number,
-  interiorOffsetYPx: number,
 ): PortPosition | null {
   const def = getModuleById(mod.moduleId);
   if (!def) return null;
@@ -122,10 +118,10 @@ function getPortAbsolutePosition(
   const rail = rails[rowIndex];
   if (!rail) return null;
 
-  const railLeftPx = interiorOffsetXPx + mmToPx(rail.xMm);
+  const railLeftPx = mmToPx(rail.xMm);
   const fixingPx = mmToPx(rail.fixingMarginMm);
   const usableOffsetXPx = railLeftPx + fixingPx;
-  const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
+  const railTopPx = mmToPx(rail.yMm);
   const railHeightPx = mmToPx(35);
   const railCenterY = railTopPx + railHeightPx / 2;
 
@@ -150,17 +146,15 @@ function getPortAbsolutePosition(
 function getModuleBounds(
   rows: { id: string; modules: PlacedModule[] }[],
   rails: ResolvedRail[],
-  interiorOffsetXPx: number,
-  interiorOffsetYPx: number,
 ): ObstacleRect[] {
   const rects: ObstacleRect[] = [];
   for (let i = 0; i < rows.length; i++) {
     const rail = rails[i];
     if (!rail) continue;
-    const railLeftPx = interiorOffsetXPx + mmToPx(rail.xMm);
+    const railLeftPx = mmToPx(rail.xMm);
     const fixingPx = mmToPx(rail.fixingMarginMm);
     const usableOffsetXPx = railLeftPx + fixingPx;
-    const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
+    const railTopPx = mmToPx(rail.yMm);
     const railHeightPx = mmToPx(35);
     const railCenterY = railTopPx + railHeightPx / 2;
 
@@ -183,17 +177,15 @@ function getModuleBounds(
 function getPortObstacles(
   rows: { id: string; modules: PlacedModule[] }[],
   rails: ResolvedRail[],
-  interiorOffsetXPx: number,
-  interiorOffsetYPx: number,
 ): ObstacleRect[] {
   const rects: ObstacleRect[] = [];
   for (let i = 0; i < rows.length; i++) {
     const rail = rails[i];
     if (!rail) continue;
-    const railLeftPx = interiorOffsetXPx + mmToPx(rail.xMm);
+    const railLeftPx = mmToPx(rail.xMm);
     const fixingPx = mmToPx(rail.fixingMarginMm);
     const usableOffsetXPx = railLeftPx + fixingPx;
-    const railTopPx = interiorOffsetYPx + mmToPx(rail.yMm);
+    const railTopPx = mmToPx(rail.yMm);
     const railHeightPx = mmToPx(35);
     const railCenterY = railTopPx + railHeightPx / 2;
 
@@ -699,8 +691,6 @@ function buildPathWithBridges(
 
 export const WireLayer: React.FC<Props> = ({
   rails,
-  interiorOffsetXPx,
-  interiorOffsetYPx,
   panelWidth,
   panelHeight,
   svgWidth,
@@ -787,9 +777,9 @@ export const WireLayer: React.FC<Props> = ({
     if (dragGhost?.instanceId === instanceId) {
       const ghostRowIndex = rows.findIndex(r => r.id === dragGhost.rowId);
       const ghostMod = { ...mr.mod, positionMm: dragGhost.positionMm };
-      return getPortAbsolutePosition(ghostMod, portId, ghostRowIndex >= 0 ? ghostRowIndex : mr.rowIndex, rails, interiorOffsetXPx, interiorOffsetYPx);
+      return getPortAbsolutePosition(ghostMod, portId, ghostRowIndex >= 0 ? ghostRowIndex : mr.rowIndex, rails);
     }
-    return getPortAbsolutePosition(mr.mod, portId, mr.rowIndex, rails, interiorOffsetXPx, interiorOffsetYPx);
+    return getPortAbsolutePosition(mr.mod, portId, mr.rowIndex, rails);
   };
 
   const getSvgPoint = useCallback((e: React.MouseEvent): { x: number; y: number } => {
@@ -1081,8 +1071,8 @@ export const WireLayer: React.FC<Props> = ({
 
   // ---- Collect all obstacles once ----
 
-  const allModuleBounds = getModuleBounds(rows, rails, interiorOffsetXPx, interiorOffsetYPx);
-  const allPortObstacles = getPortObstacles(rows, rails, interiorOffsetXPx, interiorOffsetYPx);
+  const allModuleBounds = getModuleBounds(rows, rails);
+  const allPortObstacles = getPortObstacles(rows, rails);
 
   // ---- Smart route computation ----
 

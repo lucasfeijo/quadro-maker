@@ -304,8 +304,7 @@ export const App: React.FC = () => {
         svgRect.left;
 
       const svgX = dropX * scaleX + svgViewBox[0];
-      const intX = layout.interiorOffsetXMm;
-      const usableStartPx = intX + rail.xMm + rail.fixingMarginMm;
+      const usableStartPx = rail.xMm + rail.fixingMarginMm;
 
       let pos = pxToMm(svgX - usableStartPx);
       pos = Math.max(0, Math.min(pos, rail.usableWidthMm - moduleWidthMm));
@@ -488,8 +487,8 @@ export const App: React.FC = () => {
         const pos = computeExternalDevicePosition(event);
         if (pos) {
           const layout = resolveLayout(store);
-          const panelW = mmToPx(layout.exteriorWidthMm);
-          const panelH = mmToPx(layout.exteriorHeightMm);
+          const panelW = mmToPx(layout.widthMm);
+          const panelH = mmToPx(layout.heightMm);
           const { edge, positionPercent } = closestEdge(pos.x, pos.y, panelW, panelH);
           store.addPanelIO(data.direction, data.ioType, edge, positionPercent);
         }
@@ -500,8 +499,8 @@ export const App: React.FC = () => {
         const pos = computeExternalDevicePosition(event);
         if (pos && data.ioTypes?.length) {
           const layout = resolveLayout(store);
-          const panelW = mmToPx(layout.exteriorWidthMm);
-          const panelH = mmToPx(layout.exteriorHeightMm);
+          const panelW = mmToPx(layout.widthMm);
+          const panelH = mmToPx(layout.heightMm);
           const { edge, positionPercent } = closestEdge(pos.x, pos.y, panelW, panelH);
           store.addPanelIOGroup(data.direction, data.ioTypes, edge, positionPercent, data.defaultColor);
         }
